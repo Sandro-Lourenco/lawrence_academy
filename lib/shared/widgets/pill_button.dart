@@ -1,0 +1,93 @@
+import 'package:flutter/material.dart';
+import 'package:lawrence/core/theme.dart';
+
+class PillButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
+  final bool isPrimary;
+  final IconData? icon;
+  final bool isLoading;
+  final double height;
+  final double? width;
+
+  const PillButton({
+    super.key,
+    required this.label,
+    this.onPressed,
+    this.isPrimary = true,
+    this.icon,
+    this.isLoading = false,
+    this.height = 50.0,
+    this.width,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    final buttonStyle = ElevatedButton.styleFrom(
+      backgroundColor: isPrimary ? LawrenceTheme.primary : Colors.transparent,
+      foregroundColor: isPrimary ? Colors.white : LawrenceTheme.surfaceTile1,
+      elevation: 0,
+      side: isPrimary 
+          ? BorderSide.none 
+          : const BorderSide(color: LawrenceTheme.borderMist, width: 1.5),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(LawrenceTheme.radiusXl), // Formato pílula (32px)
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+    );
+
+    Widget content = Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (isLoading) ...[
+          const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.0,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          ),
+          const SizedBox(width: 12),
+        ] else if (icon != null) ...[
+          Icon(icon, size: 20),
+          const SizedBox(width: 8),
+        ],
+        Text(
+          label,
+          style: theme.textTheme.titleLarge?.copyWith(
+            color: isPrimary ? Colors.white : LawrenceTheme.surfaceTile1,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+
+    return SizedBox(
+      height: height,
+      width: width,
+      child: isPrimary
+          ? ElevatedButton(
+              style: buttonStyle,
+              onPressed: isLoading ? null : onPressed,
+              child: content,
+            )
+          : OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: LawrenceTheme.surfaceTile1,
+                side: const BorderSide(color: LawrenceTheme.borderMist, width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(LawrenceTheme.radiusXl),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              onPressed: isLoading ? null : onPressed,
+              child: content,
+            ),
+    );
+  }
+}

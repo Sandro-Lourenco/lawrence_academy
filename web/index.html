@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="lawrence">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>lawrence</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+<script>
+  // Configurar o MutationObserver para segurança da marca d'água no Web Player
+  window.addEventListener('load', function() {
+    const observer = new MutationObserver(function(mutations) {
+      const watermark = document.querySelector('[flt-text*="aluno@lawrence.academy"]') ||
+                        document.querySelector('[key*="secure-watermark"]') ||
+                        document.getElementById('secure-watermark-widget');
+
+      if (watermark) {
+        const style = window.getComputedStyle(watermark);
+        if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) {
+          triggerDefense();
+        }
+      } else {
+        // Se o elemento sumiu do DOM
+        triggerDefense();
+      }
+    });
+
+    // Começa a observar todo o body do aplicativo Flutter
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style', 'class']
+    });
+
+    function triggerDefense() {
+      console.warn("Security Alert: Watermark tampering detected on Web Player!");
+      if (window.flutter_inject_tampering_detected) {
+        window.flutter_inject_tampering_detected();
+      } else {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.reload();
+      }
+    }
+  });
+</script>
+
+<script>
+  window._flutter = {
+    config: {
+      onEntrypointLoaded: function(engineInitializer) {
+        engineInitializer.initializeEngine({
+          // INÍCIO DA MODIFICAÇÃO: Força o renderizador CanvasKit
+          renderer: "canvaskit",
+          useColorEmoji: true,
+          // FIM DA MODIFICAÇÃO
+        }).then(function(appRunner) {
+          appRunner.runApp();
+        });
+      }
+    }
+  };
+</script>
+
+<script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
