@@ -38,3 +38,6 @@ class ConflictError(DomainError):
     """Exceção para conflito de recursos ou violação de unicidade (ex: duplicado)."""
     def __init__(self, message: str = "Esta entidade ou evento já existe ou foi processado."):
         super().__init__(message, code="CONFLICT")
+
+# Alias genérico para uso externo
+AppError = DomainError

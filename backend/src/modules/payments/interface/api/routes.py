@@ -1,21 +1,13 @@
-"""
-Rotas legadas de pagamento — mantidas para compatibilidade retroativa.
-Toda a lógica de negócio é delegada para os UseCases e repositórios da
-camada de aplicação/infraestrutura do bounded context Payments/Subscriptions.
-
-Rotas novas oficiais:
-  POST /api/v1/payments/checkout
-  POST /api/v1/payments/webhook
-"""
 import hashlib
 
 import stripe
-from fastapi import APIRouter, Header, HTTPException, Request, status, Depends
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Header, Request, status
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.core.database.database import get_admin_supabase_client
-from src.core.errors.errors import ConflictError
-from src.core.security.security import CurrentUser, get_current_user
+from src.core.errors.errors import ConflictError, AppError
+from src.core.security.security import CurrentUser, get_current_user, require_role
+from fastapi import Depends
 from src.modules.payments.application.process_webhook import StripeWebhookProcessor
 from src.modules.subscriptions.application.use_cases.create_checkout_use_case import (
     CreateCheckoutUseCase,
@@ -24,30 +16,37 @@ from src.modules.subscriptions.infrastructure.repositories.supabase_subscription
     SupabaseSubscriptionRepository,
 )
 from src.shared.config import settings
+from fastapi import HTTPException
 
-router = APIRouter(tags=["payments"])
-
-
-class CheckoutSessionRequest(BaseModel):
-    price_id: str = Field(..., description="ID do Preço no Stripe para a assinatura")
-    course_id: str = Field(..., description="ID do Curso associado à assinatura")
-    success_url: str = Field(..., description="URL de retorno para sucesso no pagamento")
-    cancel_url: str = Field(..., description="URL de retorno caso o pagamento seja cancelado")
+router = APIRouter(prefix="/api/v1/payments", tags=["payments"])
 
 
-@router.post("/api/checkout/session")
+# ─── Schemas ────────────────────────────────────────────────────────────────
+
+
+class CheckoutRequestSchema(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    price_id: str = Field(..., description="ID do Preço no Stripe")
+    course_id: str = Field(..., description="UUID do Curso a assinar")
+    success_url: str = Field(..., description="URL de retorno para sucesso")
+    cancel_url: str = Field(..., description="URL de retorno para cancelamento")
+
+
+# ─── Endpoints ──────────────────────────────────────────────────────────────
+
+
+@router.post("/checkout", status_code=status.HTTP_200_OK)
 async def create_checkout_session(
-    payload: CheckoutSessionRequest,
+    payload: CheckoutRequestSchema,
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    """[LEGACY] Cria sessão de checkout. Delega para CreateCheckoutUseCase."""
+    """Cria uma sessão de checkout Stripe para assinatura de curso (BOLA-safe)."""
     repo = SupabaseSubscriptionRepository(get_admin_supabase_client())
     use_case = CreateCheckoutUseCase(repo)
 
-    try:
-        await use_case.validate(student_id=current_user.id, course_id=payload.course_id)
-    except ConflictError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    # Validar se já existe assinatura ativa (levanta ConflictError se sim)
+    await use_case.validate(student_id=current_user.id, course_id=payload.course_id)
 
     try:
         session = stripe.checkout.Session.create(
@@ -55,7 +54,10 @@ async def create_checkout_session(
             line_items=[{"price": payload.price_id, "quantity": 1}],
             mode="subscription",
             subscription_data={
-                "metadata": {"course_id": payload.course_id, "user_id": current_user.id}
+                "metadata": {
+                    "course_id": payload.course_id,
+                    "user_id": current_user.id,
+                }
             },
             success_url=payload.success_url + "?session_id={CHECKOUT_SESSION_ID}",
             cancel_url=payload.cancel_url,
@@ -67,9 +69,11 @@ async def create_checkout_session(
             "status": "success",
             "data": {"checkout_url": session.url, "session_id": session.id},
         }
+    except ConflictError:
+        raise
     except Exception as e:
-        is_mock = settings.app_env == "test" or settings.payment_provider == "fake"
-        if is_mock:
+        is_sandbox = settings.app_env == "test" or settings.payment_provider == "fake"
+        if is_sandbox:
             err_lower = str(e).lower()
             if any(k in err_lower for k in ("api_key", "invalid", "auth", "cannot")):
                 return {
@@ -88,19 +92,20 @@ async def create_checkout_session(
         )
 
 
-@router.post("/webhooks/stripe")
+@router.post("/webhook", status_code=status.HTTP_200_OK)
 async def handle_stripe_webhook(
     request: Request,
-    stripe_signature: str = Header(None),
+    stripe_signature: str = Header(None, alias="stripe-signature"),
 ):
-    """[LEGACY] Recebe eventos do Stripe. Delega para StripeWebhookProcessor."""
+    """Recebe e processa eventos do Stripe com verificação de assinatura e idempotência."""
     if not stripe_signature or not settings.stripe_webhook_secret:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Missing signature or secret configurations.",
+            detail="Assinatura ou segredo do webhook ausentes.",
         )
 
     body = await request.body()
+
     try:
         event = stripe.Webhook.construct_event(
             body, stripe_signature, settings.stripe_webhook_secret
@@ -108,7 +113,7 @@ async def handle_stripe_webhook(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Webhook signature verification failed: {str(e)}",
+            detail=f"Falha na verificação da assinatura do webhook: {str(e)}",
         )
 
     event_id = event["id"]
@@ -135,5 +140,5 @@ async def handle_stripe_webhook(
             pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error processing webhook: {str(proc_err)}",
+            detail=f"Erro ao processar webhook: {str(proc_err)}",
         )
