@@ -17,6 +17,7 @@ from src.modules.students.api.router import router as new_students_router
 
 from src.modules.profiles.interface.api.routes import router as profiles_v1_router
 from src.modules.courses.interface.api.routes import router as courses_v1_router
+from src.modules.assessments.interface.api.routes import router as assessments_v1_router
 
 from src.core.errors.handlers import install_error_handlers
 
@@ -43,6 +44,7 @@ app.include_router(new_students_router)
 # Novas rotas v1 padronizadas
 app.include_router(profiles_v1_router)
 app.include_router(courses_v1_router)
+app.include_router(assessments_v1_router)
 
 @app.get("/")
 def read_root():
