@@ -1,0 +1,37 @@
+from typing import Optional
+from src.shared import database
+from src.core.entities.profile import Profile
+from src.core.exceptions import EntityNotFoundException
+
+class ProfileRepository:
+    """Repositório encapsulando as operações no banco de dados para a entidade Profile."""
+
+    @staticmethod
+    def get_by_id(profile_id: str) -> Optional[Profile]:
+        """Busca um perfil pelo seu identificador único (UUID)."""
+        res = database.db.table("profiles") \
+            .select("*") \
+            .eq("id", profile_id) \
+            .maybeSingle() \
+            .execute()
+            
+        if not res.data:
+            return None
+            
+        return Profile(**res.data)
+
+    @staticmethod
+    def update(profile_id: str, update_data: dict) -> Profile:
+        """Atualiza campos específicos de um perfil e retorna a entidade atualizada."""
+        if not update_data:
+            raise ValueError("Dados de atualização não podem estar vazios.")
+            
+        res = database.db.table("profiles") \
+            .update(update_data) \
+            .eq("id", profile_id) \
+            .execute()
+            
+        if not res.data:
+            raise EntityNotFoundException("Perfil não encontrado para atualização.")
+            
+        return Profile(**res.data[0])

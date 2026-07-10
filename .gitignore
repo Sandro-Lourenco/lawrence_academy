@@ -1,45 +1,48 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# Lawrence Academy Monorepo Gitignore
 
-# IntelliJ related
+# Environment Secrets
+.env
+.env.*
+!.env.example
+
+# IDEs & Editor Configuration
+.idea/
+.vscode/
 *.iml
 *.ipr
 *.iws
-.idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# Python Dependencies & Caches
+__pycache__/
+*.py[cod]
+*$py.test
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+ENV/
 
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# Dart & Flutter Build Files
 .dart_tool/
-.flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
-/coverage/
+build/
+*.flutter-plugins
+*.flutter-plugins-dependencies
+*.flutter-plugins-dependencies.lock
+*.flutter-plugins.lock
 
-# Symbolication related
-app.*.symbols
+# Node.js
+node_modules/
 
-# Obfuscation related
-app.*.map.json
+# Test Coverage
+coverage/
+*.lcov
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# Temporary files & logs
+*.log
+.temp/
+supabase/.temp/
+Thumbs.db
+.DS_Store
