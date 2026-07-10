@@ -9,8 +9,8 @@ from src.core.errors.errors import ConflictError
 from src.core.security.security import CurrentUser, get_current_user
 from fastapi import Depends
 from src.modules.payments.application.process_webhook import StripeWebhookProcessor
-from src.modules.subscriptions.application.use_cases.create_checkout_use_case import (
-    CreateCheckoutUseCase,
+from src.modules.payments.application.use_cases.validate_checkout_eligibility_use_case import (
+    ValidateCheckoutEligibilityUseCase,
 )
 from src.modules.subscriptions.infrastructure.repositories.supabase_subscription_repository import (
     SupabaseSubscriptionRepository,
@@ -43,10 +43,10 @@ async def create_checkout_session(
 ):
     """Cria uma sessão de checkout Stripe para assinatura de curso (BOLA-safe)."""
     repo = SupabaseSubscriptionRepository(get_admin_supabase_client())
-    use_case = CreateCheckoutUseCase(repo)
+    use_case = ValidateCheckoutEligibilityUseCase(repo)
 
-    # Validar se já existe assinatura ativa (levanta ConflictError se sim)
-    await use_case.validate(student_id=current_user.id, course_id=payload.course_id)
+    # Validar elegibilidade (levanta ConflictError se assinatura bloqueante existir)
+    await use_case.execute(student_id=current_user.id, course_id=payload.course_id)
 
     try:
         session = stripe.checkout.Session.create(
@@ -131,11 +131,15 @@ async def handle_stripe_webhook(
 
     try:
         await StripeWebhookProcessor.process_event(event)
-        StripeWebhookProcessor.mark_event_processed(provider="stripe", event_id=event_id)
+        StripeWebhookProcessor.mark_event_processed(
+            provider="stripe", event_id=event_id
+        )
         return {"status": "success", "event_processed": event_id}
     except Exception as proc_err:
         try:
-            StripeWebhookProcessor.remove_idempotency(provider="stripe", event_id=event_id)
+            StripeWebhookProcessor.remove_idempotency(
+                provider="stripe", event_id=event_id
+            )
         except Exception:
             pass
         raise HTTPException(

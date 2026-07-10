@@ -3,9 +3,11 @@ from typing import Optional
 from decimal import Decimal
 from datetime import datetime
 
+
 @dataclass(frozen=True)
 class TaskSubmission:
     """Entidade de Domínio Puro para submissões de tarefas (exercícios)."""
+
     task_id: str
     user_id: str
     id: Optional[str] = None

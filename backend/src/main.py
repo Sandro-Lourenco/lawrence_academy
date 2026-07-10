@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Configuração global de inicializações do Stripe
-import src.infra.stripe.client
 
 # Configurações do app
 from src.shared.config import settings
@@ -48,10 +47,12 @@ app.include_router(courses_v1_router)
 app.include_router(assessments_v1_router)
 app.include_router(payments_v1_router)
 
+
 @app.get("/")
 def read_root():
     """Rota raiz operacional da API."""
     return {"status": "API da Lawrence Academy Operacional"}
+
 
 @app.get("/health")
 def health_check():

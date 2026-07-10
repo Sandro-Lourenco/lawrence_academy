@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from src.core.errors.errors import DomainError, ApplicationError, InfrastructureError
 
+
 def install_error_handlers(app: FastAPI) -> None:
     """Registra handlers de exceção globais no app FastAPI."""
 
@@ -14,21 +15,16 @@ def install_error_handlers(app: FastAPI) -> None:
             status_code = status.HTTP_403_FORBIDDEN
         elif exc.code == "CONFLICT":
             status_code = status.HTTP_409_CONFLICT
-            
+
         request_id = request.headers.get("X-Request-ID", "unknown")
-        
+
         return JSONResponse(
             status_code=status_code,
             content={
                 "status": "error",
-                "error": {
-                    "code": exc.code,
-                    "message": exc.message
-                },
-                "meta": {
-                    "request_id": request_id
-                }
-            }
+                "error": {"code": exc.code, "message": exc.message},
+                "meta": {"request_id": request_id},
+            },
         )
 
     @app.exception_handler(ApplicationError)
@@ -38,14 +34,9 @@ def install_error_handlers(app: FastAPI) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             content={
                 "status": "error",
-                "error": {
-                    "code": exc.code,
-                    "message": exc.message
-                },
-                "meta": {
-                    "request_id": request_id
-                }
-            }
+                "error": {"code": exc.code, "message": exc.message},
+                "meta": {"request_id": request_id},
+            },
         )
 
     @app.exception_handler(InfrastructureError)
@@ -58,10 +49,8 @@ def install_error_handlers(app: FastAPI) -> None:
                 "status": "error",
                 "error": {
                     "code": "INTERNAL_SERVER_ERROR",
-                    "message": "Ocorreu um erro interno de processamento de dados."
+                    "message": "Ocorreu um erro interno de processamento de dados.",
                 },
-                "meta": {
-                    "request_id": request_id
-                }
-            }
+                "meta": {"request_id": request_id},
+            },
         )

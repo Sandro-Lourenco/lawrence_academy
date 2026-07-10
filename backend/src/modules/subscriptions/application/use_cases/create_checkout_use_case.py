@@ -17,7 +17,9 @@ class CreateCheckoutUseCase:
         subs = await self.repo.get_by_student_and_course(student_id, course_id)
         for sub in subs:
             if sub.status in ("active", "trialing"):
-                raise ConflictError("Você já possui uma assinatura ativa para este curso.")
+                raise ConflictError(
+                    "Você já possui uma assinatura ativa para este curso."
+                )
             if sub.status == "past_due" and sub.current_period_end:
                 diff = datetime.now(timezone.utc) - sub.current_period_end
                 if diff.days <= 5:

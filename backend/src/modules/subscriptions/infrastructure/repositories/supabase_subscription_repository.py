@@ -27,10 +27,14 @@ class SupabaseSubscriptionRepository(SubscriptionRepository):
             provider_customer_id=row.get("provider_customer_id"),
             provider_subscription_id=row.get("provider_subscription_id"),
             status=row.get("status", "trialing"),
-            monthly_price=Decimal(str(row["monthly_price"])) if row.get("monthly_price") is not None else Decimal("0.00"),
+            monthly_price=Decimal(str(row["monthly_price"]))
+            if row.get("monthly_price") is not None
+            else Decimal("0.00"),
             currency=row.get("currency", "BRL"),
-            current_period_start=_parse_dt(row.get("current_period_start")) or datetime.utcnow(),
-            current_period_end=_parse_dt(row.get("current_period_end")) or datetime.utcnow(),
+            current_period_start=_parse_dt(row.get("current_period_start"))
+            or datetime.utcnow(),
+            current_period_end=_parse_dt(row.get("current_period_end"))
+            or datetime.utcnow(),
             cancel_at_period_end=row.get("cancel_at_period_end", False),
             canceled_at=_parse_dt(row.get("canceled_at")),
             created_at=_parse_dt(row.get("created_at")),
@@ -38,7 +42,9 @@ class SupabaseSubscriptionRepository(SubscriptionRepository):
             deleted_at=_parse_dt(row.get("deleted_at")),
         )
 
-    async def get_by_student_and_course(self, student_id: str, course_id: str) -> List[Subscription]:
+    async def get_by_student_and_course(
+        self, student_id: str, course_id: str
+    ) -> List[Subscription]:
         res = (
             self.client.table("subscriptions")
             .select("*")

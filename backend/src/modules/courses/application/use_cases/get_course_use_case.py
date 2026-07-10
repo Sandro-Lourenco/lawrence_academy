@@ -2,6 +2,7 @@ from src.modules.courses.domain.entities import Course
 from src.modules.courses.domain.repositories import CourseRepository
 from src.core.errors.errors import NotFoundError
 
+
 class GetCourseUseCase:
     """Caso de Uso para obter detalhes de um curso pelo ID."""
 

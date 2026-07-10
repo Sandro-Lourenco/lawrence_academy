@@ -7,6 +7,7 @@ Rotas novas oficiais:
   POST /api/v1/payments/checkout
   POST /api/v1/payments/webhook
 """
+
 import hashlib
 
 import stripe
@@ -17,8 +18,8 @@ from src.core.database.database import get_admin_supabase_client
 from src.core.errors.errors import ConflictError
 from src.core.security.security import CurrentUser, get_current_user
 from src.modules.payments.application.process_webhook import StripeWebhookProcessor
-from src.modules.subscriptions.application.use_cases.create_checkout_use_case import (
-    CreateCheckoutUseCase,
+from src.modules.payments.application.use_cases.validate_checkout_eligibility_use_case import (
+    ValidateCheckoutEligibilityUseCase,
 )
 from src.modules.subscriptions.infrastructure.repositories.supabase_subscription_repository import (
     SupabaseSubscriptionRepository,
@@ -31,8 +32,12 @@ router = APIRouter(tags=["payments"])
 class CheckoutSessionRequest(BaseModel):
     price_id: str = Field(..., description="ID do Preço no Stripe para a assinatura")
     course_id: str = Field(..., description="ID do Curso associado à assinatura")
-    success_url: str = Field(..., description="URL de retorno para sucesso no pagamento")
-    cancel_url: str = Field(..., description="URL de retorno caso o pagamento seja cancelado")
+    success_url: str = Field(
+        ..., description="URL de retorno para sucesso no pagamento"
+    )
+    cancel_url: str = Field(
+        ..., description="URL de retorno caso o pagamento seja cancelado"
+    )
 
 
 @router.post("/api/checkout/session")
@@ -42,10 +47,10 @@ async def create_checkout_session(
 ):
     """[LEGACY] Cria sessão de checkout. Delega para CreateCheckoutUseCase."""
     repo = SupabaseSubscriptionRepository(get_admin_supabase_client())
-    use_case = CreateCheckoutUseCase(repo)
+    use_case = ValidateCheckoutEligibilityUseCase(repo)
 
     try:
-        await use_case.validate(student_id=current_user.id, course_id=payload.course_id)
+        await use_case.execute(student_id=current_user.id, course_id=payload.course_id)
     except ConflictError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -126,11 +131,15 @@ async def handle_stripe_webhook(
 
     try:
         await StripeWebhookProcessor.process_event(event)
-        StripeWebhookProcessor.mark_event_processed(provider="stripe", event_id=event_id)
+        StripeWebhookProcessor.mark_event_processed(
+            provider="stripe", event_id=event_id
+        )
         return {"status": "success", "event_processed": event_id}
     except Exception as proc_err:
         try:
-            StripeWebhookProcessor.remove_idempotency(provider="stripe", event_id=event_id)
+            StripeWebhookProcessor.remove_idempotency(
+                provider="stripe", event_id=event_id
+            )
         except Exception:
             pass
         raise HTTPException(

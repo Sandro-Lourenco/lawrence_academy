@@ -3,9 +3,11 @@ from typing import Optional
 from decimal import Decimal
 from datetime import datetime
 
+
 @dataclass(frozen=True)
 class Subscription:
     """Entidade de Domínio Puro para Assinaturas."""
+
     student_id: str
     course_id: str
     provider: str

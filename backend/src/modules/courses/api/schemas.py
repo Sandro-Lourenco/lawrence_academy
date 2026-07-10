@@ -1,10 +1,12 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 from decimal import Decimal
 from datetime import datetime
 
+
 class LessonResponseSchema(BaseModel):
     """Schema de retorno para os dados de uma Aula (Lesson)."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: str
@@ -20,8 +22,10 @@ class LessonResponseSchema(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+
 class CourseResponseSchema(BaseModel):
     """Schema de retorno para os dados básicos de um Curso (Course)."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: str

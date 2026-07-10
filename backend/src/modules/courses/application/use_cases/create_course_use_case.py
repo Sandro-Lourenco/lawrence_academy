@@ -2,6 +2,7 @@ from decimal import Decimal
 from src.modules.courses.domain.entities import Course
 from src.modules.courses.domain.repositories import CourseRepository
 
+
 class CreateCourseUseCase:
     """Caso de Uso para criação de novos cursos por instrutores autorizados."""
 
@@ -22,6 +23,6 @@ class CreateCourseUseCase:
             thumbnail_url=course_data.get("thumbnail_url"),
             trailer_hls_path=course_data.get("trailer_hls_path"),
             monthly_price=Decimal(str(course_data.get("monthly_price", "0.00"))),
-            status=course_data.get("status", "draft")
+            status=course_data.get("status", "draft"),
         )
         return await self.repository.create(course)

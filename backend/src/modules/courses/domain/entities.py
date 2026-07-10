@@ -3,9 +3,11 @@ from typing import List, Optional
 from decimal import Decimal
 from datetime import datetime
 
+
 @dataclass(frozen=True)
 class Lesson:
     """Entidade do conteúdo em vídeo (Aula) pertencente a um módulo (Domínio Puro)."""
+
     id: str
     module_id: str
     course_id: str
@@ -19,9 +21,11 @@ class Lesson:
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+
 @dataclass(frozen=True)
 class Module:
     """Entidade de Módulo que agrupa aulas em um Curso (Domínio Puro)."""
+
     id: str
     course_id: str
     title: str
@@ -29,9 +33,11 @@ class Module:
     created_at: Optional[datetime] = None
     lessons: List[Lesson] = field(default_factory=list)
 
+
 @dataclass(frozen=True)
 class Course:
     """Entidade de Curso - Raiz do Agregado de Conteúdo (Domínio Puro)."""
+
     id: str
     instructor_id: str
     title: str
