@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lawrence/core/router.dart';
-import 'package:lawrence/main.dart';
+import 'package:lawrence/app/router/app_router.dart';
+import 'package:lawrence/app/app.dart';
 
 void main() {
   testWidgets('App initialization smoke test', (WidgetTester tester) async {
@@ -20,9 +20,7 @@ void main() {
     // Carrega o widget principal envolto no ProviderScope do Riverpod com overrides
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          routerProvider.overrideWithValue(mockRouter),
-        ],
+        overrides: [routerProvider.overrideWithValue(mockRouter)],
         child: const LawrenceAcademyApp(),
       ),
     );

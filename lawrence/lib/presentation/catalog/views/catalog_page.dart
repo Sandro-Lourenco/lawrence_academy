@@ -27,10 +27,12 @@ final filteredCoursesProvider = Provider<AsyncValue<List<Course>>>((ref) {
 
   return coursesAsync.whenData((list) {
     return list.where((course) {
-      final matchesSearch = course.title.toLowerCase().contains(query) ||
+      final matchesSearch =
+          course.title.toLowerCase().contains(query) ||
           course.summary.toLowerCase().contains(query);
       final matchesCat = selectedCat == null || course.category == selectedCat;
-      final matchesLevel = selectedLevel == null || course.level == selectedLevel;
+      final matchesLevel =
+          selectedLevel == null || course.level == selectedLevel;
       return matchesSearch && matchesCat && matchesLevel;
     }).toList();
   });
@@ -82,7 +84,11 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                   ),
                   if (isDesktop)
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_ios, size: 14, color: LawrenceTheme.surfaceTile1),
+                      icon: const Icon(
+                        Icons.arrow_back_ios,
+                        size: 14,
+                        color: LawrenceTheme.surfaceTile1,
+                      ),
                       onPressed: () {
                         setState(() {
                           _showFiltersSidebar = false;
@@ -92,29 +98,51 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                 ],
               ),
               const SizedBox(height: 24),
-              
+
               // Seção Categorias
               const Text(
                 "CATEGORIA",
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: LawrenceTheme.textSecondary, fontFamily: 'Outfit'),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: LawrenceTheme.textSecondary,
+                  fontFamily: 'Outfit',
+                ),
               ),
               const SizedBox(height: 10),
-              _buildFilterChip("Modelagem", "modelagem", categoryFilterProvider),
-              _buildFilterChip("Alfaiataria", "alfaiataria", categoryFilterProvider),
+              _buildFilterChip(
+                "Modelagem",
+                "modelagem",
+                categoryFilterProvider,
+              ),
+              _buildFilterChip(
+                "Alfaiataria",
+                "alfaiataria",
+                categoryFilterProvider,
+              ),
               _buildFilterChip("Costura", "costura", categoryFilterProvider),
-              
+
               const SizedBox(height: 32),
 
               // Seção Níveis
               const Text(
                 "NÍVEL",
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: LawrenceTheme.textSecondary, fontFamily: 'Outfit'),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: LawrenceTheme.textSecondary,
+                  fontFamily: 'Outfit',
+                ),
               ),
               const SizedBox(height: 10),
               _buildFilterChip("Iniciante", "iniciante", levelFilterProvider),
-              _buildFilterChip("Intermediário", "intermediario", levelFilterProvider),
+              _buildFilterChip(
+                "Intermediário",
+                "intermediario",
+                levelFilterProvider,
+              ),
               _buildFilterChip("Avançado", "avancado", levelFilterProvider),
-              
+
               const Spacer(),
               // Limpar Filtros
               if (selectedCat != null || selectedLevel != null)
@@ -126,7 +154,11 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                   },
                   child: const Text(
                     "Limpar Filtros",
-                    style: TextStyle(color: LawrenceTheme.primary, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+                    style: TextStyle(
+                      color: LawrenceTheme.primary,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Outfit',
+                    ),
                   ),
                 ),
             ],
@@ -137,16 +169,17 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
 
     return Scaffold(
       backgroundColor: LawrenceTheme.canvasParchment, // Fundo claro #F8F9FB
-      drawer: !isDesktop ? Drawer(
-        backgroundColor: LawrenceTheme.canvasParchment,
-        child: SafeArea(child: filtersSidebarContent),
-      ) : null,
+      drawer: !isDesktop
+          ? Drawer(
+              backgroundColor: LawrenceTheme.canvasParchment,
+              child: SafeArea(child: filtersSidebarContent),
+            )
+          : null,
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 1. Sidebar de Filtros no Desktop
-          if (isDesktop && _showFiltersSidebar)
-            filtersSidebarContent,
+          if (isDesktop && _showFiltersSidebar) filtersSidebarContent,
 
           // 2. Área Principal do Catálogo
           Expanded(
@@ -160,7 +193,10 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                     children: [
                       if (isDesktop && !_showFiltersSidebar)
                         IconButton(
-                          icon: const Icon(Icons.filter_list, color: LawrenceTheme.surfaceTile1),
+                          icon: const Icon(
+                            Icons.filter_list,
+                            color: LawrenceTheme.surfaceTile1,
+                          ),
                           onPressed: () {
                             setState(() {
                               _showFiltersSidebar = true;
@@ -170,7 +206,10 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                       if (!isDesktop)
                         Builder(
                           builder: (context) => IconButton(
-                            icon: const Icon(Icons.filter_list, color: LawrenceTheme.primary),
+                            icon: const Icon(
+                              Icons.filter_list,
+                              color: LawrenceTheme.primary,
+                            ),
                             onPressed: () {
                               Scaffold.of(context).openDrawer();
                             },
@@ -182,7 +221,9 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.72),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white.withOpacity(0.28)),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.28),
+                            ),
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
@@ -190,16 +231,34 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                               filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                               child: TextField(
                                 onChanged: (val) {
-                                  ref.read(searchFilterProvider.notifier).state = val;
+                                  ref
+                                          .read(searchFilterProvider.notifier)
+                                          .state =
+                                      val;
                                 },
                                 decoration: const InputDecoration(
-                                  hintText: "Pesquisar por técnicas, moldes ou aulas...",
-                                  hintStyle: TextStyle(color: LawrenceTheme.textSecondary, fontSize: 13, fontFamily: 'Outfit'),
-                                  prefixIcon: Icon(Icons.search, color: LawrenceTheme.textSecondary, size: 20),
+                                  hintText:
+                                      "Pesquisar por técnicas, moldes ou aulas...",
+                                  hintStyle: TextStyle(
+                                    color: LawrenceTheme.textSecondary,
+                                    fontSize: 13,
+                                    fontFamily: 'Outfit',
+                                  ),
+                                  prefixIcon: Icon(
+                                    Icons.search,
+                                    color: LawrenceTheme.textSecondary,
+                                    size: 20,
+                                  ),
                                   border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(vertical: 13),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    vertical: 13,
+                                  ),
                                 ),
-                                style: const TextStyle(color: LawrenceTheme.surfaceTile1, fontSize: 14, fontFamily: 'Outfit'),
+                                style: const TextStyle(
+                                  color: LawrenceTheme.surfaceTile1,
+                                  fontSize: 14,
+                                  fontFamily: 'Outfit',
+                                ),
                               ),
                             ),
                           ),
@@ -224,20 +283,27 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                   // Lista de Cursos Grid
                   Expanded(
                     child: filteredCoursesAsync.when(
-                      loading: () => const Center(child: CircularProgressIndicator(color: LawrenceTheme.primary)),
-                      error: (err, stack) => Center(child: Text("Erro ao carregar catálogo: $err")),
+                      loading: () => const Center(
+                        child: CircularProgressIndicator(
+                          color: LawrenceTheme.primary,
+                        ),
+                      ),
+                      error: (err, stack) => Center(
+                        child: Text("Erro ao carregar catálogo: $err"),
+                      ),
                       data: (courses) {
                         if (courses.isEmpty) {
                           return const EmptyStateWidget();
                         }
                         return GridView.builder(
                           physics: const BouncingScrollPhysics(),
-                          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 360,
-                            mainAxisSpacing: 24,
-                            crossAxisSpacing: 24,
-                            childAspectRatio: 0.82,
-                          ),
+                          gridDelegate:
+                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 360,
+                                mainAxisSpacing: 24,
+                                crossAxisSpacing: 24,
+                                childAspectRatio: 0.82,
+                              ),
                           itemCount: courses.length,
                           itemBuilder: (context, index) {
                             return CourseCard(course: courses[index]);
@@ -255,7 +321,11 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
     );
   }
 
-  Widget _buildFilterChip(String label, String value, StateProvider<String?> provider) {
+  Widget _buildFilterChip(
+    String label,
+    String value,
+    StateProvider<String?> provider,
+  ) {
     final currentVal = ref.watch(provider);
     final isSelected = currentVal == value;
 
@@ -270,9 +340,13 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? LawrenceTheme.primary.withOpacity(0.08) : Colors.transparent,
+            color: isSelected
+                ? LawrenceTheme.primary.withOpacity(0.08)
+                : Colors.transparent,
             border: Border.all(
-              color: isSelected ? LawrenceTheme.primary.withOpacity(0.3) : Colors.black.withOpacity(0.04),
+              color: isSelected
+                  ? LawrenceTheme.primary.withOpacity(0.3)
+                  : Colors.black.withOpacity(0.04),
             ),
             borderRadius: BorderRadius.circular(8),
           ),
@@ -284,7 +358,9 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected ? LawrenceTheme.primary : LawrenceTheme.surfaceTile1,
+                  color: isSelected
+                      ? LawrenceTheme.primary
+                      : LawrenceTheme.surfaceTile1,
                   fontFamily: 'Outfit',
                 ),
               ),
@@ -325,7 +401,11 @@ class EmptyStateWidget extends ConsumerWidget {
           const SizedBox(height: 8),
           const Text(
             "Tente combinar termos diferentes ou limpar sua seleção.",
-            style: TextStyle(fontSize: 12, color: LawrenceTheme.textSecondary, fontFamily: 'Outfit'),
+            style: TextStyle(
+              fontSize: 12,
+              color: LawrenceTheme.textSecondary,
+              fontFamily: 'Outfit',
+            ),
           ),
           const SizedBox(height: 24),
           ElevatedButton(
@@ -341,7 +421,13 @@ class EmptyStateWidget extends ConsumerWidget {
               ref.read(levelFilterProvider.notifier).state = null;
               ref.read(searchFilterProvider.notifier).state = "";
             },
-            child: const Text("Ver Todos os Cursos", style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
+            child: const Text(
+              "Ver Todos os Cursos",
+              style: TextStyle(
+                fontFamily: 'Outfit',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -414,7 +500,10 @@ class _CourseCardState extends State<CourseCard> {
                   ),
                   child: Center(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(8),
@@ -460,7 +549,11 @@ class _CourseCardState extends State<CourseCard> {
                           const SizedBox(height: 6),
                           Text(
                             widget.course.summary,
-                            style: const TextStyle(fontSize: 12, color: LawrenceTheme.textSecondary, fontFamily: 'Outfit'),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: LawrenceTheme.textSecondary,
+                              fontFamily: 'Outfit',
+                            ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -471,7 +564,11 @@ class _CourseCardState extends State<CourseCard> {
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.bar_chart, size: 14, color: _getLevelColor(widget.course.level)),
+                              Icon(
+                                Icons.bar_chart,
+                                size: 14,
+                                color: _getLevelColor(widget.course.level),
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 widget.course.level.toUpperCase(),
@@ -484,7 +581,11 @@ class _CourseCardState extends State<CourseCard> {
                               ),
                             ],
                           ),
-                          const Icon(Icons.arrow_forward, size: 16, color: LawrenceTheme.primary),
+                          const Icon(
+                            Icons.arrow_forward,
+                            size: 16,
+                            color: LawrenceTheme.primary,
+                          ),
                         ],
                       ),
                     ],
@@ -500,7 +601,8 @@ class _CourseCardState extends State<CourseCard> {
 
   Color _getLevelColor(String level) {
     if (level == "iniciante") return const Color(0xFF30D158); // Green
-    if (level == "intermediario") return const Color(0xFFFF9F0A); // Orange/Yellow
+    if (level == "intermediario")
+      return const Color(0xFFFF9F0A); // Orange/Yellow
     return const Color(0xFFFF453A); // Red
   }
 }

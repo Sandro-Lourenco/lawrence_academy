@@ -25,12 +25,13 @@ class CoursePlayerPage extends ConsumerStatefulWidget {
   ConsumerState<CoursePlayerPage> createState() => _CoursePlayerPageState();
 }
 
-class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with TickerProviderStateMixin {
+class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage>
+    with TickerProviderStateMixin {
   late Lesson _activeLesson;
   late TabController _tabController;
   final TextEditingController _notesController = TextEditingController();
   bool _isPlayingVideo = false;
-  
+
   // Marca d'água dinâmica
   Timer? _watermarkTimer;
   double _watermarkX = 40.0;
@@ -83,7 +84,9 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final playerState = ref.watch(playerControllerProvider(_activeLesson));
-    final playerNotifier = ref.read(playerControllerProvider(_activeLesson).notifier);
+    final playerNotifier = ref.read(
+      playerControllerProvider(_activeLesson).notifier,
+    );
     final user = ref.watch(authControllerProvider).user;
 
     // Proteção contra adulteração do DOM / Elementos (Anti-Tampering)
@@ -93,7 +96,12 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
         body: Center(
           child: Text(
             "VIOLAÇÃO DE SEGURANÇA DETECTADA.\nSessão de mídia encerrada por proteção de DRM.",
-            style: TextStyle(color: LawrenceTheme.danger, fontWeight: FontWeight.bold, fontSize: 16, fontFamily: 'Outfit'),
+            style: TextStyle(
+              color: LawrenceTheme.danger,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              fontFamily: 'Outfit',
+            ),
             textAlign: TextAlign.center,
           ),
         ),
@@ -108,7 +116,10 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
             // 1. Barra superior glassmorphic translúcida sobre fundo preto
             LiquidGlassContainer(
               borderRadius: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8.0,
+                vertical: 12.0,
+              ),
               backgroundColor: Colors.black.withOpacity(0.4),
               borderColor: Colors.white.withOpacity(0.08),
               child: Row(
@@ -134,14 +145,18 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
                     icon: const Icon(Icons.cast_connected, color: Colors.white),
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Procurando dispositivos para transmissão via DRM...')),
+                        const SnackBar(
+                          content: Text(
+                            'Procurando dispositivos para transmissão via DRM...',
+                          ),
+                        ),
                       );
                     },
                   ),
                 ],
               ),
             ),
-            
+
             // 2. Conteúdo Rolável
             Expanded(
               child: SingleChildScrollView(
@@ -156,83 +171,124 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
                         color: Colors.black87,
                         child: _isPlayingVideo
                             ? (playerState.errorMessage != null
-                                ? Container(
-                                    padding: const EdgeInsets.all(24),
-                                    child: Center(
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(Icons.error_outline, color: LawrenceTheme.danger, size: 40),
-                                          const SizedBox(height: 12),
-                                          Text(
-                                            playerState.errorMessage!,
-                                            style: const TextStyle(color: Colors.white70, fontFamily: 'Outfit', fontSize: 13),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                          const SizedBox(height: 12),
-                                          ElevatedButton(
-                                            onPressed: () => _switchLesson(_activeLesson),
-                                            child: const Text("Tentar Novamente", style: TextStyle(fontFamily: 'Outfit')),
-                                          )
-                                        ],
-                                      ),
-                                    ),
-                                  )
-                                : (playerNotifier.videoController != null &&
-                                        playerNotifier.videoController!.value.isInitialized
-                                    ? Stack(
-                                        children: [
-                                          VideoPlayer(playerNotifier.videoController!),
-                                          
-                                          // Controles flutuantes Liquid Glass
-                                          Positioned(
-                                            bottom: 12,
-                                            left: 12,
-                                            child: LiquidGlassContainer(
-                                              borderRadius: LawrenceTheme.radiusXs,
-                                              padding: const EdgeInsets.all(4),
-                                              backgroundColor: Colors.black.withOpacity(0.5),
-                                              borderColor: Colors.white24,
-                                              child: IconButton(
-                                                icon: Icon(
-                                                  playerState.isPlaying ? Icons.pause : Icons.play_arrow,
-                                                  color: Colors.white,
-                                                  size: 24,
+                                  ? Container(
+                                      padding: const EdgeInsets.all(24),
+                                      child: Center(
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.error_outline,
+                                              color: LawrenceTheme.danger,
+                                              size: 40,
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              playerState.errorMessage!,
+                                              style: const TextStyle(
+                                                color: Colors.white70,
+                                                fontFamily: 'Outfit',
+                                                fontSize: 13,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                            const SizedBox(height: 12),
+                                            ElevatedButton(
+                                              onPressed: () =>
+                                                  _switchLesson(_activeLesson),
+                                              child: const Text(
+                                                "Tentar Novamente",
+                                                style: TextStyle(
+                                                  fontFamily: 'Outfit',
                                                 ),
-                                                onPressed: () => playerNotifier.togglePlay(),
                                               ),
                                             ),
-                                          ),
+                                          ],
+                                        ),
+                                      ),
+                                    )
+                                  : (playerNotifier.videoController != null &&
+                                            playerNotifier
+                                                .videoController!
+                                                .value
+                                                .isInitialized
+                                        ? Stack(
+                                            children: [
+                                              VideoPlayer(
+                                                playerNotifier.videoController!,
+                                              ),
 
-                                          // Marca d'água dinâmica sobreposta (OWASP / LGPD)
-                                          Positioned(
-                                            left: _watermarkX,
-                                            top: _watermarkY,
-                                            key: const Key("secure-watermark-widget"),
-                                            child: Opacity(
-                                              opacity: 0.18,
-                                              child: Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                color: Colors.black45,
-                                                child: Text(
-                                                  "${user?.email ?? 'aluno@lawrence.academy'} • DRM PROTECTED",
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 8,
-                                                    fontWeight: FontWeight.bold,
+                                              // Controles flutuantes Liquid Glass
+                                              Positioned(
+                                                bottom: 12,
+                                                left: 12,
+                                                child: LiquidGlassContainer(
+                                                  borderRadius:
+                                                      LawrenceTheme.radiusXs,
+                                                  padding: const EdgeInsets.all(
+                                                    4,
+                                                  ),
+                                                  backgroundColor: Colors.black
+                                                      .withOpacity(0.5),
+                                                  borderColor: Colors.white24,
+                                                  child: IconButton(
+                                                    icon: Icon(
+                                                      playerState.isPlaying
+                                                          ? Icons.pause
+                                                          : Icons.play_arrow,
+                                                      color: Colors.white,
+                                                      size: 24,
+                                                    ),
+                                                    onPressed: () =>
+                                                        playerNotifier
+                                                            .togglePlay(),
                                                   ),
                                                 ),
                                               ),
+
+                                              // Marca d'água dinâmica sobreposta (OWASP / LGPD)
+                                              Positioned(
+                                                left: _watermarkX,
+                                                top: _watermarkY,
+                                                key: const Key(
+                                                  "secure-watermark-widget",
+                                                ),
+                                                child: Opacity(
+                                                  opacity: 0.18,
+                                                  child: Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 4,
+                                                        ),
+                                                    color: Colors.black45,
+                                                    child: Text(
+                                                      "${user?.email ?? 'aluno@lawrence.academy'} • DRM PROTECTED",
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 8,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : const Center(
+                                            child: CircularProgressIndicator(
+                                              color: LawrenceTheme.primary,
                                             ),
-                                          ),
-                                        ],
-                                      )
-                                    : const Center(child: CircularProgressIndicator(color: LawrenceTheme.primary))))
+                                          )))
                             : Container(
                                 // Capa antes do play
                                 decoration: const BoxDecoration(
                                   image: DecorationImage(
-                                    image: NetworkImage('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600'),
+                                    image: NetworkImage(
+                                      'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600',
+                                    ),
                                     fit: BoxFit.cover,
                                   ),
                                 ),
@@ -243,7 +299,11 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
                                       radius: 32,
                                       backgroundColor: Colors.white24,
                                       child: IconButton(
-                                        icon: const Icon(Icons.play_arrow, color: Colors.white, size: 32),
+                                        icon: const Icon(
+                                          Icons.play_arrow,
+                                          color: Colors.white,
+                                          size: 32,
+                                        ),
                                         onPressed: () {
                                           setState(() {
                                             _isPlayingVideo = true;
@@ -256,7 +316,7 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
                               ),
                       ),
                     ),
-                    
+
                     // Titulo da lição e metadados
                     Padding(
                       padding: const EdgeInsets.all(20.0),
@@ -275,11 +335,19 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
                           const SizedBox(height: 6),
                           Row(
                             children: [
-                              const Icon(Icons.video_library_outlined, size: 14, color: Colors.white54),
+                              const Icon(
+                                Icons.video_library_outlined,
+                                size: 14,
+                                color: Colors.white54,
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 "Módulo: ${widget.course.title}",
-                                style: const TextStyle(color: Colors.white54, fontSize: 12, fontFamily: 'Outfit'),
+                                style: const TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 12,
+                                  fontFamily: 'Outfit',
+                                ),
                               ),
                             ],
                           ),
@@ -289,28 +357,57 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
 
                     // Ações rápidas
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20.0,
+                        vertical: 8.0,
+                      ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          _buildQuickAction(icon: Icons.pause, label: 'Pausar', onTap: () {
-                            if (_isPlayingVideo) playerNotifier.togglePlay();
-                          }),
-                          _buildQuickAction(icon: Icons.check_circle_outline, label: 'Concluir', onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Aula concluída com sucesso!')),
-                            );
-                          }),
-                          _buildQuickAction(icon: Icons.chat_bubble_outline, label: 'Fórum', onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Abrindo dúvidas e suporte pedagógico...')),
-                            );
-                          }),
-                          _buildQuickAction(icon: Icons.download_for_offline_outlined, label: 'Offline', onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Material salvo para reprodução offline segura.')),
-                            );
-                          }),
+                          _buildQuickAction(
+                            icon: Icons.pause,
+                            label: 'Pausar',
+                            onTap: () {
+                              if (_isPlayingVideo) playerNotifier.togglePlay();
+                            },
+                          ),
+                          _buildQuickAction(
+                            icon: Icons.check_circle_outline,
+                            label: 'Concluir',
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Aula concluída com sucesso!'),
+                                ),
+                              );
+                            },
+                          ),
+                          _buildQuickAction(
+                            icon: Icons.chat_bubble_outline,
+                            label: 'Fórum',
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Abrindo dúvidas e suporte pedagógico...',
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          _buildQuickAction(
+                            icon: Icons.download_for_offline_outlined,
+                            label: 'Offline',
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Material salvo para reprodução offline segura.',
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -322,7 +419,10 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
                       indicatorColor: LawrenceTheme.primary,
                       labelColor: LawrenceTheme.primary,
                       unselectedLabelColor: Colors.white38,
-                      labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+                      labelStyle: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Outfit',
+                      ),
                       tabs: const [
                         Tab(text: "Aulas"),
                         Tab(text: "Instrutores"),
@@ -353,7 +453,11 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
     );
   }
 
-  Widget _buildQuickAction({required IconData icon, required String label, required VoidCallback onTap}) {
+  Widget _buildQuickAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
       onTap: onTap,
       child: Column(
@@ -380,7 +484,12 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
       children: [
         const Text(
           "Módulos e Aulas",
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white, fontFamily: 'Outfit'),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontFamily: 'Outfit',
+          ),
         ),
         const SizedBox(height: 12),
         Expanded(
@@ -395,7 +504,12 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
                     child: Text(
                       module.title,
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: LawrenceTheme.primary, fontSize: 13, fontFamily: 'Outfit'),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: LawrenceTheme.primary,
+                        fontSize: 13,
+                        fontFamily: 'Outfit',
+                      ),
                     ),
                   ),
                   ...module.lessons.map((lesson) {
@@ -403,21 +517,33 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8.0),
                       decoration: BoxDecoration(
-                        color: isActive ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.02),
+                        color: isActive
+                            ? Colors.white.withOpacity(0.08)
+                            : Colors.white.withOpacity(0.02),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: isActive ? LawrenceTheme.primary.withOpacity(0.4) : Colors.white10),
+                        border: Border.all(
+                          color: isActive
+                              ? LawrenceTheme.primary.withOpacity(0.4)
+                              : Colors.white10,
+                        ),
                       ),
                       child: ListTile(
                         onTap: () => _switchLesson(lesson),
                         leading: Icon(
-                          isActive ? Icons.play_circle_fill : Icons.play_circle_outline,
-                          color: isActive ? LawrenceTheme.primary : Colors.white54,
+                          isActive
+                              ? Icons.play_circle_fill
+                              : Icons.play_circle_outline,
+                          color: isActive
+                              ? LawrenceTheme.primary
+                              : Colors.white54,
                           size: 20,
                         ),
                         title: Text(
                           lesson.title,
                           style: TextStyle(
-                            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                            fontWeight: isActive
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                             color: Colors.white,
                             fontSize: 13,
                             fontFamily: 'Outfit',
@@ -425,7 +551,10 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
                         ),
                         subtitle: Text(
                           '${(lesson.durationSeconds / 60).round()} min',
-                          style: const TextStyle(color: Colors.white30, fontSize: 11),
+                          style: const TextStyle(
+                            color: Colors.white30,
+                            fontSize: 11,
+                          ),
                         ),
                       ),
                     );
@@ -448,7 +577,9 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundImage: NetworkImage('https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150'),
+                backgroundImage: NetworkImage(
+                  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
+                ),
               ),
               SizedBox(width: 16),
               Expanded(
@@ -457,11 +588,20 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
                   children: [
                     Text(
                       'Ariane Lawrence',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white, fontFamily: 'Outfit'),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontFamily: 'Outfit',
+                      ),
                     ),
                     Text(
                       'Mestre em Alta Costura',
-                      style: TextStyle(color: Colors.white54, fontSize: 12, fontFamily: 'Outfit'),
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                        fontFamily: 'Outfit',
+                      ),
                     ),
                   ],
                 ),
@@ -471,7 +611,12 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
           SizedBox(height: 16),
           Text(
             'Especialista em alta costura e alfaiataria fina pela École de la Chambre Syndicale de la Couture Parisienne. Ariane guia os alunos nos segredos da modelagem tridimensional clássica.',
-            style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.4, fontFamily: 'Outfit'),
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              height: 1.4,
+              fontFamily: 'Outfit',
+            ),
           ),
         ],
       ),
@@ -482,7 +627,11 @@ class _CoursePlayerPageState extends ConsumerState<CoursePlayerPage> with Ticker
     return const Center(
       child: Text(
         "Este curso pertence à Grade de Especialização em Alfaiataria e Haute Couture.",
-        style: TextStyle(color: Colors.white38, fontSize: 12, fontFamily: 'Outfit'),
+        style: TextStyle(
+          color: Colors.white38,
+          fontSize: 12,
+          fontFamily: 'Outfit',
+        ),
         textAlign: TextAlign.center,
       ),
     );

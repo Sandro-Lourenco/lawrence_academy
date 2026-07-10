@@ -31,7 +31,9 @@ class StudentSubscription {
   }
 }
 
-final subscriptionFutureProvider = FutureProvider<StudentSubscription?>((ref) async {
+final subscriptionFutureProvider = FutureProvider<StudentSubscription?>((
+  ref,
+) async {
   final client = ref.watch(supabaseClientProvider);
   final user = client.auth.currentUser;
   if (user == null) return null;

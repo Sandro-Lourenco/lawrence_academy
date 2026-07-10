@@ -2,22 +2,32 @@ import 'package:flutter/material.dart';
 
 class LawrenceTheme {
   // Cores do Design System (Proporção 60-30-10)
-  static const Color primary = Color(0xFF0A84FF);        // Deep Learning Blue (10% Interatividade/Ação)
-  static const Color primaryFocus = Color(0xFF0071E3);   // Focus Ring
-  static const Color primaryOnDark = Color(0xFF2997FF);  // Sky Link Blue
-  static const Color accent = Color(0xFFD4AF37);         // Premium Gold (Badges/Certificados/Destaque)
-  
-  static const Color canvas = Color(0xFFFFFFFF);         // Pure White (60% Base principal)
-  static const Color canvasParchment = Color(0xFFF8F9FB); // Parchment White (Base secundária)
-  
-  static const Color surfacePearl = Color(0xFFFAFAFC);   // Pearl Button
-  static const Color surfaceTile1 = Color(0xFF1D1D1F);   // Deep Graphite (Texto principal/Elementos 30%)
-  static const Color surfaceTile2 = Color(0xFF272729);   // Dark Tile Secondary
-  static const Color surfaceBlack = Color(0xFF000000);   // Absolute Black
-  
-  static const Color borderMist = Color(0xFFE8E8ED);     // Silver Mist
-  static const Color textSecondary = Color(0xFF8E8E93);  // Soft Gray
-  static const Color textMuted = Color(0xFFCCCCCC);      // Text Muted on Dark
+  static const Color primary = Color(
+    0xFF0A84FF,
+  ); // Deep Learning Blue (10% Interatividade/Ação)
+  static const Color primaryFocus = Color(0xFF0071E3); // Focus Ring
+  static const Color primaryOnDark = Color(0xFF2997FF); // Sky Link Blue
+  static const Color accent = Color(
+    0xFFD4AF37,
+  ); // Premium Gold (Badges/Certificados/Destaque)
+
+  static const Color canvas = Color(
+    0xFFFFFFFF,
+  ); // Pure White (60% Base principal)
+  static const Color canvasParchment = Color(
+    0xFFF8F9FB,
+  ); // Parchment White (Base secundária)
+
+  static const Color surfacePearl = Color(0xFFFAFAFC); // Pearl Button
+  static const Color surfaceTile1 = Color(
+    0xFF1D1D1F,
+  ); // Deep Graphite (Texto principal/Elementos 30%)
+  static const Color surfaceTile2 = Color(0xFF272729); // Dark Tile Secondary
+  static const Color surfaceBlack = Color(0xFF000000); // Absolute Black
+
+  static const Color borderMist = Color(0xFFE8E8ED); // Silver Mist
+  static const Color textSecondary = Color(0xFF8E8E93); // Soft Gray
+  static const Color textMuted = Color(0xFFCCCCCC); // Text Muted on Dark
 
   // Cores Semânticas
   static const Color success = Color(0xFF30D158);

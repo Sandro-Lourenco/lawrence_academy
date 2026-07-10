@@ -32,10 +32,11 @@ class FormSubmitNotifier extends StateNotifier<FormSubmitState> {
 
   /// Executa uma ação de envio de forma segura, bloqueando cliques múltiplos
   Future<void> submit(Future<void> Function() action) async {
-    if (state.isLoading) return; // Anti-Debounce mecânico: impede chamadas paralelas
-    
+    if (state.isLoading)
+      return; // Anti-Debounce mecânico: impede chamadas paralelas
+
     state = const FormSubmitState(isLoading: true);
-    
+
     try {
       await action();
       state = const FormSubmitState(isSuccess: true);
@@ -53,13 +54,19 @@ class FormSubmitNotifier extends StateNotifier<FormSubmitState> {
 }
 
 // Provedores auto-dispose individuais para login e cadastro
-final loginFormControllerProvider = StateNotifierProvider.autoDispose<FormSubmitNotifier, FormSubmitState>((ref) {
-  return FormSubmitNotifier();
-});
+final loginFormControllerProvider =
+    StateNotifierProvider.autoDispose<FormSubmitNotifier, FormSubmitState>((
+      ref,
+    ) {
+      return FormSubmitNotifier();
+    });
 
-final registerFormControllerProvider = StateNotifierProvider.autoDispose<FormSubmitNotifier, FormSubmitState>((ref) {
-  return FormSubmitNotifier();
-});
+final registerFormControllerProvider =
+    StateNotifierProvider.autoDispose<FormSubmitNotifier, FormSubmitState>((
+      ref,
+    ) {
+      return FormSubmitNotifier();
+    });
 
 // ==========================================
 // Validadores Locais Reutilizáveis (Regras de Negócio e UX)

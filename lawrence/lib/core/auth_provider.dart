@@ -44,7 +44,7 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
   @override
   AuthState build() {
     final client = ref.watch(supabaseClientProvider);
-    
+
     // Escutar mudanças de autenticação do Supabase
     client.auth.onAuthStateChange.listen((data) {
       final session = data.session;
@@ -73,7 +73,10 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
     return false;
   }
 
-  Future<void> signInWithEmail({required String email, required String password}) async {
+  Future<void> signInWithEmail({
+    required String email,
+    required String password,
+  }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final client = ref.read(supabaseClientProvider);
@@ -81,7 +84,8 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
     } on AuthException catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: "Credenciais inválidas ou link de verificação expirado.", // Mensagem ofuscada conforme regras OWASP
+        errorMessage:
+            "Credenciais inválidas ou link de verificação expirado.", // Mensagem ofuscada conforme regras OWASP
       );
     } catch (e) {
       state = state.copyWith(
@@ -92,8 +96,8 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
   }
 
   Future<void> signUpWithEmail({
-    required String email, 
-    required String password, 
+    required String email,
+    required String password,
     required String fullName,
     String? referralCode,
   }) async {
@@ -134,4 +138,5 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
 }
 
 // Provedor global do estado de autenticação
-final authNotifierProvider = AutoDisposeNotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);
+final authNotifierProvider =
+    AutoDisposeNotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);

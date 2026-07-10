@@ -27,9 +27,14 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
         children: [
           SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 120), // Espaço para a barra flutuante inferior
+            padding: const EdgeInsets.only(
+              bottom: 120,
+            ), // Espaço para a barra flutuante inferior
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -69,14 +74,11 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
                           ],
                         ),
                       ),
-                      
+
                       if (!isMobile) ...[
                         const SizedBox(width: 32),
                         // Lateral fixa (Preview no Desktop)
-                        Expanded(
-                          flex: 3,
-                          child: _buildSidebarSummary(),
-                        ),
+                        Expanded(flex: 3, child: _buildSidebarSummary()),
                       ],
                     ],
                   ),
@@ -111,14 +113,22 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: LawrenceTheme.primary.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Text(
                   "ALFAIATARIA",
-                  style: TextStyle(fontSize: 10, color: LawrenceTheme.primary, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: LawrenceTheme.primary,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Outfit',
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -134,7 +144,12 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
               const SizedBox(height: 8),
               const Text(
                 "Domine o corte sob medida de blazers clássicos, técnicas de ombreiras moldadas a mão e acabamentos manuais refinados.",
-                style: TextStyle(fontSize: 13, color: LawrenceTheme.textSecondary, height: 1.4, fontFamily: 'Outfit'),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: LawrenceTheme.textSecondary,
+                  height: 1.4,
+                  fontFamily: 'Outfit',
+                ),
               ),
               const SizedBox(height: 24),
               // HlsTrailerPlayer Placeholder
@@ -153,12 +168,21 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
                         CircleAvatar(
                           radius: 28,
                           backgroundColor: Colors.white70,
-                          child: Icon(Icons.play_circle_fill, color: LawrenceTheme.primary, size: 48),
+                          child: Icon(
+                            Icons.play_circle_fill,
+                            color: LawrenceTheme.primary,
+                            size: 48,
+                          ),
                         ),
                         SizedBox(height: 12),
                         Text(
                           "Assistir ao Trailer de Introdução",
-                          style: TextStyle(color: LawrenceTheme.surfaceTile1, fontSize: 13, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+                          style: TextStyle(
+                            color: LawrenceTheme.surfaceTile1,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Outfit',
+                          ),
                         ),
                       ],
                     ),
@@ -189,7 +213,9 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
             children: [
               const CircleAvatar(
                 radius: 30,
-                backgroundImage: NetworkImage('https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150'),
+                backgroundImage: NetworkImage(
+                  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
+                ),
               ),
               const SizedBox(width: 16),
               const Expanded(
@@ -198,16 +224,31 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
                   children: [
                     Text(
                       "Ariane Lawrence",
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: LawrenceTheme.surfaceTile1, fontFamily: 'Outfit'),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: LawrenceTheme.surfaceTile1,
+                        fontFamily: 'Outfit',
+                      ),
                     ),
                     Text(
                       "Mestra Alfaiate & Fundadora",
-                      style: TextStyle(fontSize: 12, color: LawrenceTheme.primary, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: LawrenceTheme.primary,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Outfit',
+                      ),
                     ),
                     SizedBox(height: 6),
                     Text(
                       "Especializada em alfaiataria fina feminina por mais de 15 anos. Ensina técnicas tradicionais artesanais focadas no caimento perfeito em manequim.",
-                      style: TextStyle(fontSize: 12, color: LawrenceTheme.textSecondary, height: 1.4, fontFamily: 'Outfit'),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: LawrenceTheme.textSecondary,
+                        height: 1.4,
+                        fontFamily: 'Outfit',
+                      ),
                     ),
                   ],
                 ),
@@ -233,10 +274,18 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
           child: Column(
             children: [
               _buildAccordionTile("Módulo 1: Fundamentos de Modelagem", [
-                _buildLessonItem("1. Introdução à Fita Métrica e Ergonomia", true),
+                _buildLessonItem(
+                  "1. Introdução à Fita Métrica e Ergonomia",
+                  true,
+                ),
                 _buildLessonItem("2. Traçado Base de Corpo de Blazer", true),
               ]),
-              const Divider(color: LawrenceTheme.borderMist, height: 1, indent: 24, endIndent: 24),
+              const Divider(
+                color: LawrenceTheme.borderMist,
+                height: 1,
+                indent: 24,
+                endIndent: 24,
+              ),
               _buildAccordionTile("Módulo 2: Técnicas de Montagem", [
                 _buildLessonItem("3. Corte no Viés e Linha de Fio", false),
                 _buildLessonItem("4. Estruturação com Entretela Tecida", false),
@@ -254,7 +303,15 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
       collapsedBackgroundColor: Colors.transparent,
       iconColor: LawrenceTheme.surfaceTile1,
       collapsedIconColor: LawrenceTheme.textSecondary,
-      title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: LawrenceTheme.surfaceTile1, fontFamily: 'Outfit')),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: LawrenceTheme.surfaceTile1,
+          fontFamily: 'Outfit',
+        ),
+      ),
       children: children,
     );
   }
@@ -263,14 +320,18 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
     return ListTile(
       leading: Icon(
         isUnlocked ? Icons.play_circle_outline : Icons.lock_outline,
-        color: isUnlocked ? LawrenceTheme.primary : LawrenceTheme.textSecondary.withOpacity(0.5),
+        color: isUnlocked
+            ? LawrenceTheme.primary
+            : LawrenceTheme.textSecondary.withOpacity(0.5),
         size: 18,
       ),
       title: Text(
         title,
         style: TextStyle(
           fontSize: 13,
-          color: isUnlocked ? LawrenceTheme.surfaceTile1 : LawrenceTheme.textSecondary,
+          color: isUnlocked
+              ? LawrenceTheme.surfaceTile1
+              : LawrenceTheme.textSecondary,
           fontFamily: 'Outfit',
         ),
       ),
@@ -294,7 +355,12 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
             children: const [
               Text(
                 "Materiais e Requisitos Necessários",
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: LawrenceTheme.surfaceTile1, fontFamily: 'Outfit'),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: LawrenceTheme.surfaceTile1,
+                  fontFamily: 'Outfit',
+                ),
               ),
               SizedBox(height: 16),
               Row(
@@ -305,7 +371,12 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
                   Expanded(
                     child: Text(
                       "Tecido encorpado (lã fria, crepe pesado ou linho estruturado, mínimo 2 metros).",
-                      style: TextStyle(fontSize: 13, color: LawrenceTheme.textSecondary, height: 1.4, fontFamily: 'Outfit'),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: LawrenceTheme.textSecondary,
+                        height: 1.4,
+                        fontFamily: 'Outfit',
+                      ),
                     ),
                   ),
                 ],
@@ -319,7 +390,12 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
                   Expanded(
                     child: Text(
                       "Máquina de costura reta convencional e ferro de passar industrial com vapor.",
-                      style: TextStyle(fontSize: 13, color: LawrenceTheme.textSecondary, height: 1.4, fontFamily: 'Outfit'),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: LawrenceTheme.textSecondary,
+                        height: 1.4,
+                        fontFamily: 'Outfit',
+                      ),
                     ),
                   ),
                 ],
@@ -348,14 +424,28 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
             children: [
               const Text(
                 "Este curso inclui:",
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: LawrenceTheme.surfaceTile1, fontFamily: 'Outfit'),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: LawrenceTheme.surfaceTile1,
+                  fontFamily: 'Outfit',
+                ),
               ),
               const SizedBox(height: 16),
-              _buildSummaryIconItem(Icons.ondemand_video, "12 horas de aulas gravadas"),
+              _buildSummaryIconItem(
+                Icons.ondemand_video,
+                "12 horas de aulas gravadas",
+              ),
               const SizedBox(height: 12),
-              _buildSummaryIconItem(Icons.download, "Modelos PDF para download"),
+              _buildSummaryIconItem(
+                Icons.download,
+                "Modelos PDF para download",
+              ),
               const SizedBox(height: 12),
-              _buildSummaryIconItem(Icons.workspace_premium, "Certificado de conclusão de Alta Costura"),
+              _buildSummaryIconItem(
+                Icons.workspace_premium,
+                "Certificado de conclusão de Alta Costura",
+              ),
             ],
           ),
         ),
@@ -368,7 +458,16 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
       children: [
         Icon(icon, color: LawrenceTheme.primary, size: 16),
         const SizedBox(width: 12),
-        Expanded(child: Text(text, style: const TextStyle(fontSize: 12, color: LawrenceTheme.textSecondary, fontFamily: 'Outfit'))),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontSize: 12,
+              color: LawrenceTheme.textSecondary,
+              fontFamily: 'Outfit',
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -386,9 +485,24 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Plano de Assinatura Completo", style: TextStyle(fontSize: 10, color: LawrenceTheme.textSecondary, fontFamily: 'Outfit')),
+              Text(
+                "Plano de Assinatura Completo",
+                style: TextStyle(
+                  fontSize: 10,
+                  color: LawrenceTheme.textSecondary,
+                  fontFamily: 'Outfit',
+                ),
+              ),
               SizedBox(height: 2),
-              Text("R\$ 89,90 / mês", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: LawrenceTheme.surfaceTile1, fontFamily: 'Outfit')),
+              Text(
+                "R\$ 89,90 / mês",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: LawrenceTheme.surfaceTile1,
+                  fontFamily: 'Outfit',
+                ),
+              ),
             ],
           ),
           ElevatedButton(
@@ -404,7 +518,14 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
             onPressed: () {
               context.go('/register');
             },
-            child: const Text("Comprar Curso", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, fontFamily: 'Outfit')),
+            child: const Text(
+              "Comprar Curso",
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Outfit',
+              ),
+            ),
           ),
         ],
       ),

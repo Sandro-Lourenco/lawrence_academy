@@ -72,7 +72,9 @@ class PlayerController extends StateNotifier<PlayerState> {
 
   Future<void> _initializePlayer() async {
     if (lesson.hlsStoragePath == null) {
-      state = state.copyWith(errorMessage: "Esta lição ainda não possui vídeo disponível.");
+      state = state.copyWith(
+        errorMessage: "Esta lição ainda não possui vídeo disponível.",
+      );
       return;
     }
 
@@ -93,14 +95,11 @@ class PlayerController extends StateNotifier<PlayerState> {
     final String videoUrl;
     try {
       final dio = Dio();
-      final url = "http://127.0.0.1:8000/api/courses/${lesson.courseId}/lessons/${lesson.id}/stream";
+      final url =
+          "http://127.0.0.1:8000/api/courses/${lesson.courseId}/lessons/${lesson.id}/stream";
       final response = await dio.get(
         url,
-        options: Options(
-          headers: {
-            "Authorization": "Bearer $token",
-          },
-        ),
+        options: Options(headers: {"Authorization": "Bearer $token"}),
       );
 
       final responseData = response.data;
@@ -114,10 +113,7 @@ class PlayerController extends StateNotifier<PlayerState> {
       if (e is DioException && e.response?.statusCode == 403) {
         msg = e.response?.data?["detail"] ?? "Assinatura inativa ou inválida.";
       }
-      state = state.copyWith(
-        isBuffering: false,
-        errorMessage: msg,
-      );
+      state = state.copyWith(isBuffering: false, errorMessage: msg);
       return;
     }
 
@@ -125,10 +121,10 @@ class PlayerController extends StateNotifier<PlayerState> {
 
     try {
       await _videoController!.initialize();
-      
+
       final repo = ref.read(courseRepositoryProvider);
       final progress = await repo.fetchLessonProgress(lesson.id);
-      
+
       if (progress != null && progress['last_position_seconds'] != null) {
         final startSecs = progress['last_position_seconds'] as int;
         _lastSyncedPosition = Duration(seconds: startSecs);
@@ -144,7 +140,6 @@ class PlayerController extends StateNotifier<PlayerState> {
 
       _videoController!.addListener(_onPlayerUpdate);
       _startHeartbeat();
-
     } catch (e) {
       state = state.copyWith(
         isBuffering: false,
@@ -155,10 +150,10 @@ class PlayerController extends StateNotifier<PlayerState> {
 
   void _onPlayerUpdate() {
     if (_videoController == null) return;
-    
+
     final value = _videoController!.value;
     final currentPos = value.position;
-    
+
     final diff = currentPos.inSeconds - state.position.inSeconds;
     if (value.isPlaying && diff > 0 && diff < 5) {
       _accumulatedSeconds += diff;
@@ -182,12 +177,13 @@ class PlayerController extends StateNotifier<PlayerState> {
 
   Future<void> _syncProgress({bool force = false}) async {
     if (_videoController == null) return;
-    
+
     if (_accumulatedSeconds > 0 || force) {
       final repo = ref.read(courseRepositoryProvider);
       final currentPosSec = _videoController!.value.position.inSeconds;
-      final isCompleted = currentPosSec >= (_videoController!.value.duration.inSeconds * 0.9);
-      
+      final isCompleted =
+          currentPosSec >= (_videoController!.value.duration.inSeconds * 0.9);
+
       try {
         await repo.updateLessonProgress(
           courseId: lesson.courseId,
@@ -195,7 +191,7 @@ class PlayerController extends StateNotifier<PlayerState> {
           watchedSeconds: currentPosSec,
           completed: isCompleted,
         );
-        
+
         _accumulatedSeconds = 0;
         _lastSyncedPosition = Duration(seconds: currentPosSec);
       } catch (e) {
@@ -206,7 +202,7 @@ class PlayerController extends StateNotifier<PlayerState> {
 
   void togglePlay() {
     if (_videoController == null) return;
-    
+
     if (_videoController!.value.isPlaying) {
       _videoController!.pause();
       _syncProgress(force: true);
@@ -217,16 +213,20 @@ class PlayerController extends StateNotifier<PlayerState> {
 
   void triggerWatermarkTamperingDetected() {
     if (state.isTampered) return;
-    
+
     state = state.copyWith(isTampered: true, isWatermarkVisible: false);
     _videoController?.pause();
     _syncProgress(force: true);
-    
+
     ref.read(authNotifierProvider.notifier).signOut();
   }
 }
 
 // Provedor parametrizado por Lição
-final playerControllerProvider = StateNotifierProvider.family<PlayerController, PlayerState, Lesson>((ref, lesson) {
-  return PlayerController(ref, lesson);
-});
+final playerControllerProvider =
+    StateNotifierProvider.family<PlayerController, PlayerState, Lesson>((
+      ref,
+      lesson,
+    ) {
+      return PlayerController(ref, lesson);
+    });

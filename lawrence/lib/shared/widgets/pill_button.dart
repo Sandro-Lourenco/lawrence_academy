@@ -24,16 +24,18 @@ class PillButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     final buttonStyle = ElevatedButton.styleFrom(
       backgroundColor: isPrimary ? LawrenceTheme.primary : Colors.transparent,
       foregroundColor: isPrimary ? Colors.white : LawrenceTheme.surfaceTile1,
       elevation: 0,
-      side: isPrimary 
-          ? BorderSide.none 
+      side: isPrimary
+          ? BorderSide.none
           : const BorderSide(color: LawrenceTheme.borderMist, width: 1.5),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(LawrenceTheme.radiusXl), // Formato pílula (32px)
+        borderRadius: BorderRadius.circular(
+          LawrenceTheme.radiusXl,
+        ), // Formato pílula (32px)
       ),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
     );
@@ -79,11 +81,17 @@ class PillButton extends StatelessWidget {
           : OutlinedButton(
               style: OutlinedButton.styleFrom(
                 foregroundColor: LawrenceTheme.surfaceTile1,
-                side: const BorderSide(color: LawrenceTheme.borderMist, width: 1.5),
+                side: const BorderSide(
+                  color: LawrenceTheme.borderMist,
+                  width: 1.5,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(LawrenceTheme.radiusXl),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
               ),
               onPressed: isLoading ? null : onPressed,
               child: content,

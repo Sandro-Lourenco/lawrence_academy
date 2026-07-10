@@ -36,7 +36,11 @@ class PublicLayout extends StatelessWidget {
                           gradient: LiquidTheme.auraGradient,
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Icon(Icons.auto_awesome, color: Colors.white, size: 10),
+                        child: const Icon(
+                          Icons.auto_awesome,
+                          color: Colors.white,
+                          size: 10,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       const Text(
@@ -52,7 +56,7 @@ class PublicLayout extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 // Navigation Links
                 if (!isMobile)
                   Row(
@@ -74,7 +78,13 @@ class PublicLayout extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                       ),
                       onPressed: () => context.go('/login'),
-                      child: const Text("Entrar", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        "Entrar",
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
@@ -88,7 +98,13 @@ class PublicLayout extends StatelessWidget {
                         ),
                       ),
                       onPressed: () => context.go('/register'),
-                      child: const Text("Matricular", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        "Matricular",
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -104,7 +120,10 @@ class PublicLayout extends StatelessWidget {
                   Center(
                     child: Container(
                       constraints: const BoxConstraints(maxWidth: 1440),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 32,
+                      ),
                       child: child,
                     ),
                   ),
@@ -113,7 +132,10 @@ class PublicLayout extends StatelessWidget {
                   Container(
                     width: double.infinity,
                     color: const Color(0xFFF8F9FB),
-                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 40,
+                      horizontal: 24,
+                    ),
                     child: Center(
                       child: Container(
                         constraints: const BoxConstraints(maxWidth: 1440),
@@ -135,9 +157,21 @@ class PublicLayout extends StatelessWidget {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Text("Termos de Uso", style: TextStyle(fontSize: 11, color: Colors.black54)),
+                                      Text(
+                                        "Termos de Uso",
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.black54,
+                                        ),
+                                      ),
                                       SizedBox(width: 16),
-                                      Text("Privacidade", style: TextStyle(fontSize: 11, color: Colors.black54)),
+                                      Text(
+                                        "Privacidade",
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.black54,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ],
@@ -147,20 +181,27 @@ class PublicLayout extends StatelessWidget {
                                 children: [
                                   Text(
                                     "© 2026 Lawrence Academy. Todos os direitos reservados.",
-                                    style: TextStyle(fontSize: 11, color: Colors.black38),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.black38,
+                                    ),
                                     textAlign: TextAlign.center,
                                   ),
                                   SizedBox(height: 8),
                                   Text(
                                     "Desenvolvido sob diretrizes Apple Design System",
-                                    style: TextStyle(fontSize: 11, color: Colors.black38),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.black38,
+                                    ),
                                     textAlign: TextAlign.center,
                                   ),
                                 ],
                               ),
                             ] else ...[
                               const Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     "Lawrence Academy • Alta Costura & Modelagem",
@@ -172,24 +213,43 @@ class PublicLayout extends StatelessWidget {
                                   ),
                                   Row(
                                     children: [
-                                      Text("Termos de Uso", style: TextStyle(fontSize: 11, color: Colors.black54)),
+                                      Text(
+                                        "Termos de Uso",
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.black54,
+                                        ),
+                                      ),
                                       SizedBox(width: 16),
-                                      Text("Privacidade", style: TextStyle(fontSize: 11, color: Colors.black54)),
+                                      Text(
+                                        "Privacidade",
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.black54,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ],
                               ),
                               const Divider(color: Colors.black12, height: 40),
                               const Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     "© 2026 Lawrence Academy. Todos os direitos reservados.",
-                                    style: TextStyle(fontSize: 11, color: Colors.black38),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.black38,
+                                    ),
                                   ),
                                   Text(
                                     "Desenvolvido sob diretrizes Apple Design System",
-                                    style: TextStyle(fontSize: 11, color: Colors.black38),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.black38,
+                                    ),
                                   ),
                                 ],
                               ),

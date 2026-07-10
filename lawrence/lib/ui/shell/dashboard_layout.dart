@@ -87,7 +87,8 @@ class DashboardLayout extends ConsumerWidget {
                                 color: LiquidTheme.textPrimary,
                                 size: 24,
                               ),
-                              onPressed: () => _showNotificationsPanel(context, ref),
+                              onPressed: () =>
+                                  _showNotificationsPanel(context, ref),
                             ),
                             if (unreadCount > 0)
                               Positioned(
@@ -136,7 +137,9 @@ class DashboardLayout extends ConsumerWidget {
                           color: LiquidTheme.surface.withOpacity(0.95),
                           child: CircleAvatar(
                             radius: 18,
-                            backgroundColor: LiquidTheme.secondary.withOpacity(0.3),
+                            backgroundColor: LiquidTheme.secondary.withOpacity(
+                              0.3,
+                            ),
                             child: const Icon(
                               Icons.person_outline,
                               color: LiquidTheme.primary,
@@ -158,9 +161,18 @@ class DashboardLayout extends ConsumerWidget {
                               value: 'logout',
                               child: Row(
                                 children: [
-                                  Icon(Icons.logout_outlined, size: 18, color: LiquidTheme.warningPastel),
+                                  Icon(
+                                    Icons.logout_outlined,
+                                    size: 18,
+                                    color: LiquidTheme.warningPastel,
+                                  ),
                                   SizedBox(width: 10),
-                                  Text("Sair da Sessão", style: TextStyle(color: LiquidTheme.warningPastel)),
+                                  Text(
+                                    "Sair da Sessão",
+                                    style: TextStyle(
+                                      color: LiquidTheme.warningPastel,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -194,10 +206,7 @@ class DashboardLayout extends ConsumerWidget {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.only(top: 70.0),
-            child: body,
-          ),
+          Padding(padding: const EdgeInsets.only(top: 70.0), child: body),
         ],
       ),
     );
@@ -212,7 +221,7 @@ class DashboardLayout extends ConsumerWidget {
       transitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (context, anim1, anim2) {
         final list = ref.watch(notificationsProvider);
-        
+
         return Align(
           alignment: Alignment.topRight,
           child: Material(
@@ -254,7 +263,9 @@ class DashboardLayout extends ConsumerWidget {
                             child: Center(
                               child: Text(
                                 "Nenhuma notificação.",
-                                style: TextStyle(color: LiquidTheme.textSecondary),
+                                style: TextStyle(
+                                  color: LiquidTheme.textSecondary,
+                                ),
                               ),
                             ),
                           )
@@ -270,20 +281,36 @@ class DashboardLayout extends ConsumerWidget {
                                   title: Text(
                                     n.title,
                                     style: TextStyle(
-                                      fontWeight: n.read ? FontWeight.normal : FontWeight.bold,
+                                      fontWeight: n.read
+                                          ? FontWeight.normal
+                                          : FontWeight.bold,
                                       fontSize: 13,
-                                      color: n.read ? LiquidTheme.textSecondary : LiquidTheme.textPrimary,
+                                      color: n.read
+                                          ? LiquidTheme.textSecondary
+                                          : LiquidTheme.textPrimary,
                                     ),
                                   ),
                                   subtitle: Text(
                                     n.message,
-                                    style: const TextStyle(fontSize: 11, color: LiquidTheme.textSecondary),
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: LiquidTheme.textSecondary,
+                                    ),
                                   ),
                                   trailing: !n.read
                                       ? IconButton(
-                                          icon: const Icon(Icons.check_circle_outline, size: 16, color: LiquidTheme.primary),
+                                          icon: const Icon(
+                                            Icons.check_circle_outline,
+                                            size: 16,
+                                            color: LiquidTheme.primary,
+                                          ),
                                           onPressed: () {
-                                            ref.read(notificationsProvider.notifier).markAsRead(n.id);
+                                            ref
+                                                .read(
+                                                  notificationsProvider
+                                                      .notifier,
+                                                )
+                                                .markAsRead(n.id);
                                           },
                                         )
                                       : null,

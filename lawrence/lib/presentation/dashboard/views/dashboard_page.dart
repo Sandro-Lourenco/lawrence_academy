@@ -20,10 +20,12 @@ class StudentDashboardPage extends ConsumerWidget {
     final dashboardAsync = ref.watch(dashboardControllerProvider);
 
     // BOLA safe name extraction
-    final studentName = authState.user?.userMetadata?['full_name'] as String? ?? 'Ariane';
+    final studentName =
+        authState.user?.userMetadata?['full_name'] as String? ?? 'Ariane';
 
     return Scaffold(
-      backgroundColor: Colors.transparent, // Permite visualizar o canvas claro do layout shell
+      backgroundColor: Colors
+          .transparent, // Permite visualizar o canvas claro do layout shell
       body: dashboardAsync.when(
         loading: () => const Center(
           child: CircularProgressIndicator(color: LawrenceTheme.primary),
@@ -36,14 +38,22 @@ class StudentDashboardPage extends ConsumerWidget {
         ),
         data: (state) {
           // Valores dinâmicos da primeira lição ou fallbacks para bater com a Imagem 1
-          final activeCourseTitle = state.lastWatchedCourse?.title ?? "Modelagem do Zero ao Avançado";
-          final activeInstructor = state.lastWatchedCourse?.instructorId != null ? "Prof. Ariane Lawrence" : "Prof. Marlene Souza";
-          final activeProgress = (state.progressPercentage * 100).round() > 0 ? (state.progressPercentage * 100).round() : 17;
+          final activeCourseTitle =
+              state.lastWatchedCourse?.title ?? "Modelagem do Zero ao Avançado";
+          final activeInstructor = state.lastWatchedCourse?.instructorId != null
+              ? "Prof. Ariane Lawrence"
+              : "Prof. Marlene Souza";
+          final activeProgress = (state.progressPercentage * 100).round() > 0
+              ? (state.progressPercentage * 100).round()
+              : 17;
 
           return SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -77,22 +87,34 @@ class StudentDashboardPage extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      
+
                       // Ícones de Ação: Busca, Notificação e Avatar
                       Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.search, size: 24, color: LawrenceTheme.surfaceTile1),
+                            icon: const Icon(
+                              Icons.search,
+                              size: 24,
+                              color: LawrenceTheme.surfaceTile1,
+                            ),
                             onPressed: () {},
                           ),
                           Stack(
                             clipBehavior: Clip.none,
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.notifications_none_outlined, size: 24, color: LawrenceTheme.surfaceTile1),
+                                icon: const Icon(
+                                  Icons.notifications_none_outlined,
+                                  size: 24,
+                                  color: LawrenceTheme.surfaceTile1,
+                                ),
                                 onPressed: () {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Você tem 3 novas atividades hoje!')),
+                                    const SnackBar(
+                                      content: Text(
+                                        'Você tem 3 novas atividades hoje!',
+                                      ),
+                                    ),
                                   );
                                 },
                               ),
@@ -121,7 +143,9 @@ class StudentDashboardPage extends ConsumerWidget {
                           const CircleAvatar(
                             radius: 16,
                             backgroundColor: LawrenceTheme.borderMist,
-                            backgroundImage: NetworkImage('https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150'),
+                            backgroundImage: NetworkImage(
+                              'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+                            ),
                           ),
                         ],
                       ),
@@ -155,12 +179,26 @@ class StudentDashboardPage extends ConsumerWidget {
                     courseTitle: activeCourseTitle,
                     instructorName: activeInstructor,
                     progressPercentage: activeProgress,
-                    imageUrl: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400',
+                    imageUrl:
+                        'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400',
                     onTap: () {
-                      if (state.lastWatchedCourse != null && state.lastWatchedLesson != null) {
-                        context.go('/dashboard/courses/${state.lastWatchedCourse!.id}/lesson/${state.lastWatchedLesson!.id}');
-                      } else if (state.courses.isNotEmpty && state.courses.first.modules.isNotEmpty && state.courses.first.modules.first.lessons.isNotEmpty) {
-                        context.go('/dashboard/courses/${state.courses.first.id}/lesson/${state.courses.first.modules.first.lessons.first.id}');
+                      if (state.lastWatchedCourse != null &&
+                          state.lastWatchedLesson != null) {
+                        context.go(
+                          '/dashboard/courses/${state.lastWatchedCourse!.id}/lesson/${state.lastWatchedLesson!.id}',
+                        );
+                      } else if (state.courses.isNotEmpty &&
+                          state.courses.first.modules.isNotEmpty &&
+                          state
+                              .courses
+                              .first
+                              .modules
+                              .first
+                              .lessons
+                              .isNotEmpty) {
+                        context.go(
+                          '/dashboard/courses/${state.courses.first.id}/lesson/${state.courses.first.modules.first.lessons.first.id}',
+                        );
                       } else {
                         context.go('/courses');
                       }
@@ -189,21 +227,24 @@ class StudentDashboardPage extends ConsumerWidget {
                           courseTitle: 'Costura Criativa',
                           instructorName: 'Prof. Marlene Souza',
                           progressPercentage: 26,
-                          imageUrl: 'https://images.unsplash.com/photo-1528570223976-b1b4ccb3a5a1?w=200',
+                          imageUrl:
+                              'https://images.unsplash.com/photo-1528570223976-b1b4ccb3a5a1?w=200',
                           onTap: () => context.go('/courses'),
                         ),
                         CourseProgressCard(
                           courseTitle: 'Design de Moda',
                           instructorName: 'Prof. Marlene Souza',
                           progressPercentage: 40,
-                          imageUrl: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=200',
+                          imageUrl:
+                              'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=200',
                           onTap: () => context.go('/courses'),
                         ),
                         CourseProgressCard(
                           courseTitle: 'Estilista',
                           instructorName: 'Prof. Marlene Souza',
                           progressPercentage: 12,
-                          imageUrl: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=200',
+                          imageUrl:
+                              'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=200',
                           onTap: () => context.go('/courses'),
                         ),
                       ],

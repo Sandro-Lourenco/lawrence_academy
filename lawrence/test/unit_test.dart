@@ -6,8 +6,14 @@ void main() {
     test("validateEmail - invalid inputs", () {
       expect(FormValidators.validateEmail(null), "O e-mail é obrigatório.");
       expect(FormValidators.validateEmail(""), "O e-mail é obrigatório.");
-      expect(FormValidators.validateEmail("plain_text"), "Insira um endereço de e-mail válido.");
-      expect(FormValidators.validateEmail("email@domain"), "Insira um endereço de e-mail válido.");
+      expect(
+        FormValidators.validateEmail("plain_text"),
+        "Insira um endereço de e-mail válido.",
+      );
+      expect(
+        FormValidators.validateEmail("email@domain"),
+        "Insira um endereço de e-mail válido.",
+      );
     });
 
     test("validateEmail - valid inputs", () {
@@ -18,14 +24,26 @@ void main() {
     test("validatePassword - length check", () {
       expect(FormValidators.validatePassword(null), "A senha é obrigatória.");
       expect(FormValidators.validatePassword(""), "A senha é obrigatória.");
-      expect(FormValidators.validatePassword("1234567"), "A senha deve conter no mínimo 8 caracteres.");
+      expect(
+        FormValidators.validatePassword("1234567"),
+        "A senha deve conter no mínimo 8 caracteres.",
+      );
       expect(FormValidators.validatePassword("12345678"), null);
     });
 
     test("validateFullName - name components check", () {
-      expect(FormValidators.validateFullName(null), "O nome completo é obrigatório.");
-      expect(FormValidators.validateFullName(""), "O nome completo é obrigatório.");
-      expect(FormValidators.validateFullName("Ariane"), "Insira seu nome e sobrenome.");
+      expect(
+        FormValidators.validateFullName(null),
+        "O nome completo é obrigatório.",
+      );
+      expect(
+        FormValidators.validateFullName(""),
+        "O nome completo é obrigatório.",
+      );
+      expect(
+        FormValidators.validateFullName("Ariane"),
+        "Insira seu nome e sobrenome.",
+      );
       expect(FormValidators.validateFullName("Ariane Instructor"), null);
     });
   });
@@ -52,7 +70,7 @@ void main() {
 
     test("submit - error flow transition", () async {
       final notifier = FormSubmitNotifier();
-      
+
       await notifier.submit(() async {
         throw Exception("Conexão falhou no servidor.");
       });

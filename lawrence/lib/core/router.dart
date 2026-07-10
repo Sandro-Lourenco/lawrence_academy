@@ -42,15 +42,22 @@ class CoursePlayerRouteWrapper extends ConsumerWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             backgroundColor: Colors.black,
-            body: Center(child: CircularProgressIndicator(color: LiquidTheme.primary)),
+            body: Center(
+              child: CircularProgressIndicator(color: LiquidTheme.primary),
+            ),
           );
         }
-        
+
         final course = snapshot.data;
         if (course == null) {
           return const Scaffold(
             backgroundColor: Colors.black,
-            body: Center(child: Text("Curso não encontrado.", style: TextStyle(color: Colors.white70))),
+            body: Center(
+              child: Text(
+                "Curso não encontrado.",
+                style: TextStyle(color: Colors.white70),
+              ),
+            ),
           );
         }
 
@@ -66,14 +73,21 @@ class CoursePlayerRouteWrapper extends ConsumerWidget {
         }
 
         // Se não encontrar por ID, pega a primeira lição disponível como fallback
-        if (lesson == null && course.modules.isNotEmpty && course.modules.first.lessons.isNotEmpty) {
+        if (lesson == null &&
+            course.modules.isNotEmpty &&
+            course.modules.first.lessons.isNotEmpty) {
           lesson = course.modules.first.lessons.first;
         }
 
         if (lesson == null) {
           return const Scaffold(
             backgroundColor: Colors.black,
-            body: Center(child: Text("Nenhuma aula encontrada para este curso.", style: TextStyle(color: Colors.white70))),
+            body: Center(
+              child: Text(
+                "Nenhuma aula encontrada para este curso.",
+                style: TextStyle(color: Colors.white70),
+              ),
+            ),
           );
         }
 
@@ -91,7 +105,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/',
     redirect: (context, state) {
       final isLoggedIn = authState.user != null;
-      final isLoggingIn = state.uri.toString() == '/login' || state.uri.toString() == '/register';
+      final isLoggingIn =
+          state.uri.toString() == '/login' ||
+          state.uri.toString() == '/register';
 
       // Redireciona usuários autenticados da Home/Login para o Dashboard
       if (isLoggedIn && (isLoggingIn || state.uri.toString() == '/')) {
@@ -110,10 +126,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         builder: (context, state, child) => PublicLayout(child: child),
         routes: [
-          GoRoute(
-            path: '/',
-            builder: (context, state) => const HomePage(),
-          ),
+          GoRoute(path: '/', builder: (context, state) => const HomePage()),
           GoRoute(
             path: '/courses',
             builder: (context, state) => const CatalogPage(),
@@ -129,13 +142,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       // 2. Rotas de Autenticação (Sem Layout compartilhado)
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginPage(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
       GoRoute(
         path: '/register',
-        builder: (context, state) => const LoginPage(), // O construtor interno alterna baseado no modo
+        builder: (context, state) =>
+            const LoginPage(), // O construtor interno alterna baseado no modo
       ),
 
       // 3. Rotas do Painel do Aluno encapsuladas no DashboardLayout
@@ -163,7 +174,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final courseId = state.pathParameters['courseId'] ?? '';
           final lessonId = state.pathParameters['lessonId'] ?? '';
-          return CoursePlayerRouteWrapper(courseId: courseId, lessonId: lessonId);
+          return CoursePlayerRouteWrapper(
+            courseId: courseId,
+            lessonId: lessonId,
+          );
         },
       ),
 

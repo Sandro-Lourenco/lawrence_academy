@@ -24,11 +24,11 @@ class KeyTakeaway {
   }
 
   Map<String, dynamic> toJson() => {
-        'timestamp': timestamp,
-        'seconds': seconds,
-        'topic': topic,
-        'description': description,
-      };
+    'timestamp': timestamp,
+    'seconds': seconds,
+    'topic': topic,
+    'description': description,
+  };
 }
 
 @immutable
@@ -36,10 +36,7 @@ class GlossaryTerm {
   final String term;
   final String definition;
 
-  const GlossaryTerm({
-    required this.term,
-    required this.definition,
-  });
+  const GlossaryTerm({required this.term, required this.definition});
 
   factory GlossaryTerm.fromJson(Map<String, dynamic> json) {
     return GlossaryTerm(
@@ -48,10 +45,7 @@ class GlossaryTerm {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'term': term,
-        'definition': definition,
-      };
+  Map<String, dynamic> toJson() => {'term': term, 'definition': definition};
 }
 
 @immutable
@@ -83,15 +77,18 @@ class AISummary {
     return AISummary(
       title: json['title'] as String? ?? '',
       executiveSummary: json['executive_summary'] as String? ?? '',
-      keyTakeaways: (json['key_takeaways'] as List?)
+      keyTakeaways:
+          (json['key_takeaways'] as List?)
               ?.map((e) => KeyTakeaway.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      stepByStepExecution: (json['step_by_step_execution'] as List?)
+      stepByStepExecution:
+          (json['step_by_step_execution'] as List?)
               ?.map((e) => e as String)
               .toList() ??
           [],
-      technicalGlossary: (json['technical_glossary'] as List?)
+      technicalGlossary:
+          (json['technical_glossary'] as List?)
               ?.map((e) => GlossaryTerm.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
@@ -99,12 +96,12 @@ class AISummary {
   }
 
   Map<String, dynamic> toJson() => {
-        'title': title,
-        'executive_summary': executiveSummary,
-        'key_takeaways': keyTakeaways.map((e) => e.toJson()).toList(),
-        'step_by_step_execution': stepByStepExecution,
-        'technical_glossary': technicalGlossary.map((e) => e.toJson()).toList(),
-      };
+    'title': title,
+    'executive_summary': executiveSummary,
+    'key_takeaways': keyTakeaways.map((e) => e.toJson()).toList(),
+    'step_by_step_execution': stepByStepExecution,
+    'technical_glossary': technicalGlossary.map((e) => e.toJson()).toList(),
+  };
 }
 
 @immutable
@@ -138,20 +135,22 @@ class Lesson {
       status: json['status'] as String? ?? 'draft',
       durationSeconds: json['duration_seconds'] as int? ?? 0,
       hlsStoragePath: json['hls_storage_path'] as String?,
-      aiSummary: AISummary.fromJson(json['ai_summary'] as Map<String, dynamic>?),
+      aiSummary: AISummary.fromJson(
+        json['ai_summary'] as Map<String, dynamic>?,
+      ),
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'module_id': moduleId,
-        'course_id': courseId,
-        'title': title,
-        'status': status,
-        'duration_seconds': durationSeconds,
-        'hls_storage_path': hlsStoragePath,
-        'ai_summary': aiSummary.toJson(),
-      };
+    'id': id,
+    'module_id': moduleId,
+    'course_id': courseId,
+    'title': title,
+    'status': status,
+    'duration_seconds': durationSeconds,
+    'hls_storage_path': hlsStoragePath,
+    'ai_summary': aiSummary.toJson(),
+  };
 }
 
 @immutable
@@ -177,17 +176,19 @@ class Module {
       courseId: json['course_id'] as String,
       title: json['title'] as String,
       orderIndex: json['order_index'] as int? ?? 0,
-      lessons: lessonsJson.map((l) => Lesson.fromJson(l as Map<String, dynamic>)).toList(),
+      lessons: lessonsJson
+          .map((l) => Lesson.fromJson(l as Map<String, dynamic>))
+          .toList(),
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'course_id': courseId,
-        'title': title,
-        'order_index': orderIndex,
-        'lessons': lessons.map((e) => e.toJson()).toList(),
-      };
+    'id': id,
+    'course_id': courseId,
+    'title': title,
+    'order_index': orderIndex,
+    'lessons': lessons.map((e) => e.toJson()).toList(),
+  };
 }
 
 @immutable
@@ -225,20 +226,23 @@ class Course {
       level: json['level'] as String? ?? 'iniciante',
       summary: json['summary'] as String? ?? '',
       status: json['status'] as String? ?? 'draft',
-      modules: modulesJson.map((m) => Module.fromJson(m as Map<String, dynamic>)).toList()
-        ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex)),
+      modules:
+          modulesJson
+              .map((m) => Module.fromJson(m as Map<String, dynamic>))
+              .toList()
+            ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex)),
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'instructor_id': instructorId,
-        'title': title,
-        'slug': slug,
-        'category': category,
-        'level': level,
-        'summary': summary,
-        'status': status,
-        'modules': modules.map((e) => e.toJson()).toList(),
-      };
+    'id': id,
+    'instructor_id': instructorId,
+    'title': title,
+    'slug': slug,
+    'category': category,
+    'level': level,
+    'summary': summary,
+    'status': status,
+    'modules': modules.map((e) => e.toJson()).toList(),
+  };
 }

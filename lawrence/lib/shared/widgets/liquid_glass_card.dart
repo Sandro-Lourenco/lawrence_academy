@@ -63,16 +63,15 @@ class _LiquidGlassCardState extends State<LiquidGlassCard> {
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.72),
         borderRadius: BorderRadius.circular(widget.borderRadius),
-        border: Border.all(color: widget.borderColor ?? Colors.white.withOpacity(0.28)),
+        border: Border.all(
+          color: widget.borderColor ?? Colors.white.withOpacity(0.28),
+        ),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(widget.borderRadius),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Padding(
-            padding: widget.padding,
-            child: widget.child,
-          ),
+          child: Padding(padding: widget.padding, child: widget.child),
         ),
       ),
     );

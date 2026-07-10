@@ -23,10 +23,12 @@ final filteredCoursesProvider = Provider<AsyncValue<List<Course>>>((ref) {
 
   return coursesAsync.whenData((list) {
     return list.where((course) {
-      final matchesSearch = course.title.toLowerCase().contains(query) ||
+      final matchesSearch =
+          course.title.toLowerCase().contains(query) ||
           course.summary.toLowerCase().contains(query);
       final matchesCat = selectedCat == null || course.category == selectedCat;
-      final matchesLevel = selectedLevel == null || course.level == selectedLevel;
+      final matchesLevel =
+          selectedLevel == null || course.level == selectedLevel;
       return matchesSearch && matchesCat && matchesLevel;
     }).toList();
   });
@@ -46,7 +48,7 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
     final filteredCoursesAsync = ref.watch(filteredCoursesProvider);
     final selectedCat = ref.watch(categoryFilterProvider);
     final selectedLevel = ref.watch(levelFilterProvider);
-    
+
     final isDesktop = MediaQuery.of(context).size.width >= 800;
 
     final filtersSidebarContent = Container(
@@ -54,9 +56,7 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
       decoration: BoxDecoration(
         color: LiquidTheme.background.withOpacity(0.95),
         border: Border(
-          right: BorderSide(
-            color: LiquidTheme.textPrimary.withOpacity(0.06),
-          ),
+          right: BorderSide(color: LiquidTheme.textPrimary.withOpacity(0.06)),
         ),
       ),
       padding: const EdgeInsets.all(24),
@@ -86,23 +86,45 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
             ],
           ),
           const SizedBox(height: 24),
-          
+
           // Seção Categorias
-          const Text("CATEGORIA", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: LiquidTheme.textSecondary)),
+          const Text(
+            "CATEGORIA",
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: LiquidTheme.textSecondary,
+            ),
+          ),
           const SizedBox(height: 10),
           _buildFilterChip("Modelagem", "modelagem", categoryFilterProvider),
-          _buildFilterChip("Alfaiataria", "alfaiataria", categoryFilterProvider),
+          _buildFilterChip(
+            "Alfaiataria",
+            "alfaiataria",
+            categoryFilterProvider,
+          ),
           _buildFilterChip("Costura", "costura", categoryFilterProvider),
-          
+
           const SizedBox(height: 32),
 
           // Seção Níveis
-          const Text("NÍVEL", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: LiquidTheme.textSecondary)),
+          const Text(
+            "NÍVEL",
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: LiquidTheme.textSecondary,
+            ),
+          ),
           const SizedBox(height: 10),
           _buildFilterChip("Iniciante", "iniciante", levelFilterProvider),
-          _buildFilterChip("Intermediário", "intermediario", levelFilterProvider),
+          _buildFilterChip(
+            "Intermediário",
+            "intermediario",
+            levelFilterProvider,
+          ),
           _buildFilterChip("Avançado", "avancado", levelFilterProvider),
-          
+
           const Spacer(),
           // Limpar Filtros
           if (selectedCat != null || selectedLevel != null)
@@ -112,7 +134,10 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                 ref.read(levelFilterProvider.notifier).state = null;
                 ref.read(searchFilterProvider.notifier).state = "";
               },
-              child: const Text("Limpar Filtros", style: TextStyle(color: LiquidTheme.primary)),
+              child: const Text(
+                "Limpar Filtros",
+                style: TextStyle(color: LiquidTheme.primary),
+              ),
             ),
         ],
       ),
@@ -120,16 +145,17 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      drawer: !isDesktop ? Drawer(
-        backgroundColor: LiquidTheme.background,
-        child: SafeArea(child: filtersSidebarContent),
-      ) : null,
+      drawer: !isDesktop
+          ? Drawer(
+              backgroundColor: LiquidTheme.background,
+              child: SafeArea(child: filtersSidebarContent),
+            )
+          : null,
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 1. Sidebar de Filtros no Desktop
-          if (isDesktop && _showFiltersSidebar)
-            filtersSidebarContent,
+          if (isDesktop && _showFiltersSidebar) filtersSidebarContent,
 
           // 2. Área Principal do Catálogo
           Expanded(
@@ -153,7 +179,10 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                       if (!isDesktop)
                         Builder(
                           builder: (context) => IconButton(
-                            icon: const Icon(Icons.filter_list, color: LiquidTheme.primary),
+                            icon: const Icon(
+                              Icons.filter_list,
+                              color: LiquidTheme.primary,
+                            ),
                             onPressed: () {
                               Scaffold.of(context).openDrawer();
                             },
@@ -169,16 +198,30 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                           ),
                           child: TextField(
                             onChanged: (val) {
-                              ref.read(searchFilterProvider.notifier).state = val;
+                              ref.read(searchFilterProvider.notifier).state =
+                                  val;
                             },
                             decoration: InputDecoration(
-                              hintText: "Pesquisar por técnicas, moldes ou aulas...",
-                              hintStyle: const TextStyle(color: LiquidTheme.textSecondary, fontSize: 13),
-                              prefixIcon: const Icon(Icons.search, color: LiquidTheme.textSecondary, size: 20),
+                              hintText:
+                                  "Pesquisar por técnicas, moldes ou aulas...",
+                              hintStyle: const TextStyle(
+                                color: LiquidTheme.textSecondary,
+                                fontSize: 13,
+                              ),
+                              prefixIcon: const Icon(
+                                Icons.search,
+                                color: LiquidTheme.textSecondary,
+                                size: 20,
+                              ),
                               border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 13),
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 13,
+                              ),
                             ),
-                            style: const TextStyle(color: LiquidTheme.textPrimary, fontSize: 14),
+                            style: const TextStyle(
+                              color: LiquidTheme.textPrimary,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       ),
@@ -201,19 +244,26 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                   // Lista de Cursos Grid
                   Expanded(
                     child: filteredCoursesAsync.when(
-                      loading: () => const Center(child: CircularProgressIndicator(color: LiquidTheme.primary)),
-                      error: (err, stack) => Center(child: Text("Erro ao carregar catálogo: $err")),
+                      loading: () => const Center(
+                        child: CircularProgressIndicator(
+                          color: LiquidTheme.primary,
+                        ),
+                      ),
+                      error: (err, stack) => Center(
+                        child: Text("Erro ao carregar catálogo: $err"),
+                      ),
                       data: (courses) {
                         if (courses.isEmpty) {
                           return const EmptyStateWidget();
                         }
                         return GridView.builder(
-                          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 360,
-                            mainAxisSpacing: 24,
-                            crossAxisSpacing: 24,
-                            childAspectRatio: 0.85,
-                          ),
+                          gridDelegate:
+                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 360,
+                                mainAxisSpacing: 24,
+                                crossAxisSpacing: 24,
+                                childAspectRatio: 0.85,
+                              ),
                           itemCount: courses.length,
                           itemBuilder: (context, index) {
                             return CourseCard(course: courses[index]);
@@ -231,7 +281,11 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
     );
   }
 
-  Widget _buildFilterChip(String label, String value, StateProvider<String?> provider) {
+  Widget _buildFilterChip(
+    String label,
+    String value,
+    StateProvider<String?> provider,
+  ) {
     final currentVal = ref.watch(provider);
     final isSelected = currentVal == value;
 
@@ -246,9 +300,13 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? LiquidTheme.primary.withOpacity(0.12) : Colors.transparent,
+            color: isSelected
+                ? LiquidTheme.primary.withOpacity(0.12)
+                : Colors.transparent,
             border: Border.all(
-              color: isSelected ? LiquidTheme.primary.withOpacity(0.3) : Colors.white.withOpacity(0.04),
+              color: isSelected
+                  ? LiquidTheme.primary.withOpacity(0.3)
+                  : Colors.white.withOpacity(0.04),
             ),
             borderRadius: BorderRadius.circular(8),
           ),
@@ -260,7 +318,9 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected ? LiquidTheme.primary : LiquidTheme.textPrimary,
+                  color: isSelected
+                      ? LiquidTheme.primary
+                      : LiquidTheme.textPrimary,
                 ),
               ),
               if (isSelected)
@@ -371,7 +431,10 @@ class _CourseCardState extends State<CourseCard> {
                   ),
                   child: Center(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       decoration: LiquidTheme.glassDecoration(radius: 8),
                       child: Text(
                         widget.course.category.toUpperCase(),
@@ -412,7 +475,10 @@ class _CourseCardState extends State<CourseCard> {
                           const SizedBox(height: 6),
                           Text(
                             widget.course.summary,
-                            style: const TextStyle(fontSize: 12, color: LiquidTheme.textSecondary),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: LiquidTheme.textSecondary,
+                            ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -424,7 +490,11 @@ class _CourseCardState extends State<CourseCard> {
                           // Nível indicador
                           Row(
                             children: [
-                              Icon(Icons.bar_chart, size: 14, color: _getLevelColor(widget.course.level)),
+                              Icon(
+                                Icons.bar_chart,
+                                size: 14,
+                                color: _getLevelColor(widget.course.level),
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 widget.course.level.toUpperCase(),
@@ -436,7 +506,11 @@ class _CourseCardState extends State<CourseCard> {
                               ),
                             ],
                           ),
-                          const Icon(Icons.arrow_forward, size: 16, color: LiquidTheme.primary),
+                          const Icon(
+                            Icons.arrow_forward,
+                            size: 16,
+                            color: LiquidTheme.primary,
+                          ),
                         ],
                       ),
                     ],
@@ -452,7 +526,8 @@ class _CourseCardState extends State<CourseCard> {
 
   Color _getLevelColor(String level) {
     if (level == "iniciante") return const Color(0xFF34D399); // Verde Pastel
-    if (level == "intermediario") return const Color(0xFFFBBF24); // Amarelo Pastel
+    if (level == "intermediario")
+      return const Color(0xFFFBBF24); // Amarelo Pastel
     return const Color(0xFFF87171); // Vermelho Pastel
   }
 }

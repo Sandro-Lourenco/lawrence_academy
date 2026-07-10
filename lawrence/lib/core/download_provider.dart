@@ -79,7 +79,10 @@ class DownloadNotifier extends StateNotifier<Map<String, DownloadTask>> {
       // Ler o arquivo manifest e parsear os caminhos dos segmentos
       final lines = await manifestFile.readAsLines();
       final List<String> segmentUrls = [];
-      final String baseUrl = manifestUrl.substring(0, manifestUrl.lastIndexOf('/') + 1);
+      final String baseUrl = manifestUrl.substring(
+        0,
+        manifestUrl.lastIndexOf('/') + 1,
+      );
 
       for (var line in lines) {
         if (line.isNotEmpty && !line.startsWith('#')) {
@@ -90,7 +93,7 @@ class DownloadNotifier extends StateNotifier<Map<String, DownloadTask>> {
       final total = segmentUrls.length;
       state = {
         ...state,
-        lessonId: task.copyWith(totalSegments: total, downloadedSegments: 0)
+        lessonId: task.copyWith(totalSegments: total, downloadedSegments: 0),
       };
 
       int downloaded = 0;
@@ -111,20 +114,19 @@ class DownloadNotifier extends StateNotifier<Map<String, DownloadTask>> {
         downloaded++;
         state = {
           ...state,
-          lessonId: state[lessonId]!.copyWith(downloadedSegments: downloaded)
+          lessonId: state[lessonId]!.copyWith(downloadedSegments: downloaded),
         };
       }
 
       state = {
         ...state,
-        lessonId: state[lessonId]!.copyWith(status: DownloadStatus.completed)
+        lessonId: state[lessonId]!.copyWith(status: DownloadStatus.completed),
       };
-
     } catch (e) {
       if (CancelToken.isCancel(e as DioException)) {
         state = {
           ...state,
-          lessonId: state[lessonId]!.copyWith(status: DownloadStatus.paused)
+          lessonId: state[lessonId]!.copyWith(status: DownloadStatus.paused),
         };
       } else {
         state = {
@@ -132,7 +134,7 @@ class DownloadNotifier extends StateNotifier<Map<String, DownloadTask>> {
           lessonId: state[lessonId]!.copyWith(
             status: DownloadStatus.failed,
             errorMessage: e.toString(),
-          )
+          ),
         };
       }
     } finally {
@@ -187,7 +189,7 @@ class DownloadNotifier extends StateNotifier<Map<String, DownloadTask>> {
     // Apenas criptografamos se o arquivo não estiver criptografado
     if (file.path.endsWith('.enc') && await file.length() > 0) {
       final bytes = await file.readAsBytes();
-      
+
       // Se já começar com o cabeçalho personalizado "LAWRENCE_ENC", assumimos que já está criptografado
       final header = utf8.encode("LAWRENCE_ENC");
       if (bytes.length > header.length) {
@@ -205,9 +207,11 @@ class DownloadNotifier extends StateNotifier<Map<String, DownloadTask>> {
       final session = ref.read(authNotifierProvider).session;
       final seed = session?.user.id ?? "anonymous_device_seed";
       final keyBytes = sha256.convert(utf8.encode(seed)).bytes;
-      
+
       final key = encrypt.Key(Uint8List.fromList(keyBytes));
-      final iv = encrypt.IV.fromLength(16); // IV aleatório de 16 bytes ou fixo para consistência
+      final iv = encrypt.IV.fromLength(
+        16,
+      ); // IV aleatório de 16 bytes ou fixo para consistência
       final encrypter = encrypt.Encrypter(encrypt.AES(key));
 
       final encrypted = encrypter.encryptBytes(bytes, iv: iv);
@@ -224,7 +228,9 @@ class DownloadNotifier extends StateNotifier<Map<String, DownloadTask>> {
   /// Descriptografa localmente na memória para streaming privado no Player
   Future<Uint8List> decryptSegment(String lessonId, int segmentIndex) async {
     final appDir = await getApplicationDocumentsDirectory();
-    final file = File('${appDir.path}/downloads/$lessonId/segment_$segmentIndex.enc');
+    final file = File(
+      '${appDir.path}/downloads/$lessonId/segment_$segmentIndex.enc',
+    );
 
     if (!await file.exists()) {
       throw FileNotFoundException("Segment file not found.");
@@ -255,7 +261,10 @@ class DownloadNotifier extends StateNotifier<Map<String, DownloadTask>> {
     final iv = encrypt.IV(Uint8List.fromList(ivBytes));
     final encrypter = encrypt.Encrypter(encrypt.AES(key));
 
-    final decrypted = encrypter.decryptBytes(encrypt.Encrypted(encryptedPayload), iv: iv);
+    final decrypted = encrypter.decryptBytes(
+      encrypt.Encrypted(encryptedPayload),
+      iv: iv,
+    );
     return Uint8List.fromList(decrypted);
   }
 }
@@ -274,6 +283,7 @@ class FileNotFoundException implements Exception {
   String toString() => "FileNotFoundException: $message";
 }
 
-final downloadProvider = StateNotifierProvider<DownloadNotifier, Map<String, DownloadTask>>((ref) {
-  return DownloadNotifier(ref);
-});
+final downloadProvider =
+    StateNotifierProvider<DownloadNotifier, Map<String, DownloadTask>>((ref) {
+      return DownloadNotifier(ref);
+    });

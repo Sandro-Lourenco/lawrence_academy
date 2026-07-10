@@ -35,10 +35,17 @@ class StudentDashboard extends ConsumerWidget {
                       clipBehavior: Clip.antiAlias,
                       child: Container(
                         color: LiquidTheme.warningPastel.withOpacity(0.08),
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 14,
+                        ),
                         child: Row(
                           children: [
-                            const Icon(Icons.warning_amber_rounded, color: LiquidTheme.warningPastel, size: 24),
+                            const Icon(
+                              Icons.warning_amber_rounded,
+                              color: LiquidTheme.warningPastel,
+                              size: 24,
+                            ),
                             const SizedBox(width: 16),
                             const Expanded(
                               child: Column(
@@ -71,14 +78,20 @@ class StudentDashboard extends ConsumerWidget {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
                               ),
                               onPressed: () {
                                 // Redirecionar para o portal do Stripe
                               },
                               child: const Text(
                                 "Atualizar Cartão",
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
@@ -97,7 +110,7 @@ class StudentDashboard extends ConsumerWidget {
               child: Builder(
                 builder: (context) {
                   final isDesktop = MediaQuery.of(context).size.width >= 900;
-                  
+
                   final leftColumn = Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -176,7 +189,8 @@ class StudentDashboard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ShaderMask(
-            shaderCallback: (bounds) => LiquidTheme.auraGradient.createShader(bounds),
+            shaderCallback: (bounds) =>
+                LiquidTheme.auraGradient.createShader(bounds),
             child: const Text(
               "Bem-vinda de volta à Alta Costura",
               style: TextStyle(
@@ -190,7 +204,11 @@ class StudentDashboard extends ConsumerWidget {
           const SizedBox(height: 8),
           const Text(
             "Sua jornada na Lawrence Academy está apenas começando. Que tal explorar novas técnicas de modelagem hoje?",
-            style: TextStyle(fontSize: 13, color: LiquidTheme.textSecondary, height: 1.4),
+            style: TextStyle(
+              fontSize: 13,
+              color: LiquidTheme.textSecondary,
+              height: 1.4,
+            ),
           ),
         ],
       ),
@@ -229,7 +247,11 @@ class StudentDashboard extends ConsumerWidget {
                   color: Colors.white10,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.play_circle_fill, color: LiquidTheme.primary, size: 28),
+                child: const Icon(
+                  Icons.play_circle_fill,
+                  color: LiquidTheme.primary,
+                  size: 28,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -238,12 +260,19 @@ class StudentDashboard extends ConsumerWidget {
                   children: [
                     const Text(
                       "Modelagem Básica: Montagem da Pense de Busto",
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: LiquidTheme.textPrimary),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: LiquidTheme.textPrimary,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     const Text(
                       "Módulo 1 - Aula 3 • Faltam 12 minutos",
-                      style: TextStyle(fontSize: 12, color: LiquidTheme.textSecondary),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: LiquidTheme.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     // Progresso Linear
@@ -252,7 +281,9 @@ class StudentDashboard extends ConsumerWidget {
                       child: const LinearProgressIndicator(
                         value: 0.65,
                         backgroundColor: Colors.white10,
-                        valueColor: AlwaysStoppedAnimation<Color>(LiquidTheme.primary),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          LiquidTheme.primary,
+                        ),
                         minHeight: 4,
                       ),
                     ),
@@ -273,9 +304,17 @@ class StudentDashboard extends ConsumerWidget {
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          _buildActivityItem("Hoje, 14:00", "Live Mentoria: Revisão de Moldes de Alfaiataria", true),
+          _buildActivityItem(
+            "Hoje, 14:00",
+            "Live Mentoria: Revisão de Moldes de Alfaiataria",
+            true,
+          ),
           const Divider(color: Colors.white10),
-          _buildActivityItem("Amanhã, 09:00", "Prazo: Envio da Tarefa Prática do Módulo 2", false),
+          _buildActivityItem(
+            "Amanhã, 09:00",
+            "Prazo: Envio da Tarefa Prática do Módulo 2",
+            false,
+          ),
         ],
       ),
     );
@@ -288,7 +327,9 @@ class StudentDashboard extends ConsumerWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: isActive ? LiquidTheme.primary.withOpacity(0.1) : Colors.white.withOpacity(0.02),
+          color: isActive
+              ? LiquidTheme.primary.withOpacity(0.1)
+              : Colors.white.withOpacity(0.02),
           shape: BoxShape.circle,
         ),
         child: Icon(
@@ -297,8 +338,18 @@ class StudentDashboard extends ConsumerWidget {
           size: 18,
         ),
       ),
-      title: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: LiquidTheme.textPrimary)),
-      subtitle: Text(date, style: const TextStyle(fontSize: 11, color: LiquidTheme.textSecondary)),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          color: LiquidTheme.textPrimary,
+        ),
+      ),
+      subtitle: Text(
+        date,
+        style: const TextStyle(fontSize: 11, color: LiquidTheme.textSecondary),
+      ),
     );
   }
 
@@ -335,7 +386,11 @@ class StudentDashboard extends ConsumerWidget {
           const SizedBox(height: 12),
           const Text(
             "Indique um amigo para a Lawrence Academy. Ele ganha 10% de desconto na primeira fatura e você recebe R\$ 20,00 de saldo na próxima fatura!",
-            style: TextStyle(fontSize: 12, color: LiquidTheme.textSecondary, height: 1.4),
+            style: TextStyle(
+              fontSize: 12,
+              color: LiquidTheme.textSecondary,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
@@ -348,7 +403,10 @@ class StudentDashboard extends ConsumerWidget {
               minimumSize: const Size.fromHeight(40),
             ),
             onPressed: () {},
-            child: const Text("Copiar Link de Indicação", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            child: const Text(
+              "Copiar Link de Indicação",
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -388,7 +446,11 @@ class StudentDashboard extends ConsumerWidget {
           const SizedBox(height: 16),
           const Text(
             "Modelagem Tridimensional com Draping na Seda",
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: LiquidTheme.textPrimary),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: LiquidTheme.textPrimary,
+            ),
           ),
           const SizedBox(height: 4),
           const Text(
@@ -403,7 +465,10 @@ class StudentDashboard extends ConsumerWidget {
             ),
             onPressed: () {},
             icon: const Icon(Icons.videocam_outlined, size: 18),
-            label: const Text("Entrar na Sala", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            label: const Text(
+              "Entrar na Sala",
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),

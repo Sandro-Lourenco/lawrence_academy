@@ -63,7 +63,10 @@ class HomePage extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0A84FF), // Azul premium
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 20,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
@@ -104,21 +107,45 @@ class HomePage extends StatelessWidget {
               isMobile
                   ? Column(
                       children: [
-                        _buildPropItem("Modelagem Tridimensional", "Técnicas de moulage e draping aplicadas diretamente ao manequim para criar volumes orgânicos e precisos."),
+                        _buildPropItem(
+                          "Modelagem Tridimensional",
+                          "Técnicas de moulage e draping aplicadas diretamente ao manequim para criar volumes orgânicos e precisos.",
+                        ),
                         const SizedBox(height: 24),
-                        _buildPropItem("Alfaiataria Clássica", "Construção de casacos e calças com acabamentos de alfaiataria italiana e reforços de entretela tecida."),
+                        _buildPropItem(
+                          "Alfaiataria Clássica",
+                          "Construção de casacos e calças com acabamentos de alfaiataria italiana e reforços de entretela tecida.",
+                        ),
                         const SizedBox(height: 24),
-                        _buildPropItem("Modelagem Industrial", "Criação, gradação e adaptação de tabelas de medidas universais para produção em pequena e grande escala."),
+                        _buildPropItem(
+                          "Modelagem Industrial",
+                          "Criação, gradação e adaptação de tabelas de medidas universais para produção em pequena e grande escala.",
+                        ),
                       ],
                     )
                   : Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(child: _buildPropItem("Modelagem Tridimensional", "Técnicas de moulage e draping aplicadas diretamente ao manequim para criar volumes orgânicos e precisos.")),
+                        Expanded(
+                          child: _buildPropItem(
+                            "Modelagem Tridimensional",
+                            "Técnicas de moulage e draping aplicadas diretamente ao manequim para criar volumes orgânicos e precisos.",
+                          ),
+                        ),
                         const SizedBox(width: 32),
-                        Expanded(child: _buildPropItem("Alfaiataria Clássica", "Construção de casacos e calças com acabamentos de alfaiataria italiana e reforços de entretela tecida.")),
+                        Expanded(
+                          child: _buildPropItem(
+                            "Alfaiataria Clássica",
+                            "Construção de casacos e calças com acabamentos de alfaiataria italiana e reforços de entretela tecida.",
+                          ),
+                        ),
                         const SizedBox(width: 32),
-                        Expanded(child: _buildPropItem("Modelagem Industrial", "Criação, gradação e adaptação de tabelas de medidas universais para produção em pequena e grande escala.")),
+                        Expanded(
+                          child: _buildPropItem(
+                            "Modelagem Industrial",
+                            "Criação, gradação e adaptação de tabelas de medidas universais para produção em pequena e grande escala.",
+                          ),
+                        ),
                       ],
                     ),
             ],
@@ -144,16 +171,40 @@ class HomePage extends StatelessWidget {
             isMobile
                 ? Column(
                     children: [
-                      _buildFeatureCard(context, "Alfaiataria Feminina Fina", "Aprenda a estruturar blazers forrados com ombreiras e golas entreteladas.", "iniciante"),
+                      _buildFeatureCard(
+                        context,
+                        "Alfaiataria Feminina Fina",
+                        "Aprenda a estruturar blazers forrados com ombreiras e golas entreteladas.",
+                        "iniciante",
+                      ),
                       const SizedBox(height: 20),
-                      _buildFeatureCard(context, "Moulage e Draping na Seda", "Manipulação tridimensional de cetins e sedas em cortes enviesados.", "avancado"),
+                      _buildFeatureCard(
+                        context,
+                        "Moulage e Draping na Seda",
+                        "Manipulação tridimensional de cetins e sedas em cortes enviesados.",
+                        "avancado",
+                      ),
                     ],
                   )
                 : Row(
                     children: [
-                      Expanded(child: _buildFeatureCard(context, "Alfaiataria Feminina Fina", "Aprenda a estruturar blazers forrados com ombreiras e golas entreteladas.", "iniciante")),
+                      Expanded(
+                        child: _buildFeatureCard(
+                          context,
+                          "Alfaiataria Feminina Fina",
+                          "Aprenda a estruturar blazers forrados com ombreiras e golas entreteladas.",
+                          "iniciante",
+                        ),
+                      ),
                       const SizedBox(width: 24),
-                      Expanded(child: _buildFeatureCard(context, "Moulage e Draping na Seda", "Manipulação tridimensional de cetins e sedas em cortes enviesados.", "avancado")),
+                      Expanded(
+                        child: _buildFeatureCard(
+                          context,
+                          "Moulage e Draping na Seda",
+                          "Manipulação tridimensional de cetins e sedas em cortes enviesados.",
+                          "avancado",
+                        ),
+                      ),
                     ],
                   ),
           ],
@@ -230,7 +281,12 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildFeatureCard(BuildContext context, String title, String summary, String level) {
+  Widget _buildFeatureCard(
+    BuildContext context,
+    String title,
+    String summary,
+    String level,
+  ) {
     return Container(
       decoration: LiquidTheme.glassDecoration(radius: 16),
       padding: const EdgeInsets.all(24),
@@ -248,21 +304,37 @@ class HomePage extends StatelessWidget {
                 ),
                 child: Text(
                   level.toUpperCase(),
-                  style: const TextStyle(fontSize: 10, color: LiquidTheme.primary, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: LiquidTheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-              const Icon(Icons.bookmark_border, color: Colors.white54, size: 18),
+              const Icon(
+                Icons.bookmark_border,
+                color: Colors.white54,
+                size: 18,
+              ),
             ],
           ),
           const SizedBox(height: 20),
           Text(
             title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             summary,
-            style: const TextStyle(fontSize: 12, color: Colors.white70, height: 1.4),
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.white70,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 20),
           TextButton(
@@ -273,7 +345,10 @@ class HomePage extends StatelessWidget {
             onPressed: () => context.go('/courses'),
             child: const Row(
               children: [
-                Text("Ver Detalhes", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                Text(
+                  "Ver Detalhes",
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
                 SizedBox(width: 4),
                 Icon(Icons.arrow_forward, size: 12),
               ],

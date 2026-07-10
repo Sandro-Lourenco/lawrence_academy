@@ -38,7 +38,7 @@ class AuthController extends AutoDisposeNotifier<AuthState> {
   @override
   AuthState build() {
     final repo = ref.watch(authRepositoryProvider);
-    
+
     // Escutar mudanças de autenticação do Supabase
     repo.onAuthStateChange.listen((data) {
       final session = data.session;
@@ -66,7 +66,10 @@ class AuthController extends AutoDisposeNotifier<AuthState> {
     return false;
   }
 
-  Future<void> signInWithEmail({required String email, required String password}) async {
+  Future<void> signInWithEmail({
+    required String email,
+    required String password,
+  }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final repo = ref.read(authRepositoryProvider);
@@ -74,7 +77,8 @@ class AuthController extends AutoDisposeNotifier<AuthState> {
     } on supabase.AuthException catch (_) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: "Credenciais inválidas ou link de verificação expirado.", // OWASP obfuscation
+        errorMessage:
+            "Credenciais inválidas ou link de verificação expirado.", // OWASP obfuscation
       );
     } catch (_) {
       state = state.copyWith(
@@ -92,11 +96,7 @@ class AuthController extends AutoDisposeNotifier<AuthState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final repo = ref.read(authRepositoryProvider);
-      await repo.signUp(
-        email: email,
-        password: password,
-        fullName: fullName,
-      );
+      await repo.signUp(email: email, password: password, fullName: fullName);
       state = state.copyWith(isLoading: false);
     } on supabase.AuthException catch (e) {
       state = state.copyWith(
@@ -123,4 +123,5 @@ class AuthController extends AutoDisposeNotifier<AuthState> {
 }
 
 /// Provider global que expõe o estado e controlador de autenticação.
-final authControllerProvider = AutoDisposeNotifierProvider<AuthController, AuthState>(AuthController.new);
+final authControllerProvider =
+    AutoDisposeNotifierProvider<AuthController, AuthState>(AuthController.new);

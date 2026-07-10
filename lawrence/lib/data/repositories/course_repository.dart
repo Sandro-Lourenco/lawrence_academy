@@ -14,9 +14,11 @@ class CourseRepository {
         .from('courses')
         .select('*, modules(*, lessons(*))')
         .eq('status', 'published');
-        
+
     final data = response as List? ?? [];
-    return data.map((json) => Course.fromJson(json as Map<String, dynamic>)).toList();
+    return data
+        .map((json) => Course.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   /// Retorna os detalhes de um curso específico (Aggregate Root)
@@ -27,7 +29,7 @@ class CourseRepository {
         .eq('id', courseId)
         .limit(1)
         .maybeSingle();
-        
+
     if (response == null) return null;
     return Course.fromJson(response as Map<String, dynamic>);
   }
@@ -63,7 +65,7 @@ class CourseRepository {
         .eq('student_id', userId)
         .eq('lesson_id', lessonId)
         .maybeSingle();
-        
+
     return response as Map<String, dynamic>?;
   }
 
@@ -76,7 +78,7 @@ class CourseRepository {
         .from('lesson_progress')
         .select('*')
         .eq('student_id', userId);
-        
+
     final data = response as List? ?? [];
     return data.map((json) => json as Map<String, dynamic>).toList();
   }

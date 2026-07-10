@@ -32,7 +32,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (_formKey.currentState!.validate()) {
       final formNotifier = ref.read(loginFormControllerProvider.notifier);
       final authNotifier = ref.read(authNotifierProvider.notifier);
-      
+
       formNotifier.submit(() async {
         if (_isLoginMode) {
           await authNotifier.signInWithEmail(
@@ -49,7 +49,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             _isLoginMode = true;
           });
         }
-        
+
         final authState = ref.read(authNotifierProvider);
         if (authState.errorMessage != null) {
           throw Exception(authState.errorMessage);
@@ -96,20 +96,28 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             height: 52,
                             decoration: BoxDecoration(
                               color: LawrenceTheme.primary,
-                              borderRadius: BorderRadius.circular(LawrenceTheme.radiusMd),
+                              borderRadius: BorderRadius.circular(
+                                LawrenceTheme.radiusMd,
+                              ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: LawrenceTheme.primary.withOpacity(0.24),
+                                  color: LawrenceTheme.primary.withOpacity(
+                                    0.24,
+                                  ),
                                   blurRadius: 16,
                                   offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
-                            child: const Icon(Icons.auto_awesome, color: Colors.white, size: 28),
+                            child: const Icon(
+                              Icons.auto_awesome,
+                              color: Colors.white,
+                              size: 28,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 20),
-                        
+
                         Text(
                           "LAWRENCE ACADEMY",
                           style: theme.textTheme.headlineMedium?.copyWith(
@@ -121,10 +129,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 8),
-                        
+
                         Text(
-                          _isLoginMode 
-                              ? "Plataforma de Alta Costura & Modelagem" 
+                          _isLoginMode
+                              ? "Plataforma de Alta Costura & Modelagem"
                               : "Crie sua conta de aluno (Atrito Zero)",
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: LawrenceTheme.textSecondary,
@@ -167,13 +175,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                         // Botão pílula resiliente (PillButton)
                         PillButton(
-                          label: _isLoginMode ? "Entrar na Plataforma" : "Cadastrar Nova Conta",
+                          label: _isLoginMode
+                              ? "Entrar na Plataforma"
+                              : "Cadastrar Nova Conta",
                           isLoading: formState.isLoading,
                           onPressed: _handleFormSubmit,
                           width: double.infinity,
                           height: 52,
                         ),
-                        
+
                         const SizedBox(height: 20),
 
                         // Alternador entre Login e Cadastro
@@ -188,8 +198,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             });
                           },
                           child: Text(
-                            _isLoginMode 
-                                ? "Não tem conta? Cadastre-se agora" 
+                            _isLoginMode
+                                ? "Não tem conta? Cadastre-se agora"
                                 : "Já tem uma conta? Faça login",
                             style: const TextStyle(
                               color: LawrenceTheme.primary,
@@ -198,14 +208,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             ),
                           ),
                         ),
-                        
+
                         if (formState.errorMessage != null) ...[
                           const SizedBox(height: 16),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: LawrenceTheme.danger.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(LawrenceTheme.radiusXs),
+                              borderRadius: BorderRadius.circular(
+                                LawrenceTheme.radiusXs,
+                              ),
                             ),
                             child: Text(
                               formState.errorMessage!,
@@ -243,10 +258,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       validator: validator,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      style: const TextStyle(
-        fontSize: 15,
-        color: LawrenceTheme.surfaceTile1,
-      ),
+      style: const TextStyle(fontSize: 15, color: LawrenceTheme.surfaceTile1),
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: const TextStyle(
@@ -256,18 +268,30 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         prefixIcon: Icon(icon, size: 20, color: LawrenceTheme.textSecondary),
         filled: true,
         fillColor: Colors.white.withOpacity(0.4),
-        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(LawrenceTheme.radiusMd),
-          borderSide: const BorderSide(color: LawrenceTheme.borderMist, width: 1.5),
+          borderSide: const BorderSide(
+            color: LawrenceTheme.borderMist,
+            width: 1.5,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(LawrenceTheme.radiusMd),
-          borderSide: const BorderSide(color: LawrenceTheme.borderMist, width: 1.5),
+          borderSide: const BorderSide(
+            color: LawrenceTheme.borderMist,
+            width: 1.5,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(LawrenceTheme.radiusMd),
-          borderSide: const BorderSide(color: LawrenceTheme.primaryFocus, width: 2.0),
+          borderSide: const BorderSide(
+            color: LawrenceTheme.primaryFocus,
+            width: 2.0,
+          ),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(LawrenceTheme.radiusMd),

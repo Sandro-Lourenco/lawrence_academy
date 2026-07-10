@@ -22,7 +22,7 @@ class LivesPage extends StatelessWidget {
         'instructor': 'Ariane Lawrence',
         'datetime': '12 de Julho, às 20:00',
         'tag': 'Masterclass',
-      }
+      },
     ];
 
     return Scaffold(
@@ -59,7 +59,10 @@ class LivesPage extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: LawrenceTheme.accent.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
@@ -94,7 +97,11 @@ class LivesPage extends StatelessWidget {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.person_outline, size: 16, color: LawrenceTheme.textSecondary),
+                          const Icon(
+                            Icons.person_outline,
+                            size: 16,
+                            color: LawrenceTheme.textSecondary,
+                          ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
@@ -111,7 +118,11 @@ class LivesPage extends StatelessWidget {
                       ElevatedButton.icon(
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Sala de mentoria abrirá 10 minutos antes da transmissão.')),
+                            const SnackBar(
+                              content: Text(
+                                'Sala de mentoria abrirá 10 minutos antes da transmissão.',
+                              ),
+                            ),
                           );
                         },
                         style: ElevatedButton.styleFrom(
@@ -120,7 +131,10 @@ class LivesPage extends StatelessWidget {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                         ),
                         icon: const Icon(Icons.videocam_outlined),
                         label: const Text('Entrar na Transmissão'),

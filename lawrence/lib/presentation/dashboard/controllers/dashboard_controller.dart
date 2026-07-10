@@ -24,7 +24,7 @@ class DashboardController extends AutoDisposeAsyncNotifier<DashboardState> {
   @override
   Future<DashboardState> build() async {
     final repo = ref.watch(courseRepositoryProvider);
-    
+
     // Buscar cursos e progresso em paralelo
     final courses = await repo.fetchPublishedCourses();
     final progressList = await repo.fetchAllLessonProgress();
@@ -37,8 +37,12 @@ class DashboardController extends AutoDisposeAsyncNotifier<DashboardState> {
     if (progressList.isNotEmpty) {
       // Ordenar progressList por updated_at descendente se existir
       progressList.sort((a, b) {
-        final aTime = DateTime.tryParse(a['updated_at'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bTime = DateTime.tryParse(b['updated_at'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final aTime =
+            DateTime.tryParse(a['updated_at'] as String? ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        final bTime =
+            DateTime.tryParse(b['updated_at'] as String? ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0);
         return bTime.compareTo(aTime);
       });
 
@@ -75,7 +79,8 @@ class DashboardController extends AutoDisposeAsyncNotifier<DashboardState> {
     // Se não houver progresso anterior, pega o primeiro curso e primeira aula como recomendação inicial
     if (lastWatchedLesson == null && courses.isNotEmpty) {
       final firstCourse = courses.first;
-      if (firstCourse.modules.isNotEmpty && firstCourse.modules.first.lessons.isNotEmpty) {
+      if (firstCourse.modules.isNotEmpty &&
+          firstCourse.modules.first.lessons.isNotEmpty) {
         lastWatchedCourse = firstCourse;
         lastWatchedLesson = firstCourse.modules.first.lessons.first;
         lastPos = 0;
@@ -98,7 +103,7 @@ class DashboardController extends AutoDisposeAsyncNotifier<DashboardState> {
         'instructor': 'Ariane Lawrence',
         'datetime': '12 de Julho, às 20:00',
         'tag': 'Masterclass',
-      }
+      },
     ];
 
     return DashboardState(
@@ -112,7 +117,12 @@ class DashboardController extends AutoDisposeAsyncNotifier<DashboardState> {
   }
 
   /// Registra progresso atualizado de uma aula e atualiza o estado local
-  Future<void> updateProgress(String courseId, String lessonId, int seconds, bool completed) async {
+  Future<void> updateProgress(
+    String courseId,
+    String lessonId,
+    int seconds,
+    bool completed,
+  ) async {
     final repo = ref.read(courseRepositoryProvider);
     await repo.updateLessonProgress(
       courseId: courseId,
@@ -125,6 +135,7 @@ class DashboardController extends AutoDisposeAsyncNotifier<DashboardState> {
 }
 
 /// Provider do painel/dashboard de aluno.
-final dashboardControllerProvider = AutoDisposeAsyncNotifierProvider<DashboardController, DashboardState>(
-  DashboardController.new,
-);
+final dashboardControllerProvider =
+    AutoDisposeAsyncNotifierProvider<DashboardController, DashboardState>(
+      DashboardController.new,
+    );

@@ -9,8 +9,12 @@ class LiquidTheme {
   static const Color secondary = Color(0xFF9E8CF2); // Violeta Soft
   static const Color textPrimary = Color(0xFFF3F4F6);
   static const Color textSecondary = Color(0xFF9CA3AF);
-  static const Color accentGold = Color(0xFFF59E0B); // Ouro para destaques de indicações
-  static const Color warningPastel = Color(0xFFF87171); // Rosa avermelhado pastel para alertas
+  static const Color accentGold = Color(
+    0xFFF59E0B,
+  ); // Ouro para destaques de indicações
+  static const Color warningPastel = Color(
+    0xFFF87171,
+  ); // Rosa avermelhado pastel para alertas
 
   // Gradiente Principal (Aura Efeito Neon sutil)
   static const LinearGradient auraGradient = LinearGradient(
@@ -52,8 +56,16 @@ class LiquidTheme {
       ),
       fontFamily: 'Outfit',
       textTheme: const TextTheme(
-        displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textPrimary),
-        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textPrimary),
+        displayLarge: TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+          color: textPrimary,
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: textPrimary,
+        ),
         bodyLarge: TextStyle(fontSize: 16, color: textPrimary),
         bodyMedium: TextStyle(fontSize: 14, color: textSecondary),
       ),

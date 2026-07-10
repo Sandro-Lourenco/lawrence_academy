@@ -10,7 +10,7 @@ class CourseCreationWizard extends StatefulWidget {
 
 class _CourseCreationWizardState extends State<CourseCreationWizard> {
   int _currentStep = 0;
-  
+
   // Passo 1: Informações Básicas
   final _titleController = TextEditingController();
   final _slugController = TextEditingController();
@@ -42,7 +42,7 @@ class _CourseCreationWizardState extends State<CourseCreationWizard> {
       _isUploading = true;
       _uploadProgress = 0.0;
     });
-    
+
     for (int i = 1; i <= 10; i++) {
       await Future.delayed(const Duration(milliseconds: 300));
       setState(() {
@@ -60,7 +60,10 @@ class _CourseCreationWizardState extends State<CourseCreationWizard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Criador de Cursos (Wizard)", style: TextStyle(fontFamily: 'Outfit', fontSize: 16)),
+        title: const Text(
+          "Criador de Cursos (Wizard)",
+          style: TextStyle(fontFamily: 'Outfit', fontSize: 16),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -76,7 +79,11 @@ class _CourseCreationWizardState extends State<CourseCreationWizard> {
           } else {
             // Finalizar e salvar
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Curso salvo e enviado para a pipeline HLS com sucesso!")),
+              const SnackBar(
+                content: Text(
+                  "Curso salvo e enviado para a pipeline HLS com sucesso!",
+                ),
+              ),
             );
             Navigator.of(context).pop();
           }
@@ -95,7 +102,7 @@ class _CourseCreationWizardState extends State<CourseCreationWizard> {
             title: const Text("Básico", style: TextStyle(fontSize: 12)),
             content: _buildStepBasicInfo(),
           ),
-          
+
           // Passo 2: Grade Curricular (Reorderable List)
           Step(
             isActive: _currentStep >= 1,
@@ -171,7 +178,11 @@ class _CourseCreationWizardState extends State<CourseCreationWizard> {
         children: [
           const Text(
             "Ordene as aulas arrastando os blocos:",
-            style: TextStyle(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.white70,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 16),
           Expanded(
@@ -187,10 +198,20 @@ class _CourseCreationWizardState extends State<CourseCreationWizard> {
               children: _lessons.map((lesson) {
                 return ListTile(
                   key: ValueKey(lesson),
-                  leading: const Icon(Icons.drag_indicator, color: Colors.white30),
-                  title: Text(lesson, style: const TextStyle(fontSize: 13, color: Colors.white)),
+                  leading: const Icon(
+                    Icons.drag_indicator,
+                    color: Colors.white30,
+                  ),
+                  title: Text(
+                    lesson,
+                    style: const TextStyle(fontSize: 13, color: Colors.white),
+                  ),
                   trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.redAccent,
+                      size: 18,
+                    ),
                     onPressed: () {
                       setState(() {
                         _lessons.remove(lesson);
@@ -214,7 +235,11 @@ class _CourseCreationWizardState extends State<CourseCreationWizard> {
         children: [
           const Text(
             "Envio de Vídeo Bruto",
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -223,20 +248,32 @@ class _CourseCreationWizardState extends State<CourseCreationWizard> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
-          
+
           if (_isUploading) ...[
-            LinearProgressIndicator(value: _uploadProgress, color: LiquidTheme.primary, backgroundColor: Colors.white10),
+            LinearProgressIndicator(
+              value: _uploadProgress,
+              color: LiquidTheme.primary,
+              backgroundColor: Colors.white10,
+            ),
             const SizedBox(height: 16),
             Text(
-              "Enviando ao Supabase Storage... ${( _uploadProgress * 100).toInt()}%",
+              "Enviando ao Supabase Storage... ${(_uploadProgress * 100).toInt()}%",
               style: const TextStyle(fontSize: 12, color: Colors.white70),
             ),
           ] else if (_uploadedFileName != null) ...[
-            const Icon(Icons.check_circle, color: LiquidTheme.secondary, size: 48),
+            const Icon(
+              Icons.check_circle,
+              color: LiquidTheme.secondary,
+              size: 48,
+            ),
             const SizedBox(height: 16),
             Text(
               "Upload concluído: $_uploadedFileName",
-              style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 13,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ] else ...[
             InkWell(
@@ -248,12 +285,19 @@ class _CourseCreationWizardState extends State<CourseCreationWizard> {
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.02),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white12, style: BorderStyle.values[1]), // tracejado simples
+                  border: Border.all(
+                    color: Colors.white12,
+                    style: BorderStyle.values[1],
+                  ), // tracejado simples
                 ),
                 child: const Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.cloud_upload_outlined, color: LiquidTheme.primary, size: 36),
+                    Icon(
+                      Icons.cloud_upload_outlined,
+                      color: LiquidTheme.primary,
+                      size: 36,
+                    ),
                     SizedBox(height: 8),
                     Text(
                       "Clique ou Arraste o arquivo MP4 aqui",

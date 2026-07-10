@@ -22,7 +22,9 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 120), // Espaço para a barra flutuante inferior
+            padding: const EdgeInsets.only(
+              bottom: 120,
+            ), // Espaço para a barra flutuante inferior
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -46,7 +48,12 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
                           // 3. CurriculumAccordion
                           const Text(
                             "Grade Curricular",
-                            style: TextStyle(fontFamily: 'Outfit', fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                            style: TextStyle(
+                              fontFamily: 'Outfit',
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                           const SizedBox(height: 16),
                           _buildCurriculumAccordion(),
@@ -57,14 +64,11 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
                         ],
                       ),
                     ),
-                    
+
                     if (!isMobile) ...[
                       const SizedBox(width: 40),
                       // Lateral fixa (Preview no Desktop)
-                      Expanded(
-                        flex: 3,
-                        child: _buildSidebarSummary(),
-                      ),
+                      Expanded(flex: 3, child: _buildSidebarSummary()),
                     ],
                   ],
                 ),
@@ -97,13 +101,22 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
             ),
             child: const Text(
               "ALFAIATARIA",
-              style: TextStyle(fontSize: 10, color: LiquidTheme.primary, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 10,
+                color: LiquidTheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const SizedBox(height: 16),
           const Text(
             "Alfaiataria Feminina Fina: Blazers Estruturados",
-            style: TextStyle(fontFamily: 'Outfit', fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -124,11 +137,19 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.play_circle_fill, color: LiquidTheme.primary, size: 54),
+                    Icon(
+                      Icons.play_circle_fill,
+                      color: LiquidTheme.primary,
+                      size: 54,
+                    ),
                     SizedBox(height: 12),
                     Text(
                       "Assistir ao Trailer de Introdução",
-                      style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -164,7 +185,11 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
               children: [
                 Text(
                   "Ariane Lawrence",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
                 Text(
                   "Mestra Alfaiate & Fundadora",
@@ -173,7 +198,11 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
                 SizedBox(height: 8),
                 Text(
                   "Especializada em alfaiataria fina feminina por mais de 15 anos. Ensina técnicas tradicionais artesanais focadas no caimento perfeito em manequim.",
-                  style: TextStyle(fontSize: 12, color: Colors.white70, height: 1.4),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white70,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
@@ -191,7 +220,10 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
         child: Column(
           children: [
             _buildAccordionTile("Módulo 1: Fundamentos de Modelagem", [
-              _buildLessonItem("1. Introdução à Fita Métrica e Ergonomia", true),
+              _buildLessonItem(
+                "1. Introdução à Fita Métrica e Ergonomia",
+                true,
+              ),
               _buildLessonItem("2. Traçado Base de Corpo de Blazer", true),
             ]),
             const Divider(color: Colors.white10, height: 1),
@@ -209,7 +241,14 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
     return ExpansionTile(
       backgroundColor: Colors.transparent,
       collapsedBackgroundColor: Colors.transparent,
-      title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
       children: children,
     );
   }
@@ -240,7 +279,11 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
         children: [
           Text(
             "Materiais e Requisitos Necessários",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           SizedBox(height: 16),
           Row(
@@ -251,7 +294,11 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
               Expanded(
                 child: Text(
                   "Tecido encorpado (lã fria, crepe pesado ou linho estruturado, mínimo 2 metros).",
-                  style: TextStyle(fontSize: 13, color: Colors.white70, height: 1.4),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white70,
+                    height: 1.4,
+                  ),
                 ),
               ),
             ],
@@ -265,7 +312,11 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
               Expanded(
                 child: Text(
                   "Máquina de costura reta convencional e ferro de passar industrial com vapor.",
-                  style: TextStyle(fontSize: 13, color: Colors.white70, height: 1.4),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white70,
+                    height: 1.4,
+                  ),
                 ),
               ),
             ],
@@ -284,14 +335,24 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
         children: [
           const Text(
             "Este curso inclui:",
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: 16),
-          _buildSummaryIconItem(Icons.ondemand_video, "12 horas de aulas gravadas"),
+          _buildSummaryIconItem(
+            Icons.ondemand_video,
+            "12 horas de aulas gravadas",
+          ),
           const SizedBox(height: 12),
           _buildSummaryIconItem(Icons.download, "Modelos PDF para download"),
           const SizedBox(height: 12),
-          _buildSummaryIconItem(Icons.workspace_premium, "Certificado de conclusão de Alta Costura"),
+          _buildSummaryIconItem(
+            Icons.workspace_premium,
+            "Certificado de conclusão de Alta Costura",
+          ),
         ],
       ),
     );
@@ -302,7 +363,12 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
       children: [
         Icon(icon, color: LiquidTheme.primary, size: 16),
         const SizedBox(width: 12),
-        Expanded(child: Text(text, style: const TextStyle(fontSize: 12, color: Colors.white70))),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 12, color: Colors.white70),
+          ),
+        ),
       ],
     );
   }
@@ -323,8 +389,18 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Plano de Assinatura Completo", style: TextStyle(fontSize: 11, color: Colors.white60)),
-              Text("R\$ 89,90 / mês", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text(
+                "Plano de Assinatura Completo",
+                style: TextStyle(fontSize: 11, color: Colors.white60),
+              ),
+              Text(
+                "R\$ 89,90 / mês",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
             ],
           ),
           ElevatedButton(
@@ -339,7 +415,10 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
             onPressed: () {
               context.go('/register');
             },
-            child: const Text("Comprar Curso", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+            child: const Text(
+              "Comprar Curso",
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),

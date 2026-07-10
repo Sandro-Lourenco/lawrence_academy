@@ -24,7 +24,8 @@ class _TaskExecutionPageState extends State<TaskExecutionPage> {
 
   // Feedback do Professor Simulado
   final double _score = 8.5;
-  final String _feedback = "Muito boa execução do traçado lateral do blazer. Lembre-se de dar uma folga de vestibilidade de 1cm na cava nas próximas peças.";
+  final String _feedback =
+      "Muito boa execução do traçado lateral do blazer. Lembre-se de dar uma folga de vestibilidade de 1cm na cava nas próximas peças.";
 
   @override
   void dispose() {
@@ -42,7 +43,10 @@ class _TaskExecutionPageState extends State<TaskExecutionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Tarefa de Avaliação Prática", style: TextStyle(fontFamily: 'Outfit', fontSize: 16)),
+        title: const Text(
+          "Tarefa de Avaliação Prática",
+          style: TextStyle(fontFamily: 'Outfit', fontSize: 16),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -59,10 +63,16 @@ class _TaskExecutionPageState extends State<TaskExecutionPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    const Text("Simular Tipo:", style: TextStyle(fontSize: 11, color: Colors.white54)),
+                    const Text(
+                      "Simular Tipo:",
+                      style: TextStyle(fontSize: 11, color: Colors.white54),
+                    ),
                     const SizedBox(width: 8),
                     ChoiceChip(
-                      label: const Text("Múltipla Escolha", style: TextStyle(fontSize: 10)),
+                      label: const Text(
+                        "Múltipla Escolha",
+                        style: TextStyle(fontSize: 10),
+                      ),
                       selected: _isMultipleChoice,
                       onSelected: (val) {
                         setState(() {
@@ -74,7 +84,10 @@ class _TaskExecutionPageState extends State<TaskExecutionPage> {
                     ),
                     const SizedBox(width: 8),
                     ChoiceChip(
-                      label: const Text("Discursiva", style: TextStyle(fontSize: 10)),
+                      label: const Text(
+                        "Discursiva",
+                        style: TextStyle(fontSize: 10),
+                      ),
                       selected: !_isMultipleChoice,
                       onSelected: (val) {
                         setState(() {
@@ -97,14 +110,23 @@ class _TaskExecutionPageState extends State<TaskExecutionPage> {
                     children: [
                       const Text(
                         "ENUNCIADO DA TAREFA",
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5, color: LiquidTheme.primary),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                          color: LiquidTheme.primary,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        _isMultipleChoice 
+                        _isMultipleChoice
                             ? "Qual o viés angular ideal para realizar o corte de golas xale estruturadas para tecidos de alfaiataria em lã fria?"
                             : "Descreva o procedimento correto para fixação e fusão de entretelas tecidas na lapela de um blazer, incluindo temperatura, tempo e pressão ideais.",
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
                     ],
                   ),
@@ -120,8 +142,7 @@ class _TaskExecutionPageState extends State<TaskExecutionPage> {
                 const SizedBox(height: 32),
 
                 // 3. Teacher Feedback View (Se submetido)
-                if (_isSubmitted)
-                  _buildTeacherFeedbackView(),
+                if (_isSubmitted) _buildTeacherFeedbackView(),
               ],
             ),
           ),
@@ -148,18 +169,24 @@ class _TaskExecutionPageState extends State<TaskExecutionPage> {
               scale: isSelected ? 0.98 : 1.0,
               duration: const Duration(milliseconds: 100),
               child: InkWell(
-                onTap: _isSubmitted ? null : () {
-                  setState(() {
-                    _selectedOption = opt.key;
-                  });
-                },
+                onTap: _isSubmitted
+                    ? null
+                    : () {
+                        setState(() {
+                          _selectedOption = opt.key;
+                        });
+                      },
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: isSelected ? LiquidTheme.secondary.withOpacity(0.08) : LiquidTheme.surface.withOpacity(0.4),
+                    color: isSelected
+                        ? LiquidTheme.secondary.withOpacity(0.08)
+                        : LiquidTheme.surface.withOpacity(0.4),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isSelected ? LiquidTheme.secondary : Colors.white10,
+                      color: isSelected
+                          ? LiquidTheme.secondary
+                          : Colors.white10,
                       width: isSelected ? 2.0 : 1.0,
                     ),
                   ),
@@ -170,7 +197,9 @@ class _TaskExecutionPageState extends State<TaskExecutionPage> {
                         width: 28,
                         height: 28,
                         decoration: BoxDecoration(
-                          color: isSelected ? LiquidTheme.secondary : Colors.white10,
+                          color: isSelected
+                              ? LiquidTheme.secondary
+                              : Colors.white10,
                           shape: BoxShape.circle,
                         ),
                         child: Center(
@@ -188,7 +217,10 @@ class _TaskExecutionPageState extends State<TaskExecutionPage> {
                       Expanded(
                         child: Text(
                           opt.value,
-                          style: const TextStyle(fontSize: 13, color: Colors.white),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ],
@@ -203,11 +235,18 @@ class _TaskExecutionPageState extends State<TaskExecutionPage> {
           style: ElevatedButton.styleFrom(
             backgroundColor: LiquidTheme.primary,
             foregroundColor: Colors.black,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             minimumSize: const Size.fromHeight(50),
           ),
-          onPressed: _isSubmitted || _selectedOption == null ? null : _submitAnswer,
-          child: const Text("Enviar Resposta", style: TextStyle(fontWeight: FontWeight.bold)),
+          onPressed: _isSubmitted || _selectedOption == null
+              ? null
+              : _submitAnswer,
+          child: const Text(
+            "Enviar Resposta",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
         ),
       ],
     );
@@ -218,15 +257,22 @@ class _TaskExecutionPageState extends State<TaskExecutionPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          decoration: LiquidTheme.glassDecoration(blurOpacity: 0.02, radius: 12),
+          decoration: LiquidTheme.glassDecoration(
+            blurOpacity: 0.02,
+            radius: 12,
+          ),
           padding: const EdgeInsets.all(16),
           child: TextField(
             controller: _essayController,
             maxLines: 8,
             readOnly: _isSubmitted,
-            style: const TextStyle(fontSize: 17, color: Colors.white), // Fonte em 17px conforme especificação
+            style: const TextStyle(
+              fontSize: 17,
+              color: Colors.white,
+            ), // Fonte em 17px conforme especificação
             decoration: const InputDecoration(
-              hintText: "Escreva sua resposta dissertativa aqui (mínimo de 6 linhas)...",
+              hintText:
+                  "Escreva sua resposta dissertativa aqui (mínimo de 6 linhas)...",
               hintStyle: TextStyle(color: Colors.white24, fontSize: 14),
               border: InputBorder.none,
             ),
@@ -237,11 +283,18 @@ class _TaskExecutionPageState extends State<TaskExecutionPage> {
           style: ElevatedButton.styleFrom(
             backgroundColor: LiquidTheme.primary,
             foregroundColor: Colors.black,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             minimumSize: const Size.fromHeight(50),
           ),
-          onPressed: _isSubmitted || _essayController.text.length < 20 ? null : _submitAnswer,
-          child: const Text("Enviar Resposta Dissertativa", style: TextStyle(fontWeight: FontWeight.bold)),
+          onPressed: _isSubmitted || _essayController.text.length < 20
+              ? null
+              : _submitAnswer,
+          child: const Text(
+            "Enviar Resposta Dissertativa",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
         ),
       ],
     );
@@ -263,17 +316,29 @@ class _TaskExecutionPageState extends State<TaskExecutionPage> {
             children: [
               const Text(
                 "AVALIAÇÃO DO PROFESSOR",
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5, color: Colors.black54),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5,
+                  color: Colors.black54,
+                ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF0071E3).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   "Nota: $_score",
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF0071E3), fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF0071E3),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -281,7 +346,11 @@ class _TaskExecutionPageState extends State<TaskExecutionPage> {
           const SizedBox(height: 16),
           Text(
             _feedback,
-            style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.4),
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colors.black87,
+              height: 1.4,
+            ),
           ),
         ],
       ),

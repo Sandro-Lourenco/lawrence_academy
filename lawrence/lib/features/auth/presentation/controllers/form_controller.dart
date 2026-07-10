@@ -1,0 +1,96 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+class FormSubmitState {
+  final bool isLoading;
+  final String? errorMessage;
+  final bool isSuccess;
+
+  const FormSubmitState({
+    this.isLoading = false,
+    this.errorMessage,
+    this.isSuccess = false,
+  });
+
+  FormSubmitState copyWith({
+    bool? isLoading,
+    String? errorMessage,
+    bool? isSuccess,
+  }) {
+    return FormSubmitState(
+      isLoading: isLoading ?? this.isLoading,
+      errorMessage: errorMessage ?? this.errorMessage,
+      isSuccess: isSuccess ?? this.isSuccess,
+    );
+  }
+}
+
+class FormSubmitNotifier extends StateNotifier<FormSubmitState> {
+  FormSubmitNotifier() : super(const FormSubmitState());
+
+  Future<void> submit(Future<void> Function() action) async {
+    if (state.isLoading) return; // Anti-Debounce mecânico
+
+    state = const FormSubmitState(isLoading: true);
+
+    try {
+      await action();
+      state = const FormSubmitState(isSuccess: true);
+    } catch (e) {
+      state = FormSubmitState(
+        isLoading: false,
+        errorMessage: e.toString().replaceAll("Exception: ", ""),
+      );
+    }
+  }
+
+  void reset() {
+    state = const FormSubmitState();
+  }
+}
+
+final loginFormControllerProvider =
+    StateNotifierProvider.autoDispose<FormSubmitNotifier, FormSubmitState>((
+      ref,
+    ) {
+      return FormSubmitNotifier();
+    });
+
+final registerFormControllerProvider =
+    StateNotifierProvider.autoDispose<FormSubmitNotifier, FormSubmitState>((
+      ref,
+    ) {
+      return FormSubmitNotifier();
+    });
+
+class FormValidators {
+  static String? validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return "O e-mail é obrigatório.";
+    }
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,20}$');
+    if (!emailRegex.hasMatch(value.trim())) {
+      return "Insira um endereço de e-mail válido.";
+    }
+    return null;
+  }
+
+  static String? validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return "A senha é obrigatória.";
+    }
+    if (value.length < 8) {
+      return "A senha deve conter no mínimo 8 caracteres.";
+    }
+    return null;
+  }
+
+  static String? validateFullName(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return "O nome completo é obrigatório.";
+    }
+    if (value.trim().split(' ').length < 2) {
+      return "Insira seu nome e sobrenome.";
+    }
+    return null;
+  }
+}

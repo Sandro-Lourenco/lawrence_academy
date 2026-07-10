@@ -18,9 +18,11 @@ class LiquidGlassContainer extends StatelessWidget {
     super.key,
     required this.child,
     this.borderRadius = LawrenceTheme.radiusMd, // Padrão 16px (raio MD)
-    this.blurSigma = 20.0,                      // Desfoque de 20px
-    this.backgroundColor = const Color(0xB8FFFFFF), // Branco translúcido (Colors.white.withOpacity(0.72))
-    this.borderColor = const Color(0x1FE8E8ED),     // Silver Mist com opacidade
+    this.blurSigma = 20.0, // Desfoque de 20px
+    this.backgroundColor = const Color(
+      0xB8FFFFFF,
+    ), // Branco translúcido (Colors.white.withOpacity(0.72))
+    this.borderColor = const Color(0x1FE8E8ED), // Silver Mist com opacidade
     this.borderWidth = 1.0,
     this.padding,
     this.margin,
@@ -53,10 +55,7 @@ class LiquidGlassContainer extends StatelessWidget {
             decoration: BoxDecoration(
               color: backgroundColor,
               borderRadius: BorderRadius.circular(borderRadius),
-              border: Border.all(
-                color: borderColor,
-                width: borderWidth,
-              ),
+              border: Border.all(color: borderColor, width: borderWidth),
             ),
             child: child,
           ),

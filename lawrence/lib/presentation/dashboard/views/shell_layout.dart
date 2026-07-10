@@ -7,10 +7,7 @@ import 'package:lawrence/shared/widgets/liquid_glass_sidebar.dart';
 class ShellLayout extends StatelessWidget {
   final Widget body;
 
-  const ShellLayout({
-    super.key,
-    required this.body,
-  });
+  const ShellLayout({super.key, required this.body});
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +16,8 @@ class ShellLayout extends StatelessWidget {
     final currentPath = GoRouterState.of(context).uri.path;
 
     return Scaffold(
-      backgroundColor: LawrenceTheme.canvasParchment, // Fundo principal claro #F8F9FB
+      backgroundColor:
+          LawrenceTheme.canvasParchment, // Fundo principal claro #F8F9FB
       body: SafeArea(
         child: isDesktop
             ? Row(
@@ -34,11 +32,14 @@ class ShellLayout extends StatelessWidget {
                       onNavigate: (path) => context.go(path),
                     ),
                   ),
-                  
+
                   // Conteúdo Principal dinâmico responsivo (Expanded)
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24.0,
+                        vertical: 16.0,
+                      ),
                       child: body,
                     ),
                   ),
@@ -48,12 +49,15 @@ class ShellLayout extends StatelessWidget {
                 children: [
                   // Cabeçalho para mobile
                   Container(
-                    width: double.infinity, // Responsividade Total (sem largura fixa)
+                    width: double
+                        .infinity, // Responsividade Total (sem largura fixa)
                     padding: const EdgeInsets.all(16.0),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       border: Border(
-                        bottom: BorderSide(color: LawrenceTheme.borderMist.withOpacity(0.5)),
+                        bottom: BorderSide(
+                          color: LawrenceTheme.borderMist.withOpacity(0.5),
+                        ),
                       ),
                     ),
                     child: Row(
@@ -63,21 +67,27 @@ class ShellLayout extends StatelessWidget {
                           radius: 16,
                           child: Text(
                             'L',
-                            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             'Lawrence Academy',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 16),
+                            style: Theme.of(
+                              context,
+                            ).textTheme.titleLarge?.copyWith(fontSize: 16),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  
+
                   // Conteúdo do body responsivo
                   Expanded(child: body),
                 ],
@@ -87,9 +97,15 @@ class ShellLayout extends StatelessWidget {
       bottomNavigationBar: !isDesktop
           ? SafeArea(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0), // Floating
+                padding: const EdgeInsets.fromLTRB(
+                  16.0,
+                  0,
+                  16.0,
+                  16.0,
+                ), // Floating
                 child: Container(
-                  width: double.infinity, // Responsividade Total (sem largura fixa)
+                  width: double
+                      .infinity, // Responsividade Total (sem largura fixa)
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.72),
                     borderRadius: BorderRadius.circular(24),
@@ -110,7 +126,8 @@ class ShellLayout extends StatelessWidget {
                         currentIndex: _getSelectedIndex(currentPath),
                         selectedItemColor: LawrenceTheme.primary,
                         unselectedItemColor: LawrenceTheme.textSecondary,
-                        backgroundColor: Colors.transparent, // Transparência para o BackdropFilter
+                        backgroundColor: Colors
+                            .transparent, // Transparência para o BackdropFilter
                         elevation: 0,
                         type: BottomNavigationBarType.fixed,
                         onTap: (index) => _onBottomNavTapped(context, index),

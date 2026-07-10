@@ -15,7 +15,7 @@ class LiquidGlassSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return LiquidGlassContainer(
       borderRadius: 24.0,
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
@@ -59,7 +59,7 @@ class LiquidGlassSidebar extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // Itens de Navegação
           _buildNavItem(
             context,
@@ -89,9 +89,9 @@ class LiquidGlassSidebar extends StatelessWidget {
             label: 'Pagamentos',
             path: '/payments', // Rota temporária ou placeholder
           ),
-          
+
           const Spacer(),
-          
+
           // Perfil do Aluno (Fundo do Sidebar)
           Container(
             padding: const EdgeInsets.all(12),
@@ -144,7 +144,7 @@ class LiquidGlassSidebar extends StatelessWidget {
   }) {
     final theme = Theme.of(context);
     final isActive = currentPath == path;
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: InkWell(
@@ -153,14 +153,18 @@ class LiquidGlassSidebar extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
           decoration: BoxDecoration(
-            color: isActive ? LawrenceTheme.primary.withOpacity(0.08) : Colors.transparent,
+            color: isActive
+                ? LawrenceTheme.primary.withOpacity(0.08)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(LawrenceTheme.radiusSm),
           ),
           child: Row(
             children: [
               Icon(
                 isActive ? activeIcon : icon,
-                color: isActive ? LawrenceTheme.primary : LawrenceTheme.surfaceTile1,
+                color: isActive
+                    ? LawrenceTheme.primary
+                    : LawrenceTheme.surfaceTile1,
                 size: 22,
               ),
               const SizedBox(width: 16),
@@ -168,7 +172,9 @@ class LiquidGlassSidebar extends StatelessWidget {
                 label,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                  color: isActive ? LawrenceTheme.primary : LawrenceTheme.surfaceTile1,
+                  color: isActive
+                      ? LawrenceTheme.primary
+                      : LawrenceTheme.surfaceTile1,
                 ),
               ),
             ],

@@ -76,19 +76,26 @@ class _CourseProgressCardState extends State<CourseProgressCard> {
                   Stack(
                     children: [
                       ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(16),
+                        ),
                         child: Image.network(
                           widget.imageUrl,
                           height: 90,
                           width: double.infinity,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            height: 90,
-                            color: LawrenceTheme.borderMist,
-                            child: const Center(
-                              child: Icon(Icons.broken_image, size: 20, color: LawrenceTheme.textSecondary),
-                            ),
-                          ),
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                                height: 90,
+                                color: LawrenceTheme.borderMist,
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.broken_image,
+                                    size: 20,
+                                    color: LawrenceTheme.textSecondary,
+                                  ),
+                                ),
+                              ),
                         ),
                       ),
                       // Badge circular no canto superior direito
@@ -112,7 +119,10 @@ class _CourseProgressCardState extends State<CourseProgressCard> {
                                   value: widget.progressPercentage / 100.0,
                                   strokeWidth: 2,
                                   backgroundColor: Colors.white24,
-                                  valueColor: const AlwaysStoppedAnimation<Color>(LawrenceTheme.primary),
+                                  valueColor:
+                                      const AlwaysStoppedAnimation<Color>(
+                                        LawrenceTheme.primary,
+                                      ),
                                 ),
                               ),
                               Text(
@@ -129,11 +139,14 @@ class _CourseProgressCardState extends State<CourseProgressCard> {
                       ),
                     ],
                   ),
-                  
+
                   // Textos e linear progress bar no rodapé
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12.0,
+                        vertical: 8.0,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -163,14 +176,18 @@ class _CourseProgressCardState extends State<CourseProgressCard> {
                       ),
                     ),
                   ),
-                  
+
                   // Linear progress bar no final do card
                   ClipRRect(
-                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(16),
+                    ),
                     child: LinearProgressIndicator(
                       value: widget.progressPercentage / 100.0,
                       backgroundColor: LawrenceTheme.borderMist,
-                      valueColor: const AlwaysStoppedAnimation<Color>(LawrenceTheme.primary),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        LawrenceTheme.primary,
+                      ),
                       minHeight: 4,
                     ),
                   ),

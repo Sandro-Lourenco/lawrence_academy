@@ -13,12 +13,14 @@ class StudentProfilePage extends ConsumerWidget {
     final theme = Theme.of(context);
     final authState = ref.watch(authControllerProvider);
     final user = authState.user;
-    
-    final studentName = user?.userMetadata?['full_name'] as String? ?? 'Ariane Lawrence';
+
+    final studentName =
+        user?.userMetadata?['full_name'] as String? ?? 'Ariane Lawrence';
     final studentRole = 'Aluna de Modelagem & Design';
 
     return Scaffold(
-      backgroundColor: Colors.transparent, // Permite visualizar o canvas claro do layout shell
+      backgroundColor: Colors
+          .transparent, // Permite visualizar o canvas claro do layout shell
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         child: Padding(
@@ -56,10 +58,17 @@ class StudentProfilePage extends ConsumerWidget {
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(Icons.settings, color: LawrenceTheme.surfaceTile1),
+                    icon: const Icon(
+                      Icons.settings,
+                      color: LawrenceTheme.surfaceTile1,
+                    ),
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: const Text('Abrindo configurações gerais...')),
+                        SnackBar(
+                          content: const Text(
+                            'Abrindo configurações gerais...',
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -74,7 +83,9 @@ class StudentProfilePage extends ConsumerWidget {
                     const CircleAvatar(
                       radius: 54,
                       backgroundColor: LawrenceTheme.borderMist,
-                      backgroundImage: NetworkImage('https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150'),
+                      backgroundImage: NetworkImage(
+                        'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -112,7 +123,7 @@ class StudentProfilePage extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              
+
               // Bloco integrado de itens em um Liquid Glass Container
               Container(
                 decoration: BoxDecoration(
@@ -132,7 +143,11 @@ class StudentProfilePage extends ConsumerWidget {
                           title: 'Editar Dados Pessoais',
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: const Text('Navegando para edição de perfil...')),
+                              SnackBar(
+                                content: const Text(
+                                  'Navegando para edição de perfil...',
+                                ),
+                              ),
                             );
                           },
                         ),
@@ -173,12 +188,15 @@ class StudentProfilePage extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              
+
               Row(
                 children: [
                   Expanded(
                     child: LiquidGlassCard(
-                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 20,
+                        horizontal: 12,
+                      ),
                       child: Column(
                         children: [
                           const Text(
@@ -208,7 +226,10 @@ class StudentProfilePage extends ConsumerWidget {
                   const SizedBox(width: 16),
                   Expanded(
                     child: LiquidGlassCard(
-                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 20,
+                        horizontal: 12,
+                      ),
                       child: Column(
                         children: [
                           const Text(
@@ -238,7 +259,7 @@ class StudentProfilePage extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 32),
-              
+
               // Botão Sair da Conta
               SizedBox(
                 width: double.infinity,
@@ -257,7 +278,10 @@ class StudentProfilePage extends ConsumerWidget {
                   ),
                   child: const Text(
                     'Sair da Conta',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Outfit',
+                    ),
                   ),
                 ),
               ),
@@ -296,12 +320,20 @@ class StudentProfilePage extends ConsumerWidget {
                     ),
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios, size: 14, color: LawrenceTheme.textSecondary),
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 14,
+                  color: LawrenceTheme.textSecondary,
+                ),
               ],
             ),
           ),
           if (showDivider)
-            const Divider(height: 1, color: LawrenceTheme.borderMist, indent: 56),
+            const Divider(
+              height: 1,
+              color: LawrenceTheme.borderMist,
+              indent: 56,
+            ),
         ],
       ),
     );

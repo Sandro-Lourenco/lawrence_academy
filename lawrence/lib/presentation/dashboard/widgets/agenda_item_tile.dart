@@ -35,12 +35,14 @@ class AgendaItemTile extends StatelessWidget {
               width: 3.5,
               height: 38,
               decoration: BoxDecoration(
-                color: isLive ? LawrenceTheme.primary : LawrenceTheme.textSecondary.withOpacity(0.5),
+                color: isLive
+                    ? LawrenceTheme.primary
+                    : LawrenceTheme.textSecondary.withOpacity(0.5),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(width: 16),
-            
+
             // Textos
             Expanded(
               child: Column(
@@ -67,7 +69,7 @@ class AgendaItemTile extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             // Selo "+ AO VIVO" se for live
             if (isLive) ...[
               const SizedBox(width: 8),

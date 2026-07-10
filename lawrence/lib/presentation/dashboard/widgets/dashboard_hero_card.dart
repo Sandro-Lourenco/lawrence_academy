@@ -75,19 +75,25 @@ class _DashboardHeroCardState extends State<DashboardHeroCard> {
                   Stack(
                     children: [
                       ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(24),
+                        ),
                         child: Image.network(
                           widget.imageUrl,
                           height: 180,
                           width: double.infinity,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            height: 180,
-                            color: LawrenceTheme.borderMist,
-                            child: const Center(
-                              child: Icon(Icons.broken_image, color: LawrenceTheme.textSecondary),
-                            ),
-                          ),
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                                height: 180,
+                                color: LawrenceTheme.borderMist,
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.broken_image,
+                                    color: LawrenceTheme.textSecondary,
+                                  ),
+                                ),
+                              ),
                         ),
                       ),
                       // Overlay escuro
@@ -95,7 +101,9 @@ class _DashboardHeroCardState extends State<DashboardHeroCard> {
                         height: 180,
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.35),
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(24),
+                          ),
                         ),
                       ),
                       // Botão Play no Centro
@@ -122,7 +130,10 @@ class _DashboardHeroCardState extends State<DashboardHeroCard> {
                         top: 16,
                         left: 16,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.black.withOpacity(0.6),
                             borderRadius: BorderRadius.circular(8),
@@ -159,7 +170,10 @@ class _DashboardHeroCardState extends State<DashboardHeroCard> {
                                   value: widget.progressPercentage / 100.0,
                                   strokeWidth: 3.5,
                                   backgroundColor: Colors.white24,
-                                  valueColor: const AlwaysStoppedAnimation<Color>(LawrenceTheme.primary),
+                                  valueColor:
+                                      const AlwaysStoppedAnimation<Color>(
+                                        LawrenceTheme.primary,
+                                      ),
                                 ),
                               ),
                               Text(
@@ -176,7 +190,7 @@ class _DashboardHeroCardState extends State<DashboardHeroCard> {
                       ),
                     ],
                   ),
-                  
+
                   // Textos e botão "Continuar agora"
                   Padding(
                     padding: const EdgeInsets.all(20.0),

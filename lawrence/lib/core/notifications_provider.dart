@@ -52,9 +52,11 @@ class NotificationsNotifier extends StateNotifier<List<AppNotification>> {
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', ascending: false);
-          
+
       final data = response as List? ?? [];
-      state = data.map((json) => AppNotification.fromJson(json as Map<String, dynamic>)).toList();
+      state = data
+          .map((json) => AppNotification.fromJson(json as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       // Falha silenciosa
     }
@@ -91,7 +93,7 @@ class NotificationsNotifier extends StateNotifier<List<AppNotification>> {
           .from('notifications')
           .update({'read': true})
           .eq('id', notificationId);
-          
+
       state = state.map((n) {
         if (n.id == notificationId) {
           return AppNotification(
@@ -111,6 +113,7 @@ class NotificationsNotifier extends StateNotifier<List<AppNotification>> {
   }
 }
 
-final notificationsProvider = StateNotifierProvider<NotificationsNotifier, List<AppNotification>>((ref) {
-  return NotificationsNotifier(ref);
-});
+final notificationsProvider =
+    StateNotifierProvider<NotificationsNotifier, List<AppNotification>>((ref) {
+      return NotificationsNotifier(ref);
+    });

@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 class ReferralGoldCard extends StatefulWidget {
   final VoidCallback onTap;
 
-  const ReferralGoldCard({
-    super.key,
-    required this.onTap,
-  });
+  const ReferralGoldCard({super.key, required this.onTap});
 
   @override
   State<ReferralGoldCard> createState() => _ReferralGoldCardState();
@@ -64,10 +61,12 @@ class _ReferralGoldCardState extends State<ReferralGoldCard> {
               // Avatar circular
               const CircleAvatar(
                 radius: 26,
-                backgroundImage: NetworkImage('https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150'),
+                backgroundImage: NetworkImage(
+                  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+                ),
               ),
               const SizedBox(width: 16),
-              
+
               // Textos descritivos
               Expanded(
                 child: Column(
