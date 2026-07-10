@@ -12,7 +12,7 @@ class ProfileRepository:
         res = database.db.table("profiles") \
             .select("*") \
             .eq("id", profile_id) \
-            .maybeSingle() \
+            .maybe_single() \
             .execute()
             
         if not res.data:

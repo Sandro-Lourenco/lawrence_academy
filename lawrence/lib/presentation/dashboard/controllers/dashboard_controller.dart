@@ -112,11 +112,12 @@ class DashboardController extends AutoDisposeAsyncNotifier<DashboardState> {
   }
 
   /// Registra progresso atualizado de uma aula e atualiza o estado local
-  Future<void> updateProgress(String lessonId, int seconds, bool completed) async {
+  Future<void> updateProgress(String courseId, String lessonId, int seconds, bool completed) async {
     final repo = ref.read(courseRepositoryProvider);
     await repo.updateLessonProgress(
+      courseId: courseId,
       lessonId: lessonId,
-      lastPositionSeconds: seconds,
+      watchedSeconds: seconds,
       completed: completed,
     );
     ref.invalidateSelf(); // Recarregar estado

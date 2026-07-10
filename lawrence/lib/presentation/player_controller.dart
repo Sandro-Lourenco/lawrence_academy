@@ -190,8 +190,9 @@ class PlayerController extends StateNotifier<PlayerState> {
       
       try {
         await repo.updateLessonProgress(
+          courseId: lesson.courseId,
           lessonId: lesson.id,
-          lastPositionSeconds: currentPosSec,
+          watchedSeconds: currentPosSec,
           completed: isCompleted,
         );
         

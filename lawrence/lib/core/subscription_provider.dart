@@ -16,7 +16,7 @@ class StudentSubscription {
 
   factory StudentSubscription.fromJson(Map<String, dynamic> json) {
     return StudentSubscription(
-      userId: json['user_id'] as String,
+      userId: json['student_id'] as String,
       status: json['status'] as String? ?? 'inactive',
       currentPeriodEnd: DateTime.parse(json['current_period_end'] as String),
     );
@@ -40,7 +40,7 @@ final subscriptionFutureProvider = FutureProvider<StudentSubscription?>((ref) as
     final response = await client
         .from('subscriptions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('student_id', user.id)
         .order('created_at', ascending: false)
         .limit(1)
         .maybeSingle();

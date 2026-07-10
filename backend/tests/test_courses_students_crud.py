@@ -83,7 +83,7 @@ def test_get_lesson_by_id_success(mock_db, mock_get_user):
         "hls_storage_path": "path/to/hls.m3u8",
         "status": "published"
     }
-    mock_db.table.return_value.select.return_value.eq.return_value.eq.return_value.maybeSingle.return_value.execute.return_value = mock_db_res
+    mock_db.table.return_value.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = mock_db_res
 
     response = client.get("/courses/course_uuid_1/lessons/lesson_uuid_1", headers={"Authorization": "Bearer token"})
     assert response.status_code == 200
@@ -104,7 +104,7 @@ def test_get_lesson_by_id_not_found(mock_db, mock_get_user):
 
     mock_db_res = MagicMock()
     mock_db_res.data = None
-    mock_db.table.return_value.select.return_value.eq.return_value.eq.return_value.maybeSingle.return_value.execute.return_value = mock_db_res
+    mock_db.table.return_value.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = mock_db_res
 
     response = client.get("/courses/course_uuid_1/lessons/lesson_uuid_999", headers={"Authorization": "Bearer token"})
     assert response.status_code == 404
@@ -130,7 +130,7 @@ def test_get_student_profile_success(mock_db, mock_get_user):
         "referred_by": None,
         "role": "student"
     }
-    mock_db.table.return_value.select.return_value.eq.return_value.maybeSingle.return_value.execute.return_value = mock_db_res
+    mock_db.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value = mock_db_res
 
     response = client.get("/students/me", headers={"Authorization": "Bearer token"})
     assert response.status_code == 200

@@ -1,19 +1,24 @@
 import stripe
 from datetime import datetime, timezone
 from src.shared import database
-from src.shared.config import settings
 
 class StripeWebhookProcessor:
     """Serviço de aplicação para processar eventos do Stripe Webhook de forma idempotente."""
 
     @staticmethod
-    def register_idempotency(event_id: str) -> bool:
+    def register_idempotency(provider: str, event_id: str, event_type: str, payload_hash: str) -> bool:
         """Registra o evento no banco para garantir processamento único (idempotente).
         Retorna True se for um evento novo, False se for duplicado.
         """
         try:
-            lock_res = database.db.table("stripe_processed_events") \
-                .insert({"event_id": event_id}) \
+            lock_res = database.db.table("payment_events") \
+                .insert({
+                    "provider": provider,
+                    "provider_event_id": event_id,
+                    "event_type": event_type,
+                    "payload_hash": payload_hash,
+                    "status": "processing"
+                }) \
                 .execute()
             
             if not lock_res.data:
@@ -26,9 +31,20 @@ class StripeWebhookProcessor:
             raise db_err
 
     @staticmethod
-    def remove_idempotency(event_id: str) -> None:
+    def remove_idempotency(provider: str, event_id: str) -> None:
         """Remove a trava de idempotência se houver falha no processamento, permitindo reenvio."""
-        database.db.table("stripe_processed_events").delete().eq("event_id", event_id).execute()
+        database.db.table("payment_events").delete()\
+            .eq("provider", provider)\
+            .eq("provider_event_id", event_id)\
+            .execute()
+
+    @staticmethod
+    def mark_event_processed(provider: str, event_id: str) -> None:
+        """Marca o evento como processado com sucesso."""
+        database.db.table("payment_events").update({
+            "status": "processed",
+            "processed_at": datetime.now(timezone.utc).isoformat()
+        }).eq("provider", provider).eq("provider_event_id", event_id).execute()
 
     @classmethod
     async def process_event(cls, event: dict) -> None:
@@ -58,6 +74,7 @@ class StripeWebhookProcessor:
         # Obter detalhes da assinatura diretamente da API do Stripe
         stripe_sub = stripe.Subscription.retrieve(stripe_sub_id)
         user_id = stripe_sub.metadata.get("user_id")
+        course_id = stripe_sub.metadata.get("course_id")
         
         # Fallback: buscar perfil pelo e-mail caso não tenha user_id no metadata
         if not user_id and customer_email:
@@ -68,6 +85,14 @@ class StripeWebhookProcessor:
         if not user_id:
             raise ValueError(f"Não foi possível mapear o user_id para o cliente Stripe {stripe_cust_id}")
             
+        # Fallback para course_id: buscar o primeiro curso disponível para evitar falha
+        if not course_id:
+            course_res = database.db.table("courses").select("id").limit(1).execute()
+            if course_res.data:
+                course_id = course_res.data[0]["id"]
+            else:
+                raise ValueError("Não foi possível mapear o course_id para a assinatura")
+            
         current_period_start = stripe_sub.current_period_start
         current_period_end = stripe_sub.current_period_end
         
@@ -76,24 +101,28 @@ class StripeWebhookProcessor:
         
         # Salvar ou atualizar na tabela public.subscriptions
         sub_data = {
-            "user_id": user_id,
-            "stripe_customer_id": stripe_cust_id,
-            "stripe_subscription_id": stripe_sub_id,
+            "student_id": user_id,
+            "course_id": course_id,
+            "provider": "stripe",
+            "provider_customer_id": stripe_cust_id,
+            "provider_subscription_id": stripe_sub_id,
             "status": "active",
+            "monthly_price": float(stripe_sub.plan.amount) / 100.0 if stripe_sub.plan else 89.90,
+            "currency": stripe_sub.plan.currency.upper() if (stripe_sub.plan and stripe_sub.plan.currency) else "BRL",
             "current_period_start": dt_start,
             "current_period_end": dt_end,
-            "updated_at": "now()"
+            "updated_at": datetime.now(timezone.utc).isoformat()
         }
         
         database.db.table("subscriptions") \
-            .upsert(sub_data, on_conflict="stripe_subscription_id") \
+            .upsert(sub_data, on_conflict="provider_subscription_id") \
             .execute()
             
         # Emitir notificação de sucesso
         database.db.table("notifications").insert({
             "user_id": user_id,
             "title": "Assinatura Renovada",
-            "message": "Seu pagamento foi confirmado! Aproveite os cursos de modelagem e costura.",
+            "message": "Seu pagamento foi confirmado! Aproveite o conteúdo completo do curso.",
             "notification_type": "success"
         }).execute()
         
@@ -107,15 +136,15 @@ class StripeWebhookProcessor:
                 
                 # Buscar a assinatura ativa do indicador para obter seu customer_id no Stripe
                 ind_sub = database.db.table("subscriptions") \
-                    .select("stripe_customer_id") \
-                    .eq("user_id", referred_by) \
+                    .select("*") \
+                    .eq("student_id", referred_by) \
                     .eq("status", "active") \
                     .order("created_at", desc=True) \
                     .limit(1) \
                     .execute()
                     
-                if ind_sub.data and ind_sub.data[0]["stripe_customer_id"]:
-                    ind_cust_id = ind_sub.data[0]["stripe_customer_id"]
+                if ind_sub.data:
+                    ind_cust_id = ind_sub.data[0].get("provider_customer_id") or ind_sub.data[0].get("stripe_customer_id")
                     
                     # Injetar crédito fixo de R$ 20.00 (2000 centavos) na conta do indicador no Stripe
                     print(f"[Referral] Aplicando R$20.00 de crédito ao indicador {referred_by} (Customer: {ind_cust_id})")
@@ -144,12 +173,12 @@ class StripeWebhookProcessor:
             return
             
         sub_res = database.db.table("subscriptions") \
-            .update({"status": "past_due", "updated_at": "now()"}) \
-            .eq("stripe_subscription_id", stripe_sub_id) \
+            .update({"status": "past_due", "updated_at": datetime.now(timezone.utc).isoformat()}) \
+            .eq("provider_subscription_id", stripe_sub_id) \
             .execute()
             
         if sub_res.data:
-            user_id = sub_res.data[0]["user_id"]
+            user_id = sub_res.data[0].get("student_id") or sub_res.data[0].get("user_id")
             
             database.db.table("notifications").insert({
                 "user_id": user_id,
@@ -165,12 +194,12 @@ class StripeWebhookProcessor:
         stripe_sub_id = subscription.get("id")
         
         sub_res = database.db.table("subscriptions") \
-            .update({"status": "canceled", "updated_at": "now()"}) \
-            .eq("stripe_subscription_id", stripe_sub_id) \
+            .update({"status": "canceled", "updated_at": datetime.now(timezone.utc).isoformat()}) \
+            .eq("provider_subscription_id", stripe_sub_id) \
             .execute()
             
         if sub_res.data:
-            user_id = sub_res.data[0]["user_id"]
+            user_id = sub_res.data[0].get("student_id") or sub_res.data[0].get("user_id")
             
             database.db.table("notifications").insert({
                 "user_id": user_id,

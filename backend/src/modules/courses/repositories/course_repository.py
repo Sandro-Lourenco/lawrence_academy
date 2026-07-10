@@ -24,7 +24,7 @@ class CourseRepository:
             .select("*, modules(*, lessons(*))") \
             .eq("id", course_id) \
             .is_("deleted_at", "null") \
-            .maybeSingle() \
+            .maybe_single() \
             .execute()
             
         if not res.data:
@@ -39,7 +39,7 @@ class CourseRepository:
             .select("*, modules(*, lessons(*))") \
             .eq("slug", slug) \
             .is_("deleted_at", "null") \
-            .maybeSingle() \
+            .maybe_single() \
             .execute()
             
         if not res.data:
@@ -53,7 +53,7 @@ class CourseRepository:
         res = database.db.table("courses") \
             .select("instructor_id") \
             .eq("id", course_id) \
-            .maybeSingle() \
+            .maybe_single() \
             .execute()
             
         if not res.data:

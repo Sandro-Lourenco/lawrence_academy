@@ -10,7 +10,7 @@ class StudentService:
         res = database.db.table("profiles") \
             .select("*") \
             .eq("id", student_id) \
-            .maybeSingle() \
+            .maybe_single() \
             .execute()
             
         if not res.data:

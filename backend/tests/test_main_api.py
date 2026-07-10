@@ -52,7 +52,7 @@ def test_get_profile_me_bola_protection(mock_supabase, mock_get_user):
     }
 
     # Mock do Supabase DB usando .return_value para não registrar chamadas de configuração
-    mock_supabase.table.return_value.select.return_value.eq.return_value.maybeSingle.return_value.execute.return_value = mock_db_res
+    mock_supabase.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value = mock_db_res
     
     # Executar chamada autenticada
     response = client.get(

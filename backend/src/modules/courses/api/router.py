@@ -60,17 +60,32 @@ async def get_lesson_stream(
         if role in ["teacher", "admin"]:
             is_authorized = True
         else:
-            # Consultar tabela public.subscriptions para estudante
+            # Consultar tabela public.subscriptions para estudante filtrando pelo curso específico (id)
+            from datetime import datetime, timezone
             sub_res = database.db.table("subscriptions")\
                 .select("*")\
-                .eq("user_id", current_user["id"])\
+                .eq("student_id", current_user["id"])\
+                .eq("course_id", id)\
                 .execute()
                 
             if sub_res.data:
                 for sub in sub_res.data:
-                    if sub.get("status") in ["active", "trialing"]:
+                    status_sub = sub.get("status")
+                    if status_sub in ["active", "trialing"]:
                         is_authorized = True
                         break
+                    elif status_sub == "past_due":
+                        period_end_str = sub.get("current_period_end")
+                        if period_end_str:
+                            try:
+                                period_end = datetime.fromisoformat(period_end_str.replace("Z", "+00:00"))
+                                now = datetime.now(timezone.utc)
+                                diff = now - period_end
+                                if diff.days <= 5:
+                                    is_authorized = True
+                                    break
+                            except Exception:
+                                pass
                         
         if not is_authorized:
             raise HTTPException(

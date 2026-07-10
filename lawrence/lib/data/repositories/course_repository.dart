@@ -34,20 +34,22 @@ class CourseRepository {
 
   /// Registra o progresso assistido localmente no Supabase
   Future<void> updateLessonProgress({
+    required String courseId,
     required String lessonId,
-    required int lastPositionSeconds,
+    required int watchedSeconds,
     required bool completed,
   }) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
 
     await _client.from('lesson_progress').upsert({
-      'user_id': userId,
+      'student_id': userId,
+      'course_id': courseId,
       'lesson_id': lessonId,
-      'last_position_seconds': lastPositionSeconds,
+      'watched_seconds': watchedSeconds,
       'completed': completed,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
-    }, onConflict: 'user_id,lesson_id');
+    }, onConflict: 'student_id,lesson_id');
   }
 
   /// Busca o progresso de uma aula para retomar a reprodução
@@ -58,7 +60,7 @@ class CourseRepository {
     final response = await _client
         .from('lesson_progress')
         .select('*')
-        .eq('user_id', userId)
+        .eq('student_id', userId)
         .eq('lesson_id', lessonId)
         .maybeSingle();
         
@@ -73,7 +75,7 @@ class CourseRepository {
     final response = await _client
         .from('lesson_progress')
         .select('*')
-        .eq('user_id', userId);
+        .eq('student_id', userId);
         
     final data = response as List? ?? [];
     return data.map((json) => json as Map<String, dynamic>).toList();

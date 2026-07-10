@@ -20,7 +20,7 @@ class CourseService:
             .select("*") \
             .eq("id", lesson_id) \
             .eq("course_id", course_id) \
-            .maybeSingle() \
+            .maybe_single() \
             .execute()
             
         if not res.data:
@@ -36,7 +36,7 @@ class CourseService:
             .select("hls_storage_path") \
             .eq("id", lesson_id) \
             .eq("course_id", course_id) \
-            .maybeSingle() \
+            .maybe_single() \
             .execute()
             
         if not res.data or not res.data.get("hls_storage_path"):

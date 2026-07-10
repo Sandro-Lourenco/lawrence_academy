@@ -15,7 +15,10 @@ from src.modules.payments.interfaces.routes import router as payments_router
 from src.modules.courses.api.router import router as new_courses_router
 from src.modules.students.api.router import router as new_students_router
 
+from src.core.errors.handlers import install_error_handlers
+
 app = FastAPI(title="Lawrence Academy API Portal", version="1.0.0")
+install_error_handlers(app)
 
 # Configuração de CORS para suporte ao Flutter Web
 app.add_middleware(

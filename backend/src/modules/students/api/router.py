@@ -1,49 +1,44 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from src.modules.auth.dependencies import get_current_user
-from src.modules.students.services.student_service import StudentService
-from src.modules.students.api.schemas import StudentProfileResponseSchema, StudentProfileUpdateSchema
-from src.core.exceptions import EntityNotFoundException
+from fastapi import APIRouter, Depends
+from src.core.security.security import get_current_user, CurrentUser
+from src.core.database.database import get_admin_supabase_client
+from src.modules.profiles.infrastructure.repositories.supabase_profile_repository import SupabaseProfileRepository
+from src.modules.profiles.application.use_cases.get_my_profile_use_case import GetMyProfileUseCase
+from src.modules.profiles.application.use_cases.update_my_profile_use_case import UpdateMyProfileUseCase
+from src.modules.students.api.schemas import StudentProfileUpdateSchema
 
 router = APIRouter(prefix="/students", tags=["students"])
 
-@router.get("/me", response_model=StudentProfileResponseSchema)
-async def get_me(current_user: dict = Depends(get_current_user)):
-    """Retorna os dados de perfil do aluno autenticado (BOLA-safe)."""
-    try:
-        service = StudentService()
-        profile = await service.get_student_profile(student_id=current_user["id"])
-        return profile
-    except EntityNotFoundException as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=e.message
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro interno ao buscar perfil: {str(e)}"
-        )
+@router.get("/me")
+async def get_me(current_user: CurrentUser = Depends(get_current_user)):
+    """Retorna os dados do perfil do aluno autenticado (Legacy route redirection)."""
+    repo = SupabaseProfileRepository(get_admin_supabase_client())
+    use_case = GetMyProfileUseCase(repo)
+    profile = await use_case.execute(current_user.id)
+    return {
+        "id": profile.id,
+        "email": profile.email,
+        "full_name": profile.full_name,
+        "referred_by": profile.referred_by,
+        "role": profile.role
+    }
 
-@router.put("/me", response_model=StudentProfileResponseSchema)
+@router.put("/me")
 async def update_me(
     payload: StudentProfileUpdateSchema,
-    current_user: dict = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ):
-    """Atualiza as informações de perfil do aluno autenticado (BOLA-safe)."""
-    try:
-        service = StudentService()
-        updated_profile = await service.update_student_profile(
-            student_id=current_user["id"],
-            profile_data=payload.model_dump(exclude_unset=True)
-        )
-        return updated_profile
-    except EntityNotFoundException as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=e.message
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro interno ao atualizar perfil: {str(e)}"
-        )
+    """Atualiza as informações de perfil do aluno autenticado (Legacy route redirection)."""
+    repo = SupabaseProfileRepository(get_admin_supabase_client())
+    use_case = UpdateMyProfileUseCase(repo)
+    profile = await use_case.execute(
+        user_id=current_user.id,
+        full_name=payload.full_name,
+        referred_by=payload.referred_by
+    )
+    return {
+        "id": profile.id,
+        "email": profile.email,
+        "full_name": profile.full_name,
+        "referred_by": profile.referred_by,
+        "role": profile.role
+    }
