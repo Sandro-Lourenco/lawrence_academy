@@ -108,7 +108,7 @@ def test_get_lesson_by_id_not_found(mock_db, mock_get_user):
 
     response = client.get("/courses/course_uuid_1/lessons/lesson_uuid_999", headers={"Authorization": "Bearer token"})
     assert response.status_code == 404
-    assert "não encontrada" in response.json()["detail"]
+    assert "não encontrada" in response.json()["error"]["message"]
 
 @patch("src.shared.database.auth_db.auth.get_user")
 @patch("src.shared.database.db")

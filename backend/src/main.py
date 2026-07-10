@@ -15,6 +15,9 @@ from src.modules.payments.interfaces.routes import router as payments_router
 from src.modules.courses.api.router import router as new_courses_router
 from src.modules.students.api.router import router as new_students_router
 
+from src.modules.profiles.interface.api.routes import router as profiles_v1_router
+from src.modules.courses.interface.api.routes import router as courses_v1_router
+
 from src.core.errors.handlers import install_error_handlers
 
 app = FastAPI(title="Lawrence Academy API Portal", version="1.0.0")
@@ -36,6 +39,10 @@ app.include_router(courses_router)
 app.include_router(assessments_router)
 app.include_router(new_courses_router)
 app.include_router(new_students_router)
+
+# Novas rotas v1 padronizadas
+app.include_router(profiles_v1_router)
+app.include_router(courses_v1_router)
 
 @app.get("/")
 def read_root():

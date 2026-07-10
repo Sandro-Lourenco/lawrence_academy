@@ -1,114 +1,119 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List
-from src.modules.auth.dependencies import get_current_user, require_role
+from fastapi import APIRouter, Depends, status
+from src.core.security.security import get_current_user, require_role, CurrentUser
+from src.core.database.database import get_admin_supabase_client
+from src.modules.courses.infrastructure.repositories.supabase_course_repository import SupabaseCourseRepository
+from src.modules.courses.application.use_cases.list_courses_use_case import ListCoursesUseCase
+from src.modules.courses.application.use_cases.get_course_use_case import GetCourseUseCase
+from src.modules.courses.application.use_cases.get_course_by_slug_use_case import GetCourseBySlugUseCase
+from src.modules.courses.application.use_cases.create_course_use_case import CreateCourseUseCase
+from src.modules.courses.application.use_cases.update_course_use_case import UpdateCourseUseCase
+from src.modules.courses.application.use_cases.delete_course_use_case import DeleteCourseUseCase
 from src.modules.courses.interfaces.schemas import CourseCreateSchema
-from src.modules.courses.application.list_courses import ListCoursesUseCase
-from src.modules.courses.application.get_course import GetCourseUseCase
-from src.modules.courses.application.create_course import CreateCourseUseCase
-from src.modules.courses.application.update_course import UpdateCourseUseCase
-from src.modules.courses.application.delete_course import DeleteCourseUseCase
-from src.modules.courses.application.get_course_by_slug import GetCourseBySlugUseCase
-from src.core.exceptions import EntityNotFoundException, AccessDeniedException, DomainException
 
 router = APIRouter(prefix="/api/courses", tags=["courses"])
 
-@router.get("/slug/{slug}")
-async def get_course_by_slug(slug: str, current_user: dict = Depends(get_current_user)):
-    """Retorna os detalhes completos de um curso pelo Slug."""
-    try:
-        course = GetCourseBySlugUseCase.execute(slug)
-        return course.model_dump()
-    except EntityNotFoundException as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ocorreu um erro interno no processamento dos dados."
-        )
+def _to_legacy_dict(course):
+    return {
+        "id": course.id,
+        "instructor_id": course.instructor_id,
+        "title": course.title,
+        "slug": course.slug,
+        "category": course.category,
+        "level": course.level,
+        "summary": course.summary,
+        "description": course.description,
+        "requirements": course.requirements,
+        "thumbnail_url": course.thumbnail_url,
+        "trailer_hls_path": course.trailer_hls_path,
+        "monthly_price": float(course.monthly_price),
+        "status": course.status,
+        "modules": [
+            {
+                "id": m.id,
+                "course_id": m.course_id,
+                "title": m.title,
+                "order_index": m.order_index,
+                "lessons": [
+                    {
+                        "id": l.id,
+                        "module_id": l.module_id,
+                        "course_id": l.course_id,
+                        "title": l.title,
+                        "description": l.description,
+                        "order_index": l.order_index,
+                        "duration_seconds": l.duration_seconds,
+                        "hls_storage_path": l.hls_storage_path,
+                        "material_pdf_url": l.material_pdf_url,
+                        "status": l.status
+                    } for l in m.lessons
+                ]
+            } for m in course.modules
+        ]
+    }
 
-@router.get("", response_model=List[dict])
-async def get_published_courses(current_user: dict = Depends(get_current_user)):
-    """Retorna todos os cursos publicados e não deletados."""
-    try:
-        courses = ListCoursesUseCase.execute()
-        return [course.model_dump() for course in courses]
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ocorreu um erro interno no processamento dos dados."
-        )
+@router.get("/slug/{slug}")
+async def get_course_by_slug(slug: str, current_user: CurrentUser = Depends(get_current_user)):
+    """Retorna os detalhes completos de um curso pelo Slug (Legacy route redirection)."""
+    repo = SupabaseCourseRepository(get_admin_supabase_client())
+    use_case = GetCourseBySlugUseCase(repo)
+    course = await use_case.execute(slug)
+    return _to_legacy_dict(course)
+
+@router.get("", response_model=list[dict])
+async def get_published_courses(current_user: CurrentUser = Depends(get_current_user)):
+    """Retorna todos os cursos publicados e não deletados (Legacy route redirection)."""
+    repo = SupabaseCourseRepository(get_admin_supabase_client())
+    use_case = ListCoursesUseCase(repo)
+    courses = await use_case.execute()
+    return [_to_legacy_dict(course) for course in courses]
 
 @router.get("/{course_id}")
-async def get_course_details(course_id: str, current_user: dict = Depends(get_current_user)):
-    """Retorna os detalhes completos de um curso pelo ID."""
-    try:
-        course = GetCourseUseCase.execute(course_id)
-        return course.model_dump()
-    except EntityNotFoundException as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ocorreu um erro interno no processamento dos dados."
-        )
+async def get_course_details(course_id: str, current_user: CurrentUser = Depends(get_current_user)):
+    """Retorna os detalhes completos de um curso pelo ID (Legacy route redirection)."""
+    repo = SupabaseCourseRepository(get_admin_supabase_client())
+    use_case = GetCourseUseCase(repo)
+    course = await use_case.execute(course_id)
+    return _to_legacy_dict(course)
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_course(
     course_data: CourseCreateSchema,
-    current_user: dict = Depends(require_role(["teacher", "admin"]))
+    current_user: CurrentUser = Depends(require_role(["teacher", "admin"]))
 ):
-    """Cria um novo curso no sistema. Apenas Professores e Admins."""
-    try:
-        course = CreateCourseUseCase.execute(
-            course_data=course_data.model_dump(),
-            instructor_id=current_user["id"]
-        )
-        return course.model_dump()
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ocorreu um erro interno ao criar o curso."
-        )
+    """Cria um novo curso no sistema. Apenas Professores e Admins (Legacy route redirection)."""
+    repo = SupabaseCourseRepository(get_admin_supabase_client())
+    use_case = CreateCourseUseCase(repo)
+    course = await use_case.execute(course_data.model_dump(), current_user.id)
+    return _to_legacy_dict(course)
 
 @router.put("/{course_id}")
 async def update_course(
     course_id: str,
     course_data: CourseCreateSchema,
-    current_user: dict = Depends(require_role(["teacher", "admin"]))
+    current_user: CurrentUser = Depends(require_role(["teacher", "admin"]))
 ):
-    """Atualiza as informações de um curso existente. Apenas instrutor do curso ou Admins."""
-    try:
-        course = UpdateCourseUseCase.execute(
-            course_id=course_id,
-            course_data=course_data.model_dump(),
-            current_user=current_user
-        )
-        return course.model_dump()
-    except AccessDeniedException as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message)
-    except EntityNotFoundException as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ocorreu um erro interno ao atualizar o curso."
-        )
+    """Atualiza as informações de um curso existente (Legacy route redirection)."""
+    repo = SupabaseCourseRepository(get_admin_supabase_client())
+    use_case = UpdateCourseUseCase(repo)
+    course = await use_case.execute(
+        course_id=course_id,
+        course_data=course_data.model_dump(),
+        current_user_id=current_user.id,
+        current_user_role=current_user.role
+    )
+    return _to_legacy_dict(course)
 
 @router.delete("/{course_id}")
 async def soft_delete_course(
     course_id: str,
-    current_user: dict = Depends(require_role(["teacher", "admin"]))
+    current_user: CurrentUser = Depends(require_role(["teacher", "admin"]))
 ):
-    """Arquiva logicamente um curso. Apenas instrutor do curso ou Admins."""
-    try:
-        DeleteCourseUseCase.execute(course_id=course_id, current_user=current_user)
-        return {"status": "success", "message": "Curso arquivado logicamente com sucesso."}
-    except AccessDeniedException as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message)
-    except EntityNotFoundException as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ocorreu um erro interno ao tentar arquivar o curso."
-        )
+    """Arquiva logicamente um curso. Apenas instrutor do curso ou Admins (Legacy route redirection)."""
+    repo = SupabaseCourseRepository(get_admin_supabase_client())
+    use_case = DeleteCourseUseCase(repo)
+    await use_case.execute(
+        course_id=course_id,
+        current_user_id=current_user.id,
+        current_user_role=current_user.role
+    )
+    return {"status": "success", "message": "Curso arquivado logicamente com sucesso."}
