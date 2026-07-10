@@ -1,4 +1,4 @@
-from typing import Protocol, List, Optional
+from typing import List, Protocol
 from src.modules.subscriptions.domain.entities import Subscription
 
 class SubscriptionRepository(Protocol):

@@ -5,8 +5,8 @@ from fastapi import APIRouter, Header, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.core.database.database import get_admin_supabase_client
-from src.core.errors.errors import ConflictError, AppError
-from src.core.security.security import CurrentUser, get_current_user, require_role
+from src.core.errors.errors import ConflictError
+from src.core.security.security import CurrentUser, get_current_user
 from fastapi import Depends
 from src.modules.payments.application.process_webhook import StripeWebhookProcessor
 from src.modules.subscriptions.application.use_cases.create_checkout_use_case import (
