@@ -3,11 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../design_system/tokens/lawrence_theme.dart';
 import '../../../../design_system/widgets/liquid_glass_card.dart';
 import '../../../../design_system/widgets/pill_button.dart';
-import '../../application/auth_notifier.dart';
+import '../controllers/auth_controller.dart';
 import '../controllers/form_controller.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
-  const LoginPage({super.key});
+  final bool startInRegistrationMode;
+  final bool startInPasswordRecoveryMode;
+
+  const LoginPage({
+    super.key,
+    this.startInRegistrationMode = false,
+    this.startInPasswordRecoveryMode = false,
+  });
 
   @override
   ConsumerState<LoginPage> createState() => _LoginPageState();
@@ -18,7 +25,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isLoginMode = true;
+  late bool _isLoginMode;
+  bool _obscurePassword = true;
+  late bool _isForgotPasswordMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _isForgotPasswordMode = widget.startInPasswordRecoveryMode;
+    _isLoginMode = !widget.startInRegistrationMode &&
+        !widget.startInPasswordRecoveryMode;
+  }
 
   @override
   void dispose() {
@@ -34,7 +51,25 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       final authNotifier = ref.read(authNotifierProvider.notifier);
 
       formNotifier.submit(() async {
-        if (_isLoginMode) {
+        if (_isForgotPasswordMode) {
+          await authNotifier.requestPasswordReset(
+            email: _emailController.text.trim(),
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Instruções de recuperação de senha enviadas por e-mail.',
+                ),
+                backgroundColor: LawrenceColors.primary,
+              ),
+            );
+            setState(() {
+              _isForgotPasswordMode = false;
+              _isLoginMode = true;
+            });
+          }
+        } else if (_isLoginMode) {
           await authNotifier.signInWithEmail(
             email: _emailController.text.trim(),
             password: _passwordController.text,
@@ -82,8 +117,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Card Glassmorphic Liquid Glass
-                  LiquidGlassCard(
-                    width: 440,
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 440),
+                    child: LiquidGlassCard(
+                    width: double.infinity,
                     borderRadius: LawrenceTheme.radiusLg, // 24px
                     borderColor: LawrenceColors.borderMist,
                     child: Column(
@@ -101,8 +138,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: LawrenceColors.primary.withOpacity(
-                                    0.24,
+                                  color: LawrenceColors.primary.withValues(
+                                    alpha: 0.24,
                                   ),
                                   blurRadius: 16,
                                   offset: const Offset(0, 4),
@@ -119,7 +156,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         const SizedBox(height: 20),
 
                         Text(
-                          "LAWRENCE ACADEMY",
+                          _isForgotPasswordMode
+                              ? "RECUPERAR SENHA"
+                              : "LAWRENCE ACADEMY",
                           style: theme.textTheme.headlineMedium?.copyWith(
                             letterSpacing: 2.0,
                             fontSize: 18,
@@ -131,9 +170,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         const SizedBox(height: 8),
 
                         Text(
-                          _isLoginMode
-                              ? "Plataforma de Alta Costura & Modelagem"
-                              : "Crie sua conta de aluno (Atrito Zero)",
+                          _isForgotPasswordMode
+                              ? "Informe seu e-mail para receber as instruções de recuperação."
+                              : _isLoginMode
+                                  ? "Plataforma de Alta Costura & Modelagem"
+                                  : "Crie sua conta de aluno (Atrito Zero)",
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: LawrenceColors.textSecondary,
                             fontWeight: FontWeight.w500,
@@ -143,7 +184,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         const SizedBox(height: 32),
 
                         // Campo Nome Completo (Apenas no modo Cadastro)
-                        if (!_isLoginMode) ...[
+                        if (!_isForgotPasswordMode && !_isLoginMode) ...[
                           _buildTextField(
                             controller: _nameController,
                             hintText: "Nome Completo",
@@ -164,20 +205,60 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         const SizedBox(height: 16),
 
                         // Campo Senha
-                        _buildTextField(
-                          controller: _passwordController,
-                          hintText: "Senha",
-                          icon: Icons.lock_outline,
-                          validator: FormValidators.validatePassword,
-                          obscureText: true,
-                        ),
-                        const SizedBox(height: 28),
+                        if (!_isForgotPasswordMode) ...[
+                          _buildTextField(
+                            controller: _passwordController,
+                            hintText: "Senha",
+                            icon: Icons.lock_outline,
+                            validator: FormValidators.validatePassword,
+                            obscureText: _obscurePassword,
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                color: LawrenceColors.textSecondary,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
+                            ),
+                          ),
+                          if (_isLoginMode) ...[
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _isForgotPasswordMode = true;
+                                    _formKey.currentState?.reset();
+                                    _emailController.clear();
+                                    _passwordController.clear();
+                                    _nameController.clear();
+                                  });
+                                },
+                                child: const Text(
+                                  "Esqueci minha senha",
+                                  style: TextStyle(
+                                    color: LawrenceColors.primary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 28),
+                        ],
 
                         // Botão pílula resiliente (PillButton)
                         PillButton(
-                          label: _isLoginMode
-                              ? "Entrar na Plataforma"
-                              : "Cadastrar Nova Conta",
+                          label: _isForgotPasswordMode
+                              ? "Enviar Instruções"
+                              : _isLoginMode
+                                  ? "Entrar na Plataforma"
+                                  : "Cadastrar Nova Conta",
                           isLoading: formState.isLoading,
                           onPressed: _handleFormSubmit,
                           width: double.infinity,
@@ -187,27 +268,48 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         const SizedBox(height: 20),
 
                         // Alternador entre Login e Cadastro
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _isLoginMode = !_isLoginMode;
-                              _formKey.currentState?.reset();
-                              _emailController.clear();
-                              _passwordController.clear();
-                              _nameController.clear();
-                            });
-                          },
-                          child: Text(
-                            _isLoginMode
-                                ? "Não tem conta? Cadastre-se agora"
-                                : "Já tem uma conta? Faça login",
-                            style: const TextStyle(
-                              color: LawrenceColors.primary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                        if (_isForgotPasswordMode)
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _isForgotPasswordMode = false;
+                                _formKey.currentState?.reset();
+                                _emailController.clear();
+                                _passwordController.clear();
+                                _nameController.clear();
+                              });
+                            },
+                            child: const Text(
+                              "Voltar para o Login",
+                              style: TextStyle(
+                                color: LawrenceColors.primary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          )
+                        else
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _isLoginMode = !_isLoginMode;
+                                _formKey.currentState?.reset();
+                                _emailController.clear();
+                                _passwordController.clear();
+                                _nameController.clear();
+                              });
+                            },
+                            child: Text(
+                              _isLoginMode
+                                  ? "Não tem conta? Cadastre-se agora"
+                                  : "Já tem uma conta? Faça login",
+                              style: const TextStyle(
+                                color: LawrenceColors.primary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
 
                         if (formState.errorMessage != null) ...[
                           const SizedBox(height: 16),
@@ -217,7 +319,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: LawrenceColors.danger.withOpacity(0.08),
+                              color: LawrenceColors.danger.withValues(
+                                alpha: 0.08,
+                              ),
                               borderRadius: BorderRadius.circular(
                                 LawrenceTheme.radiusXs,
                               ),
@@ -234,6 +338,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           ),
                         ],
                       ],
+                    ),
                     ),
                   ),
                 ],
@@ -252,8 +357,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     required String? Function(String?) validator,
     bool obscureText = false,
     TextInputType? keyboardType,
+    Widget? suffixIcon,
   }) {
     return TextFormField(
+      autofillHints: keyboardType == TextInputType.emailAddress
+          ? const [AutofillHints.email]
+          : obscureText
+              ? const [AutofillHints.password]
+              : const [AutofillHints.name],
+      textInputAction: obscureText ? TextInputAction.done : TextInputAction.next,
+      onFieldSubmitted: obscureText ? (_) => _handleFormSubmit() : null,
       controller: controller,
       validator: validator,
       obscureText: obscureText,
@@ -265,9 +378,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           color: LawrenceColors.textSecondary,
           fontSize: 15,
         ),
-        prefixIcon: Icon(icon, size: 20, color: LawrenceColors.textSecondary),
+        prefixIcon: ExcludeSemantics(
+          child: Icon(icon, size: 20, color: LawrenceColors.textSecondary),
+        ),
+        suffixIcon: suffixIcon,
         filled: true,
-        fillColor: Colors.white.withOpacity(0.4),
+        fillColor: Colors.white.withValues(alpha: 0.4),
         contentPadding: const EdgeInsets.symmetric(
           vertical: 16,
           horizontal: 16,

@@ -3,10 +3,8 @@ from typing import List, Optional
 from decimal import Decimal
 from pydantic import BaseModel
 from src.core.security.security import get_current_user, require_role, CurrentUser
-from src.core.database.database import get_admin_supabase_client
-from src.modules.courses.infrastructure.repositories.supabase_course_repository import (
-    SupabaseCourseRepository,
-)
+from src.modules.courses.domain.repositories import CourseRepository
+from src.modules.courses.interface.api.dependencies import get_course_repository
 from src.modules.courses.application.use_cases.list_courses_use_case import (
     ListCoursesUseCase,
 )
@@ -43,7 +41,7 @@ class LessonCreateInputSchema(BaseModel):
     description: Optional[str] = None
     order_index: int
     duration_seconds: int
-    hls_storage_path: str
+    hls_storage_path: Optional[str] = None
     material_pdf_url: Optional[str] = None
     status: str
 
@@ -56,7 +54,7 @@ class LessonResponseSchema(BaseModel):
     description: Optional[str] = None
     order_index: int
     duration_seconds: int
-    hls_storage_path: str
+    hls_storage_path: Optional[str] = None
     material_pdf_url: Optional[str] = None
     status: str
 
@@ -101,9 +99,10 @@ class CourseResponseSchema(BaseModel):
 
 
 @router.get("", response_model=List[CourseResponseSchema])
-async def list_courses(current_user: CurrentUser = Depends(get_current_user)):
+async def list_courses(
+    repo: CourseRepository = Depends(get_course_repository),
+):
     """Retorna todos os cursos publicados ativos (BOLA-safe)."""
-    repo = SupabaseCourseRepository(get_admin_supabase_client())
     use_case = ListCoursesUseCase(repo)
     courses = await use_case.execute()
     return courses
@@ -111,10 +110,10 @@ async def list_courses(current_user: CurrentUser = Depends(get_current_user)):
 
 @router.get("/slug/{slug}", response_model=CourseResponseSchema)
 async def get_course_by_slug(
-    slug: str, current_user: CurrentUser = Depends(get_current_user)
+    slug: str,
+    repo: CourseRepository = Depends(get_course_repository),
 ):
     """Retorna detalhes do curso pelo slug amigável (BOLA-safe)."""
-    repo = SupabaseCourseRepository(get_admin_supabase_client())
     use_case = GetCourseBySlugUseCase(repo)
     course = await use_case.execute(slug)
     return course
@@ -122,10 +121,10 @@ async def get_course_by_slug(
 
 @router.get("/{course_id}", response_model=CourseResponseSchema)
 async def get_course(
-    course_id: str, current_user: CurrentUser = Depends(get_current_user)
+    course_id: str,
+    repo: CourseRepository = Depends(get_course_repository),
 ):
     """Retorna detalhes completos do curso pelo seu UUID (BOLA-safe)."""
-    repo = SupabaseCourseRepository(get_admin_supabase_client())
     use_case = GetCourseUseCase(repo)
     course = await use_case.execute(course_id)
     return course
@@ -137,9 +136,9 @@ async def get_course(
 async def create_course(
     payload: CourseCreateInputSchema,
     current_user: CurrentUser = Depends(require_role(["teacher", "admin"])),
+    repo: CourseRepository = Depends(get_course_repository),
 ):
     """Cria um novo curso no sistema (BOLA-safe). Apenas Professores e Admins."""
-    repo = SupabaseCourseRepository(get_admin_supabase_client())
     use_case = CreateCourseUseCase(repo)
     course = await use_case.execute(payload.model_dump(), current_user.id)
     return course
@@ -150,9 +149,9 @@ async def update_course(
     course_id: str,
     payload: CourseCreateInputSchema,
     current_user: CurrentUser = Depends(require_role(["teacher", "admin"])),
+    repo: CourseRepository = Depends(get_course_repository),
 ):
     """Atualiza as informações de um curso existente (BOLA-safe). Apenas instrutor ou Admins."""
-    repo = SupabaseCourseRepository(get_admin_supabase_client())
     use_case = UpdateCourseUseCase(repo)
     course = await use_case.execute(
         course_id=course_id,
@@ -167,9 +166,9 @@ async def update_course(
 async def delete_course(
     course_id: str,
     current_user: CurrentUser = Depends(require_role(["teacher", "admin"])),
+    repo: CourseRepository = Depends(get_course_repository),
 ):
     """Arquiva logicamente um curso (BOLA-safe). Apenas instrutor ou Admins."""
-    repo = SupabaseCourseRepository(get_admin_supabase_client())
     use_case = DeleteCourseUseCase(repo)
     await use_case.execute(
         course_id=course_id,
@@ -184,9 +183,9 @@ async def get_lesson(
     course_id: str,
     lesson_id: str,
     current_user: CurrentUser = Depends(get_current_user),
+    repo: CourseRepository = Depends(get_course_repository),
 ):
     """Retorna os detalhes de uma aula específica (BOLA-safe)."""
-    repo = SupabaseCourseRepository(get_admin_supabase_client())
     use_case = GetLessonUseCase(repo)
     lesson = await use_case.execute(course_id, lesson_id)
     return lesson
@@ -197,9 +196,9 @@ async def get_lesson_stream(
     course_id: str,
     lesson_id: str,
     current_user: CurrentUser = Depends(get_current_user),
+    repo: CourseRepository = Depends(get_course_repository),
 ):
     """Gera link assinado seguro HLS para reprodução do vídeo da aula (BOLA-safe com controle de acesso)."""
-    repo = SupabaseCourseRepository(get_admin_supabase_client())
     use_case = GetLessonStreamUseCase(repo)
     signed_url = await use_case.execute(
         user_id=current_user.id,

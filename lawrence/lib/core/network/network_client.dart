@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import '../../app/config/env_config.dart';
@@ -46,9 +47,39 @@ class NetworkClient {
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
+          options.extra['startTime'] = DateTime.now();
+          if (kDebugMode) {
+            debugPrint('[HTTP] ${options.method} ${options.uri.path}');
+          }
           return handler.next(options);
         },
+        onResponse: (response, handler) {
+          final startTime =
+              response.requestOptions.extra['startTime'] as DateTime?;
+          final duration = startTime != null
+              ? DateTime.now().difference(startTime).inMilliseconds
+              : null;
+          if (kDebugMode) {
+            debugPrint(
+              '[HTTP] ${response.statusCode} '
+              '${response.requestOptions.method} '
+              '${response.requestOptions.uri.path} (${duration}ms)',
+            );
+          }
+          return handler.next(response);
+        },
         onError: (DioException e, handler) {
+          final startTime = e.requestOptions.extra['startTime'] as DateTime?;
+          final duration = startTime != null
+              ? DateTime.now().difference(startTime).inMilliseconds
+              : null;
+          if (kDebugMode) {
+            debugPrint(
+              '[HTTP] ${e.response?.statusCode ?? 'network_error'} '
+              '${e.requestOptions.method} '
+              '${e.requestOptions.uri.path} (${duration}ms)',
+            );
+          }
           final failure = _handleDioError(e);
           return handler.next(
             DioException(
@@ -65,11 +96,27 @@ class NetworkClient {
   }
 
   Failure _handleDioError(DioException e) {
-    if (e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.sendTimeout ||
-        e.type == DioExceptionType.receiveTimeout ||
-        e.type == DioExceptionType.connectionError) {
-      return const NetworkFailure();
+    if (e.type == DioExceptionType.connectionTimeout) {
+      return const NetworkFailure(
+        message: 'Tempo de conexão limite atingido (ConnectionTimeout).',
+        code: 'CONNECTION_TIMEOUT',
+      );
+    } else if (e.type == DioExceptionType.sendTimeout) {
+      return const NetworkFailure(
+        message: 'Tempo de envio limite atingido (SendTimeout).',
+        code: 'SEND_TIMEOUT',
+      );
+    } else if (e.type == DioExceptionType.receiveTimeout) {
+      return const NetworkFailure(
+        message: 'Tempo de recebimento limite atingido (ReceiveTimeout).',
+        code: 'RECEIVE_TIMEOUT',
+      );
+    } else if (e.type == DioExceptionType.connectionError) {
+      return NetworkFailure(
+        message:
+            'Erro de conexão física ou rede inacessível (ConnectionError). Detalhes: ${e.error}',
+        code: 'CONNECTION_ERROR',
+      );
     }
 
     final response = e.response;
@@ -77,17 +124,21 @@ class NetworkClient {
       final statusCode = response.statusCode;
       final data = response.data;
 
-      String message = 'Ocorreu um erro inesperado.';
-      String? errorCode;
+      String message = 'Erro do servidor (Status: $statusCode).';
+      String? errorCode = 'HTTP_$statusCode';
 
       if (data is Map<String, dynamic>) {
         if (data['error'] != null) {
           if (data['error'] is Map) {
             message = data['error']['message'] ?? message;
-            errorCode = data['error']['code'];
+            errorCode = data['error']['code']?.toString() ?? errorCode;
           } else {
             message = data['error'].toString();
           }
+        } else if (data['message'] != null) {
+          message = data['message'].toString();
+        } else if (data['detail'] != null) {
+          message = data['detail'].toString();
         }
       }
 
@@ -97,7 +148,10 @@ class NetworkClient {
       return ServerFailure(message: message, code: errorCode);
     }
 
-    return const ServerFailure();
+    return ServerFailure(
+      message: 'Falha inesperada na requisição: ${e.message}',
+      code: 'UNKNOWN_FAILURE',
+    );
   }
 
   Future<Response<T>> get<T>(
@@ -147,6 +201,26 @@ class NetworkClient {
   }) async {
     try {
       return await _dio.put<T>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+        cancelToken: cancelToken,
+      );
+    } on DioException catch (e) {
+      throw e.error as Failure;
+    }
+  }
+
+  Future<Response<T>> patch<T>(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+    CancelToken? cancelToken,
+  }) async {
+    try {
+      return await _dio.patch<T>(
         path,
         data: data,
         queryParameters: queryParameters,

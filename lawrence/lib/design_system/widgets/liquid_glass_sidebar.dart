@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+
 import '../tokens/lawrence_theme.dart';
-import 'liquid_glass_container.dart';
 
 class LiquidGlassSidebar extends StatelessWidget {
   final String currentPath;
-  final Function(String path) onNavigate;
+  final ValueChanged<String> onNavigate;
 
   const LiquidGlassSidebar({
     super.key,
@@ -12,165 +12,155 @@ class LiquidGlassSidebar extends StatelessWidget {
     required this.onNavigate,
   });
 
+  static const _items = <_SidebarItem>[
+    _SidebarItem('Início', '/dashboard/home', Icons.home_outlined),
+    _SidebarItem('Cursos', '/dashboard/courses', Icons.menu_book_outlined),
+    _SidebarItem('Projetos', '/dashboard/projects', Icons.architecture_outlined),
+    _SidebarItem(
+      'Conquistas',
+      '/dashboard/achievements',
+      Icons.emoji_events_outlined,
+    ),
+    _SidebarItem('Perfil', '/dashboard/profile', Icons.person_outline_rounded),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(LawrenceTheme.radiusLg),
+        side: const BorderSide(color: LawrenceColors.borderMist),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _SidebarBrand(),
+            const SizedBox(height: 32),
+            for (final item in _items)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _NavigationItem(
+                  item: item,
+                  selected: currentPath.startsWith(item.path),
+                  onTap: () => onNavigate(item.path),
+                ),
+              ),
+            const Spacer(),
+            const Divider(),
+            _NavigationItem(
+              item: const _SidebarItem(
+                'Configurações',
+                '/dashboard/settings',
+                Icons.settings_outlined,
+              ),
+              selected: currentPath.startsWith('/dashboard/settings'),
+              onTap: () => onNavigate('/dashboard/settings'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-    return LiquidGlassContainer(
-      borderRadius: 24.0,
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
-      backgroundColor: Colors.white.withOpacity(0.72),
-      borderColor: Colors.white.withOpacity(0.28),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+class _SidebarBrand extends StatelessWidget {
+  const _SidebarBrand();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Lawrence Academy',
+      image: true,
+      child: Row(
         children: [
-          // Header / Logo minimalista
-          Padding(
-            padding: const EdgeInsets.only(left: 8.0, bottom: 32.0),
-            child: Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: LawrenceColors.primary,
-                    borderRadius: BorderRadius.circular(LawrenceTheme.radiusXs),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'L',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'LAWRENCE',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    letterSpacing: 1.5,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Itens de Navegação
-          _buildNavItem(
-            context,
-            icon: Icons.dashboard_outlined,
-            activeIcon: Icons.dashboard,
-            label: 'Dashboard',
-            path: '/dashboard/home',
-          ),
-          _buildNavItem(
-            context,
-            icon: Icons.school_outlined,
-            activeIcon: Icons.school,
-            label: 'Meus Cursos',
-            path: '/courses',
-          ),
-          _buildNavItem(
-            context,
-            icon: Icons.card_membership_outlined,
-            activeIcon: Icons.card_membership,
-            label: 'Certificados',
-            path: '/admin/analytics', // Rota temporária ou placeholder
-          ),
-
-          const Spacer(),
-
-          // Perfil do Aluno (Fundo do Sidebar)
           Container(
-            padding: const EdgeInsets.all(12),
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(LawrenceTheme.radiusMd),
+              color: LawrenceColors.primary,
+              borderRadius: BorderRadius.circular(LawrenceTheme.radiusSm),
             ),
-            child: Row(
-              children: [
-                const CircleAvatar(
-                  backgroundColor: LawrenceColors.borderMist,
-                  child: Icon(Icons.person, color: LawrenceColors.textPrimary),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Ariane L.',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        'Assinante Ativa',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: LawrenceColors.accentGold,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            child: const Text(
+              'L',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'LAWRENCE\nACADEMY',
+              style: TextStyle(
+                color: LawrenceColors.textPrimary,
+                fontSize: 13,
+                height: 1.05,
+                letterSpacing: 1.4,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildNavItem(
-    BuildContext context, {
-    required IconData icon,
-    required IconData activeIcon,
-    required String label,
-    required String path,
-  }) {
-    final theme = Theme.of(context);
-    final isActive = currentPath == path;
+class _NavigationItem extends StatelessWidget {
+  final _SidebarItem item;
+  final bool selected;
+  final VoidCallback onTap;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+  const _NavigationItem({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      selected: selected,
+      button: true,
       child: InkWell(
-        onTap: () => onNavigate(path),
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(LawrenceTheme.radiusSm),
+        child: AnimatedContainer(
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 160),
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: isActive
-                ? LawrenceColors.primary.withOpacity(0.08)
+            color: selected
+                ? LawrenceColors.primary.withValues(alpha: .10)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(LawrenceTheme.radiusSm),
           ),
           child: Row(
             children: [
               Icon(
-                isActive ? activeIcon : icon,
-                color: isActive
+                item.icon,
+                color: selected
                     ? LawrenceColors.primary
                     : LawrenceColors.textSecondary,
-                size: 20,
               ),
               const SizedBox(width: 12),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                  color: isActive
-                      ? LawrenceColors.primary
-                      : LawrenceColors.textPrimary,
-                  fontFamily: 'Inter',
+              Expanded(
+                child: Text(
+                  item.label,
+                  style: TextStyle(
+                    color: selected
+                        ? LawrenceColors.primary
+                        : LawrenceColors.textPrimary,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
                 ),
               ),
             ],
@@ -179,4 +169,12 @@ class LiquidGlassSidebar extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SidebarItem {
+  final String label;
+  final String path;
+  final IconData icon;
+
+  const _SidebarItem(this.label, this.path, this.icon);
 }

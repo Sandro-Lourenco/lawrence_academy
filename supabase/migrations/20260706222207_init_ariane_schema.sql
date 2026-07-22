@@ -7,7 +7,6 @@
 -- Limpar elementos existentes para reinicialização limpa (se necessário)
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users CASCADE;
 DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
-DROP TRIGGER IF EXISTS trg_auto_grade ON public.task_submissions CASCADE;
 DROP FUNCTION IF EXISTS public.auto_grade_submission() CASCADE;
 
 DROP TABLE IF EXISTS public.stripe_processed_events CASCADE;

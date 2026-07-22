@@ -110,7 +110,9 @@ class Lesson {
   final String moduleId;
   final String courseId;
   final String title;
+  final String description;
   final String status;
+  final int orderIndex;
   final int durationSeconds;
   final String? hlsStoragePath;
   final AISummary aiSummary;
@@ -120,7 +122,9 @@ class Lesson {
     required this.moduleId,
     required this.courseId,
     required this.title,
+    this.description = '',
     required this.status,
+    this.orderIndex = 0,
     required this.durationSeconds,
     this.hlsStoragePath,
     required this.aiSummary,
@@ -132,7 +136,9 @@ class Lesson {
       moduleId: json['module_id'] as String,
       courseId: json['course_id'] as String,
       title: json['title'] as String,
+      description: json['description'] as String? ?? '',
       status: json['status'] as String? ?? 'draft',
+      orderIndex: json['order_index'] as int? ?? 0,
       durationSeconds: json['duration_seconds'] as int? ?? 0,
       hlsStoragePath: json['hls_storage_path'] as String?,
       aiSummary: AISummary.fromJson(
@@ -146,7 +152,9 @@ class Lesson {
     'module_id': moduleId,
     'course_id': courseId,
     'title': title,
+    'description': description,
     'status': status,
+    'order_index': orderIndex,
     'duration_seconds': durationSeconds,
     'hls_storage_path': hlsStoragePath,
     'ai_summary': aiSummary.toJson(),
@@ -176,9 +184,11 @@ class Module {
       courseId: json['course_id'] as String,
       title: json['title'] as String,
       orderIndex: json['order_index'] as int? ?? 0,
-      lessons: lessonsJson
-          .map((l) => Lesson.fromJson(l as Map<String, dynamic>))
-          .toList(),
+      lessons:
+          lessonsJson
+              .map((l) => Lesson.fromJson(l as Map<String, dynamic>))
+              .toList()
+            ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex)),
     );
   }
 
@@ -201,6 +211,7 @@ class Course {
   final String level;
   final String summary;
   final String status;
+  final double monthlyPrice;
   final List<Module> modules;
 
   const Course({
@@ -212,11 +223,23 @@ class Course {
     required this.level,
     required this.summary,
     required this.status,
+    this.monthlyPrice = 0,
     required this.modules,
   });
 
+  bool get isFree => monthlyPrice <= 0;
+
+  int get lessonCount => modules.fold(
+    0,
+    (total, module) => total + module.lessons.length,
+  );
+
   factory Course.fromJson(Map<String, dynamic> json) {
     final modulesJson = json['modules'] as List? ?? [];
+    final rawMonthlyPrice = json['monthly_price'];
+    final monthlyPrice = rawMonthlyPrice is num
+        ? rawMonthlyPrice.toDouble()
+        : double.tryParse(rawMonthlyPrice?.toString() ?? '') ?? 0;
     return Course(
       id: json['id'] as String,
       instructorId: json['instructor_id'] as String? ?? '',
@@ -226,6 +249,7 @@ class Course {
       level: json['level'] as String? ?? 'iniciante',
       summary: json['summary'] as String? ?? '',
       status: json['status'] as String? ?? 'draft',
+      monthlyPrice: monthlyPrice,
       modules:
           modulesJson
               .map((m) => Module.fromJson(m as Map<String, dynamic>))
@@ -243,6 +267,7 @@ class Course {
     'level': level,
     'summary': summary,
     'status': status,
+    'monthly_price': monthlyPrice,
     'modules': modules.map((e) => e.toJson()).toList(),
   };
 }

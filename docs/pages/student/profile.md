@@ -20,6 +20,17 @@ real-time: Supabase Realtime
 
 # Profile
 
+## Implementação canônica da fase de Perfil
+
+A rota `/dashboard/profile` consome o use case `GetMyProfileUseCase`, apoiado
+por `GET /api/v1/profiles/me`, e apresenta somente nome, e-mail e papel
+confirmados. O backend possui essa rota e testes, embora `SERVICE_API.md` ainda
+cite `/users/me`; essa divergência documental deve ser reconciliada.
+
+Métricas de aprendizagem, avatar, nível, dispositivos, 2FA, edição e exclusão
+não são simulados. A tela oferece navegação apenas para assinaturas, faturas e
+configurações já implementadas.
+
 ## Objetivo
 
 A página **Profile** representa a identidade do aluno dentro da Lawrence Academy.

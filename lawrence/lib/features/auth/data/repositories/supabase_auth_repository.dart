@@ -1,57 +1,50 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/network/supabase_client.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import '../../domain/repositories/auth_repository_interface.dart';
+import '../datasources/supabase_auth_datasource.dart';
 
 class SupabaseAuthRepository implements IAuthRepository {
-  final SupabaseClient _client;
+  final SupabaseAuthDataSource _dataSource;
 
-  SupabaseAuthRepository(this._client);
-
-  @override
-  Session? get currentSession => _client.auth.currentSession;
+  SupabaseAuthRepository(this._dataSource);
 
   @override
-  User? get currentUser => _client.auth.currentUser;
+  sb.Session? get currentSession => _dataSource.currentSession;
 
   @override
-  Stream<AuthState> get onAuthStateChange => _client.auth.onAuthStateChange;
+  sb.User? get currentUser => _dataSource.currentUser;
 
   @override
-  Future<AuthResponse> signIn({
+  Stream<sb.AuthState> get onAuthStateChange => _dataSource.onAuthStateChange;
+
+  @override
+  Future<sb.AuthResponse> signIn({
     required String email,
     required String password,
-  }) async {
-    return await _client.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
+  }) {
+    return _dataSource.signIn(email: email, password: password);
   }
 
   @override
-  Future<AuthResponse> signUp({
+  Future<sb.AuthResponse> signUp({
     required String email,
     required String password,
     required String fullName,
     String? referralCode,
-  }) async {
-    return await _client.auth.signUp(
+  }) {
+    return _dataSource.signUp(
       email: email,
       password: password,
-      data: {
-        'full_name': fullName,
-        if (referralCode != null) 'referred_by_code': referralCode,
-      },
+      data: {'full_name': fullName, 'referred_by_code': referralCode},
     );
   }
 
   @override
-  Future<void> signOut() async {
-    await _client.auth.signOut();
+  Future<void> signOut() {
+    return _dataSource.signOut();
+  }
+
+  @override
+  Future<void> resetPassword({required String email}) {
+    return _dataSource.resetPassword(email: email);
   }
 }
-
-final authRepositoryProvider = Provider<IAuthRepository>((ref) {
-  final client = ref.watch(supabaseClientProvider);
-  return SupabaseAuthRepository(client);
-});

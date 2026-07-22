@@ -4,6 +4,8 @@
 -- Purpose: Verify Triggers, Soft Delete, RLS, and Integrity constraints on Supabase
 -- ======================================================
 
+SELECT plan(1);
+
 BEGIN;
 
 -- 1. Setup Mock Data
@@ -57,20 +59,32 @@ BEGIN
 END $$;
 
 -- Criar cursos, módulos, lições e tarefas
-INSERT INTO public.courses (id, instructor_id, title, slug, category, level, summary, status)
+INSERT INTO public.courses (
+    id,
+    instructor_id,
+    title,
+    slug,
+    category,
+    level,
+    summary,
+    status,
+    monthly_price
+)
 VALUES 
-    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'Curso de Modelagem', 'curso-modelagem', 'modelagem', 'iniciante', 'Resumo 1', 'published'),
-    ('a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2', '11111111-1111-1111-1111-111111111111', 'Curso de Costura', 'curso-costura', 'costura', 'iniciante', 'Resumo 2', 'published');
+    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'Curso de Modelagem', 'curso-modelagem', 'modelagem', 'iniciante', 'Resumo 1', 'published', 89.90),
+    ('a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2', '11111111-1111-1111-1111-111111111111', 'Curso de Costura', 'curso-costura', 'costura', 'iniciante', 'Resumo 2', 'published', 89.90);
 
 INSERT INTO public.modules (id, course_id, title, order_index)
 VALUES 
     ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Módulo 1', 1),
     ('b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2', 'a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2', 'Módulo 2', 1);
 
-INSERT INTO public.lessons (id, module_id, course_id, title, status, hls_storage_path)
+INSERT INTO public.lessons (
+    id, module_id, course_id, title, duration_seconds, status, hls_storage_path
+)
 VALUES 
-    ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Lição Modelagem', 'published', 'lessons/l1/master.m3u8'),
-    ('c2c2c2c2-c2c2-c2c2-c2c2-c2c2c2c2c2c2', 'b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2', 'a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2', 'Lição Costura', 'published', 'lessons/l2/master.m3u8');
+    ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Lição Modelagem', 1000, 'published', 'lessons/l1/master.m3u8'),
+    ('c2c2c2c2-c2c2-c2c2-c2c2-c2c2c2c2c2c2', 'b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2', 'a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2', 'Lição Costura', 1000, 'published', 'lessons/l2/master.m3u8');
 
 INSERT INTO public.tasks (id, course_id, lesson_id, title, prompt_question, task_type, correct_option)
 VALUES ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'Tarefa 1', 'Pergunta', 'multiple_choice', 'C');
@@ -279,3 +293,6 @@ END $$;
 
 -- Finalizar transação e dar rollback para manter banco limpo
 ROLLBACK;
+
+SELECT pass('All assertions completed');
+SELECT * FROM finish();

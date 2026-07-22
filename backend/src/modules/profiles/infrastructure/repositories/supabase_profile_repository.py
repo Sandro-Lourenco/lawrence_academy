@@ -1,3 +1,4 @@
+import typing
 from typing import Optional
 from supabase import Client
 from src.modules.profiles.domain.entities import Profile
@@ -20,15 +21,16 @@ class SupabaseProfileRepository(ProfileRepository):
             .execute()
         )
 
-        if not res.data:
+        if res is None or not res.data:
             return None
 
+        row = typing.cast(dict[str, typing.Any], res.data)
         return Profile(
-            id=res.data["id"],
-            email=res.data["email"],
-            full_name=res.data.get("full_name"),
-            referred_by=res.data.get("referred_by"),
-            role=res.data.get("role", "student"),
+            id=row["id"],
+            email=row["email"],
+            full_name=row.get("full_name"),
+            referred_by=row.get("referred_by"),
+            role=row.get("role", "student"),
         )
 
     async def update(
@@ -42,7 +44,7 @@ class SupabaseProfileRepository(ProfileRepository):
 
         res = (
             self.client.table("profiles")
-            .update(update_data)
+            .update(typing.cast(typing.Any, update_data))
             .eq("id", user_id)
             .execute()
         )
@@ -50,7 +52,7 @@ class SupabaseProfileRepository(ProfileRepository):
         if not res.data:
             raise NotFoundError("Perfil não encontrado para atualização.")
 
-        row = res.data[0]
+        row = typing.cast(dict[str, typing.Any], res.data[0])
         return Profile(
             id=row["id"],
             email=row["email"],

@@ -1,5 +1,10 @@
 ---
 version: 2.0.0
+
+phase_2_routes:
+  - /login
+  - /register
+  - /forgot-password
 name: Pages-Overview
 type: Application Navigation & Page Architecture Specification
 
@@ -30,6 +35,25 @@ purpose:
   - Permission Control
   - State Definition
 ---
+
+## Navegação canônica da área do aluno
+
+| Destino | Rota canônica | Adaptação |
+| --- | --- | --- |
+| Início | `/dashboard/home` | Bottom bar, rail ou sidebar |
+| Cursos | `/dashboard/courses` | Bottom bar, rail ou sidebar |
+| Projetos | `/dashboard/projects` | Bottom bar, rail ou sidebar |
+| Detalhe do projeto | `/dashboard/projects/:projectId` | Subrota autenticada de Projetos |
+| Conquistas | `/dashboard/achievements` | Bottom bar, rail ou sidebar |
+| Perfil | `/dashboard/profile` | Bottom bar, rail ou sidebar |
+
+Configurações é uma subrota de Perfil (`/dashboard/settings`). Atividades,
+certificados, downloads, pagamentos e assinaturas permanecem subrotas
+contextuais e não disputam espaço na navegação principal.
+
+Breakpoints canônicos: mobile abaixo de 700 px, tablet entre 700 e 1099 px e
+desktop a partir de 1100 px. Detalhes e player devem preservar contexto ao
+voltar e podem reduzir a navegação global quando houver uma ação imersiva.
 
 # Lawrence Academy
 # Pages Overview Specification
@@ -164,7 +188,7 @@ Rotas:
 
 /courses
 
-/course/:slug
+/courses/:slug
 
 /pricing
 
@@ -571,7 +595,7 @@ Course Detail
 Route:
 
 
-/course/:slug
+/courses/:slug
 
 
 Spec:

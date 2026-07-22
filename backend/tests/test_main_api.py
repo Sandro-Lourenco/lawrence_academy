@@ -89,6 +89,17 @@ def test_submit_task_bola_protection(mock_supabase, mock_get_user):
         mock_db_res
     )
 
+    # Mock the get_task_by_id select response
+    mock_task_res = MagicMock()
+    mock_task_res.data = [
+        {
+            "id": "task_uuid_123",
+            "passing_score": "7.0",
+            "created_at": "2023-01-01T00:00:00Z",
+        }
+    ]
+    mock_supabase.table.return_value.select.return_value.eq.return_value.is_.return_value.execute.return_value = mock_task_res
+
     # Tentar enviar tarefa enviando o payload correto (a API não aceita user_id no DTO de entrada)
     response = client.post(
         "/api/task_submissions",
@@ -98,11 +109,50 @@ def test_submit_task_bola_protection(mock_supabase, mock_get_user):
 
     assert response.status_code == 200
 
+    import unittest.mock as mock
+
     # Garantir que o user_id inserido no payload final enviado ao banco foi o "real_student_id" do JWT
     mock_supabase.table.return_value.insert.assert_called_once_with(
         {
             "task_id": "task_uuid_123",
             "user_id": "real_student_id",
             "selected_option": "A",
+            "status": mock.ANY,
+            "submitted_at": mock.ANY,
         }
     )
+
+
+def test_external_service_error_handler():
+    """Garante que ExternalServiceError retorne HTTP 502 com detalhes seguros."""
+    from src.core.errors.errors import ExternalServiceError
+
+    @app.get("/test-502")
+    def trigger_502():
+        raise ExternalServiceError(
+            message="Stripe API is down", provider="stripe", request_id="req_123"
+        )
+
+    response = client.get("/test-502")
+    assert response.status_code == 502
+    data = response.json()
+    assert data["error"]["message"] == "Stripe API is down"
+    assert data["error"]["code"] == "EXTERNAL_SERVICE_ERROR"
+    assert data["provider"] == "stripe"
+    assert data["request_id"] == "req_123"
+
+
+def test_service_unavailable_error_handler():
+    """Garante que ServiceUnavailableError retorne HTTP 503 com Retry-After."""
+    from src.core.errors.errors import ServiceUnavailableError
+
+    @app.get("/test-503")
+    def trigger_503():
+        raise ServiceUnavailableError(message="Database is down", retry_after=60)
+
+    response = client.get("/test-503")
+    assert response.status_code == 503
+    assert response.headers["Retry-After"] == "60"
+    data = response.json()
+    assert data["error"]["message"] == "Database is down"
+    assert data["error"]["code"] == "SERVICE_UNAVAILABLE"

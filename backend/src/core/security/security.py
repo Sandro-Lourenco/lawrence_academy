@@ -32,7 +32,7 @@ async def get_current_user(authorization: str = Header(None)) -> CurrentUser:
 
         return CurrentUser(
             id=res.user.id,
-            email=res.user.email,
+            email=res.user.email or "",
             role=res.user.app_metadata.get("role", "student"),
             mfa_enabled="mfa" in res.user.app_metadata.get("amr", []),
         )

@@ -17,12 +17,10 @@ class LiquidGlassContainer extends StatelessWidget {
   const LiquidGlassContainer({
     super.key,
     required this.child,
-    this.borderRadius = LawrenceTheme.radiusMd, // Padrão 16px (raio MD)
-    this.blurSigma = 20.0, // Desfoque de 20px
-    this.backgroundColor = const Color(
-      0xB8FFFFFF,
-    ), // Branco translúcido (Colors.white.withOpacity(0.72))
-    this.borderColor = const Color(0x1FE8E8ED), // Silver Mist com opacidade
+    this.borderRadius = LawrenceTheme.AppRadiusMedium,
+    this.blurSigma = LawrenceTheme.AppGlassBlurMedium,
+    this.backgroundColor = const Color(0xB8FFFFFF), // 72% opacity white
+    this.borderColor = const Color(0x1FE8E8ED),
     this.borderWidth = 1.0,
     this.padding,
     this.margin,
@@ -40,7 +38,7 @@ class LiquidGlassContainer extends StatelessWidget {
         borderRadius: BorderRadius.circular(borderRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),

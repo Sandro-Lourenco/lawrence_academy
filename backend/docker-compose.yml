@@ -1,0 +1,20 @@
+services:
+  video-worker:
+    build:
+      context: ./video-worker
+      dockerfile: Dockerfile
+    container_name: lawrence-video-worker
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      # Montar diretório de código para live reload durante o desenvolvimento
+      - ./video-worker:/app
+    env_file:
+      - .env
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

@@ -1,3 +1,4 @@
+import typing
 import stripe
 from datetime import datetime, timezone
 from src.shared import database
@@ -11,7 +12,8 @@ class StripeWebhookProcessor:
         provider: str, event_id: str, event_type: str, payload_hash: str
     ) -> bool:
         """Registra o evento no banco para garantir processamento único (idempotente).
-        Retorna True se for um evento novo, False se for duplicado.
+        Retorna True se puder ser processado, False se for duplicado (já processado/em processamento).
+        Permite retry se o status anterior era 'failed'.
         """
         try:
             lock_res = (
@@ -27,25 +29,43 @@ class StripeWebhookProcessor:
                 )
                 .execute()
             )
-
-            if not lock_res.data:
-                return False
-            return True
+            return True if lock_res.data else False
         except Exception as db_err:
-            # Capturar erro de Unique Constraint (duplicado)
             if (
                 "duplicate key" in str(db_err).lower()
                 or "unique constraint" in str(db_err).lower()
             ):
+                existing = (
+                    database.db.table("payment_events")
+                    .select("status")
+                    .eq("provider", provider)
+                    .eq("provider_event_id", event_id)
+                    .execute()
+                )
+                if existing.data:
+                    current_status = typing.cast(
+                        dict[str, typing.Any], existing.data[0]
+                    ).get("status")
+                    if current_status == "failed" or current_status == "received":
+                        update_res = (
+                            database.db.table("payment_events")
+                            .update(
+                                {"status": "processing", "payload_hash": payload_hash}
+                            )
+                            .eq("provider", provider)
+                            .eq("provider_event_id", event_id)
+                            .execute()
+                        )
+                        return True if update_res.data else False
                 return False
             raise db_err
 
     @staticmethod
-    def remove_idempotency(provider: str, event_id: str) -> None:
-        """Remove a trava de idempotência se houver falha no processamento, permitindo reenvio."""
-        database.db.table("payment_events").delete().eq("provider", provider).eq(
-            "provider_event_id", event_id
-        ).execute()
+    def mark_event_failed(provider: str, event_id: str, error_message: str) -> None:
+        """Marca o evento como falho em vez de deletá-lo, mantendo histórico e permitindo reenvio."""
+        database.db.table("payment_events").update({"status": "failed"}).eq(
+            "provider", provider
+        ).eq("provider_event_id", event_id).execute()
 
     @staticmethod
     def mark_event_processed(provider: str, event_id: str) -> None:
@@ -74,7 +94,9 @@ class StripeWebhookProcessor:
     @staticmethod
     async def _process_payment_succeeded(event: dict) -> None:
         """Trata o pagamento realizado com sucesso (renovação de assinatura e referral)."""
-        invoice = event["data"]["object"]
+        invoice = typing.cast(
+            dict[str, typing.Any], event.get("data", {}).get("object", {})
+        )
         stripe_sub_id = invoice.get("subscription")
         stripe_cust_id = invoice.get("customer")
         customer_email = invoice.get("customer_email")
@@ -83,7 +105,9 @@ class StripeWebhookProcessor:
             return
 
         # Obter detalhes da assinatura diretamente da API do Stripe
-        stripe_sub = stripe.Subscription.retrieve(stripe_sub_id)
+        stripe_sub = typing.cast(
+            typing.Any, stripe.Subscription.retrieve(stripe_sub_id)
+        )
         user_id = stripe_sub.metadata.get("user_id")
         course_id = stripe_sub.metadata.get("course_id")
 
@@ -97,7 +121,7 @@ class StripeWebhookProcessor:
                 .execute()
             )
             if prof_res.data:
-                user_id = prof_res.data[0]["id"]
+                user_id = typing.cast(dict[str, typing.Any], prof_res.data[0])["id"]
 
         if not user_id:
             raise ValueError(
@@ -108,7 +132,7 @@ class StripeWebhookProcessor:
         if not course_id:
             course_res = database.db.table("courses").select("id").limit(1).execute()
             if course_res.data:
-                course_id = course_res.data[0]["id"]
+                course_id = typing.cast(dict[str, typing.Any], course_res.data[0])["id"]
             else:
                 raise ValueError(
                     "Não foi possível mapear o course_id para a assinatura"
@@ -142,7 +166,7 @@ class StripeWebhookProcessor:
         }
 
         database.db.table("subscriptions").upsert(
-            sub_data, on_conflict="provider_subscription_id"
+            typing.cast(typing.Any, sub_data), on_conflict="provider_subscription_id"
         ).execute()
 
         # Emitir notificação de sucesso
@@ -166,8 +190,13 @@ class StripeWebhookProcessor:
                 .limit(1)
                 .execute()
             )
-            if user_prof.data and user_prof.data[0]["referred_by"]:
-                referred_by = user_prof.data[0]["referred_by"]
+            if (
+                user_prof.data
+                and typing.cast(dict[str, typing.Any], user_prof.data[0])["referred_by"]
+            ):
+                referred_by = typing.cast(dict[str, typing.Any], user_prof.data[0])[
+                    "referred_by"
+                ]
 
                 # Buscar a assinatura ativa do indicador para obter seu customer_id no Stripe
                 ind_sub = (
@@ -181,19 +210,22 @@ class StripeWebhookProcessor:
                 )
 
                 if ind_sub.data:
-                    ind_cust_id = ind_sub.data[0].get(
-                        "provider_customer_id"
-                    ) or ind_sub.data[0].get("stripe_customer_id")
+                    ind_cust_id = typing.cast(
+                        dict[str, typing.Any], ind_sub.data[0]
+                    ).get("provider_customer_id") or typing.cast(
+                        dict[str, typing.Any], ind_sub.data[0]
+                    ).get("stripe_customer_id")
 
                     # Injetar crédito fixo de R$ 20.00 (2000 centavos) na conta do indicador no Stripe
                     print(
                         f"[Referral] Aplicando R$20.00 de crédito ao indicador {referred_by} (Customer: {ind_cust_id})"
                     )
                     stripe.Customer.create_balance_transaction(
-                        ind_cust_id,
+                        typing.cast(str, ind_cust_id),
                         amount=-2000,  # Negativo representa crédito
                         currency="brl",
                         description=f"Crédito de indicação do aluno indicado: {customer_email}",
+                        idempotency_key=f"referral_{event['id']}",
                     )
 
                     # Notificar o indicador
@@ -209,7 +241,9 @@ class StripeWebhookProcessor:
     @staticmethod
     async def _process_payment_failed(event: dict) -> None:
         """Trata a falha de pagamento (muda status para past_due e notifica o aluno)."""
-        invoice = event["data"]["object"]
+        invoice = typing.cast(
+            dict[str, typing.Any], event.get("data", {}).get("object", {})
+        )
         stripe_sub_id = invoice.get("subscription")
 
         if not stripe_sub_id:
@@ -228,9 +262,9 @@ class StripeWebhookProcessor:
         )
 
         if sub_res.data:
-            user_id = sub_res.data[0].get("student_id") or sub_res.data[0].get(
-                "user_id"
-            )
+            user_id = typing.cast(dict[str, typing.Any], sub_res.data[0]).get(
+                "student_id"
+            ) or typing.cast(dict[str, typing.Any], sub_res.data[0]).get("user_id")
 
             database.db.table("notifications").insert(
                 {
@@ -244,7 +278,9 @@ class StripeWebhookProcessor:
     @staticmethod
     async def _process_subscription_deleted(event: dict) -> None:
         """Trata o cancelamento definitivo de uma assinatura."""
-        subscription = event["data"]["object"]
+        subscription = typing.cast(
+            dict[str, typing.Any], event.get("data", {}).get("object", {})
+        )
         stripe_sub_id = subscription.get("id")
 
         sub_res = (
@@ -260,9 +296,9 @@ class StripeWebhookProcessor:
         )
 
         if sub_res.data:
-            user_id = sub_res.data[0].get("student_id") or sub_res.data[0].get(
-                "user_id"
-            )
+            user_id = typing.cast(dict[str, typing.Any], sub_res.data[0]).get(
+                "student_id"
+            ) or typing.cast(dict[str, typing.Any], sub_res.data[0]).get("user_id")
 
             database.db.table("notifications").insert(
                 {

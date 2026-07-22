@@ -1,4 +1,5 @@
 from decimal import Decimal
+import uuid
 from src.modules.courses.domain.entities import Course
 from src.modules.courses.domain.repositories import CourseRepository
 
@@ -11,7 +12,7 @@ class CreateCourseUseCase:
 
     async def execute(self, course_data: dict, instructor_id: str) -> Course:
         course = Course(
-            id=course_data.get("id"),
+            id=course_data.get("id") or str(uuid.uuid4()),
             instructor_id=instructor_id,
             title=course_data["title"],
             slug=course_data["slug"],

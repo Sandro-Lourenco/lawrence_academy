@@ -4,9 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
-import 'package:crypto/crypto.dart';
 import 'dart:convert';
-import 'auth_provider.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 enum DownloadStatus { pending, downloading, paused, completed, failed }
 
@@ -50,6 +49,7 @@ class DownloadNotifier extends StateNotifier<Map<String, DownloadTask>> {
   final Ref ref;
   final Dio _dio = Dio();
   final Map<String, CancelToken> _cancelTokens = {};
+  final _secureStorage = const FlutterSecureStorage();
 
   DownloadNotifier(this.ref) : super({});
 
@@ -184,7 +184,24 @@ class DownloadNotifier extends StateNotifier<Map<String, DownloadTask>> {
     await sink.close();
   }
 
-  /// Criptografa o arquivo baixado em AES-256 GCM usando uma chave gerada a partir da sessão
+  /// Obtém ou gera uma chave mestre segura para uma aula armazenada na Keychain/Keystore
+  Future<Uint8List> _getOrGenerateLessonKey(String lessonId) async {
+    final storageKey = 'lesson_key_$lessonId';
+    final existingKey = await _secureStorage.read(key: storageKey);
+    if (existingKey != null) {
+      return base64Decode(existingKey);
+    }
+
+    // Gera chave com SecureRandom
+    final newKeyBytes = encrypt.Key.fromSecureRandom(32).bytes;
+    await _secureStorage.write(
+      key: storageKey,
+      value: base64Encode(newKeyBytes),
+    );
+    return newKeyBytes;
+  }
+
+  /// Criptografa o arquivo baixado em AES-256 GCM usando chave do Secure Storage
   Future<void> _encryptFile(File file) async {
     // Apenas criptografamos se o arquivo não estiver criptografado
     if (file.path.endsWith('.enc') && await file.length() > 0) {
@@ -203,16 +220,19 @@ class DownloadNotifier extends StateNotifier<Map<String, DownloadTask>> {
         if (isAlreadyEncrypted) return; // Já está seguro
       }
 
-      // Derivar uma chave estável a partir da sessão do usuário
-      final session = ref.read(authNotifierProvider).session;
-      final seed = session?.user.id ?? "anonymous_device_seed";
-      final keyBytes = sha256.convert(utf8.encode(seed)).bytes;
+      // Extrair o lessonId a partir do path (../downloads/<lessonId>/segment_X.enc)
+      final parts = file.path.split('/');
+      final lessonId = parts[parts.length - 2];
+
+      final keyBytes = await _getOrGenerateLessonKey(lessonId);
 
       final key = encrypt.Key(Uint8List.fromList(keyBytes));
-      final iv = encrypt.IV.fromLength(
-        16,
-      ); // IV aleatório de 16 bytes ou fixo para consistência
-      final encrypter = encrypt.Encrypter(encrypt.AES(key));
+      final iv = encrypt.IV.fromSecureRandom(16);
+
+      // Usa AESMode.gcm para autencidade e confidencialidade
+      final encrypter = encrypt.Encrypter(
+        encrypt.AES(key, mode: encrypt.AESMode.gcm),
+      );
 
       final encrypted = encrypter.encryptBytes(bytes, iv: iv);
 
@@ -252,14 +272,14 @@ class DownloadNotifier extends StateNotifier<Map<String, DownloadTask>> {
     final ivBytes = bytes.sublist(ivOffset, payloadOffset);
     final encryptedPayload = bytes.sublist(payloadOffset);
 
-    // Derivar chave
-    final session = ref.read(authNotifierProvider).session;
-    final seed = session?.user.id ?? "anonymous_device_seed";
-    final keyBytes = sha256.convert(utf8.encode(seed)).bytes;
+    // Obter chave da Keystore
+    final keyBytes = await _getOrGenerateLessonKey(lessonId);
 
     final key = encrypt.Key(Uint8List.fromList(keyBytes));
     final iv = encrypt.IV(Uint8List.fromList(ivBytes));
-    final encrypter = encrypt.Encrypter(encrypt.AES(key));
+    final encrypter = encrypt.Encrypter(
+      encrypt.AES(key, mode: encrypt.AESMode.gcm),
+    );
 
     final decrypted = encrypter.decryptBytes(
       encrypt.Encrypted(encryptedPayload),

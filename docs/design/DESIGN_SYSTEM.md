@@ -33,6 +33,12 @@ principles:
 
 # Lawrence Design System
 
+> Para telas da área do aluno, as decisões consolidadas de paleta semântica,
+> breakpoints, raios e funcionalidades bloqueadas estão em
+> [`STUDENT_EXPERIENCE_FOUNDATION.md`](STUDENT_EXPERIENCE_FOUNDATION.md). Em caso
+> de divergência dentro desse escopo, essa especialização deve ser aplicada sem
+> substituir regras de produto, segurança ou negócio.
+
 ## Objetivo
 
 Este documento é a fonte oficial de verdade visual da plataforma Lawrence Academy.

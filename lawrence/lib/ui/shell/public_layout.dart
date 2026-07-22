@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../theme.dart';
+import '../../design_system/tokens/liquid_theme.dart';
 
 class PublicLayout extends StatelessWidget {
   final Widget child;

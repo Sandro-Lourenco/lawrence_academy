@@ -85,7 +85,7 @@ def test_get_lesson_by_id_success(mock_db, mock_get_user):
         "hls_storage_path": "path/to/hls.m3u8",
         "status": "published",
     }
-    mock_db.table.return_value.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = mock_db_res
+    mock_db.table.return_value.select.return_value.eq.return_value.eq.return_value.is_.return_value.maybe_single.return_value.execute.return_value = mock_db_res
 
     response = client.get(
         "/courses/course_uuid_1/lessons/lesson_uuid_1",
@@ -110,7 +110,7 @@ def test_get_lesson_by_id_not_found(mock_db, mock_get_user):
 
     mock_db_res = MagicMock()
     mock_db_res.data = None
-    mock_db.table.return_value.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = mock_db_res
+    mock_db.table.return_value.select.return_value.eq.return_value.eq.return_value.is_.return_value.maybe_single.return_value.execute.return_value = mock_db_res
 
     response = client.get(
         "/courses/course_uuid_1/lessons/lesson_uuid_999",

@@ -361,32 +361,39 @@ Request:
 
 
 ## POST
-
-/courses/{id}/modules
-
-
-Criar módulo.
-
-
----
-
+/teacher/courses/{course_id}/modules
+- Auth: Teacher/Admin
+- Body: `title` (str), `order_index` (int, opt)
+- Func: Cria um novo módulo.
 
 ## PATCH
-
-/modules/{id}
-
-
-Editar.
-
-
----
-
+/teacher/courses/{course_id}/modules/{module_id}
+- Auth: Teacher/Admin
+- Body: `title` (str, opt), `order_index` (int, opt)
+- Func: Atualiza os dados de um módulo.
 
 ## DELETE
+/teacher/courses/{course_id}/modules/{module_id}
+- Auth: Teacher/Admin
+- Func: Arquiva logicamente um módulo.
 
-/modules/{id}
+### Gerenciamento individual de aulas (Teacher)
 
+Todas as operações validam JWT, role e ownership do curso no backend.
 
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| POST | `/api/v1/teacher/courses/{course_id}/modules/{module_id}/lessons` | Cria uma aula independente no módulo. Aceita `title`, `description` e `order_index`. |
+| PATCH | `/api/v1/teacher/courses/{course_id}/lessons/{lesson_id}` | Atualiza somente a aula selecionada. Aceita `title`, `description`, `order_index` e `status` (`draft`, `published`, `hidden`). |
+| DELETE | `/api/v1/teacher/courses/{course_id}/lessons/{lesson_id}` | Arquiva logicamente somente a aula selecionada, preservando módulo e demais aulas. |
+
+### Upload de Arquivos de Vídeo (Teacher)
+
+Geração de URLs pré-assinadas para envio direto de aulas para o Storage (bucket `raw-videos`), isentando o backend de tráfego de mídia pesado e respeitando BOLA e RBAC (apenas instrutores donos ou admins).
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| POST   | `/api/v1/teacher/courses/{c_id}/lessons/{l_id}/upload` | Retorna `signed_url`, `path` e `expires_in` para upload do vídeo `mp4`/`mov` (max 2GB). O caminho gerado internamente evita colisão de nomes e previne Path Traversal. |
 
 ================================================
 
@@ -513,10 +520,33 @@ Regra:
 
 ## GET
 
-/subscriptions
+/api/v1/subscriptions/me
 
 
-Lista assinaturas.
+Lista assinaturas do usuário autenticado.
+Retorna flags computadas: `has_access`, `grace_period_ends_at`.
+
+
+---
+
+
+## GET
+
+/subscriptions/eligibility/{course_id}
+
+
+Retorna a elegibilidade de compra/acesso para um curso específico.
+Cursos publicados com `monthly_price = 0` retornam `has_access = true`,
+`can_purchase = false` e `reason_code = FREE_COURSE`.
+Response:
+{
+  can_purchase,
+  has_access,
+  reason_code,
+  message,
+  subscription_status,
+  course_id
+}
 
 
 ---
@@ -532,10 +562,12 @@ Lista assinaturas.
 
 ## PATCH
 
-/subscriptions/{id}/cancel
+/api/v1/subscriptions/{subscription_id}/cancel
 
 
-Cancela somente aquele curso.
+Agenda o cancelamento somente daquele curso para o fim do periodo pago.
+Valida JWT e ownership, rejeita cancelamento duplicado com HTTP 409 e retorna
+o estado atualizado com `cancel_at_period_end`, `canceled_at` e `has_access`.
 
 
 
@@ -560,19 +592,50 @@ PAYMENT_FAILED
 
 ## POST
 
-/payments/checkout
+/api/v1/payments/checkout
 
 
 Request:
 
+```json
+{
+  "course_id": "uuid",
+  "success_url": "lawrence://payment/pending?session_id={CHECKOUT_SESSION_ID}",
+  "cancel_url": "lawrence://payment/cancel"
+}
+```
 
-course_id
+O cliente nunca define o valor nem um `price_id`. O backend carrega o curso
+publicado, rejeita cursos gratuitos e cria o preço recorrente no Stripe a partir
+de `courses.monthly_price`. `Idempotency-Key` pode ser enviado no header.
 
 
 Response:
 
 
 checkout_url
+
+---
+
+## GET
+
+/api/v1/payments/checkout/status/{checkout_id}
+
+Consulta uma sessao pertencente ao usuario autenticado e retorna:
+
+```json
+{
+  "status": "pending | processing | paid | expired | failed | cancelled",
+  "payment_status": "paid | unpaid | no_payment_required",
+  "subscription_status": "active | trialing | incomplete | null",
+  "created_at": "2026-07-13T13:00:00Z",
+  "updated_at": "2026-07-13T13:00:05Z",
+  "checkout_url": "https://checkout.stripe.com/..."
+}
+```
+
+`updated_at` representa o instante em que o estado foi observado no gateway.
+Checkout inexistente retorna HTTP 404 e ownership invalido retorna HTTP 403.
 
 
 
@@ -599,17 +662,22 @@ checkout_url
 
 ## POST
 
-/webhook/payment
+/api/v1/payments/webhook
 
+Endpoint oficial de recebimento de eventos do Stripe.
+Garante idempotência atômica e processamento seguro.
 
+## POST (DEPRECATED)
 
-Eventos:
+/webhooks/stripe
 
+Rota legada mantida por compatibilidade temporária.
+Atualizar no Stripe Dashboard para a rota v1.
+
+Eventos suportados:
 
 PAYMENT_SUCCESS
-
 PAYMENT_FAILED
-
 REFUND
 
 
@@ -692,6 +760,30 @@ ESSAY
 
 # 13. Download Offline Context
 
+## GET
+
+`/api/v1/offline/progress`
+
+Retorna o progresso consolidado do estudante autenticado. O `student_id` e
+derivado do JWT e nunca e aceito do cliente.
+
+## PATCH
+
+`/api/v1/offline/progress/{lesson_id}`
+
+Aplica merge parcial e monotonico de uma aula. `watched_seconds` e obrigatorio;
+`progress_percentage` e opcional e, quando enviado, serve apenas para validar
+consistencia. O servidor consulta `lessons.duration_seconds`, rejeita valores
+fora de `0..duration_seconds` com HTTP 422 e persiste o percentual recalculado.
+Conclusao nunca regride e exige a duracao completa.
+
+## POST
+
+`/api/v1/offline/sync`
+
+Recebe ate 100 eventos offline. Eventos de progresso usam o mesmo payload
+canonico e sao consolidados transacionalmente com auditoria multi-device.
+
 
 ANDROID ONLY
 
@@ -722,16 +814,28 @@ HLS encrypted access
 
 /offline/sync
 
+Sincroniza telemetria e progresso offline garantindo Idempotência, Validação Antifraude e Merge LWW/MAX(progress).
 
+Suporta os seguintes eventos de telemetria:
+- UPDATE_LESSON_PROGRESS
+- VIDEO_HEARTBEAT
+- LESSON_COMPLETED
+- PLAYER_STOPPED
+- PLAYER_RESUMED
+- PLAYER_PAUSED
+- PLAYER_SEEK
+- PLAYER_ERROR
+- DOWNLOAD_COMPLETED
 
-Sincroniza:
-
-
-progress
-
-notes
-
-favorites
+Payload inclui obrigatoriamente:
+- correlation_id
+- request_id
+- device_id
+- lesson_id
+- event_id
+- timestamp
+- origin
+- HMAC Signature (Header)
 
 
 
@@ -968,3 +1072,32 @@ RBAC
 
 Supabase RLS
 
+---
+
+# 12. Video Upload Context
+
+## POST
+`/teacher/courses/{course_id}/lessons/{lesson_id}/upload`
+
+**Descrição:**
+Gera uma URL assinada (Pre-signed URL) de expiração de 2 horas para upload direto de vídeo ao Supabase Storage.
+
+**Payload:**
+```json
+{
+  "filename": "aula_modelagem.mp4",
+  "mime_type": "video/mp4",
+  "size_bytes": 15482390,
+  "idempotency_key": "upload-session-uniq-id-key"
+}
+```
+
+**Resposta (200 OK):**
+```json
+{
+  "job_id": "job-uuid-123",
+  "raw_video_path": "uploads/course-uuid/job-uuid/lesson-uuid.mp4",
+  "expires_in": 7200,
+  "signed_url": "https://supabase-storage-url/raw-videos/..."
+}
+```

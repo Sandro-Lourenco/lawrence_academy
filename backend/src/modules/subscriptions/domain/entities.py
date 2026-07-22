@@ -24,3 +24,17 @@ class Subscription:
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
+
+
+@dataclass(frozen=True)
+class CheckoutStatus:
+    """Estado canônico de uma sessão de checkout externa."""
+
+    checkout_id: str
+    owner_id: str
+    status: str
+    payment_status: str
+    subscription_status: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+    checkout_url: Optional[str] = None

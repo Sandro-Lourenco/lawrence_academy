@@ -21,6 +21,21 @@ security:
 
 # Activity Detail
 
+## Implementação canônica da fase — detalhe de projeto
+
+A subrota `/dashboard/projects/:projectId` implementa nesta fase uma visão
+segura e somente leitura dos campos confirmados por `Activity`: título, curso,
+responsável, status, prazo, nota e feedback, quando disponíveis. O projeto é
+resolvido exclusivamente a partir da coleção de atividades autorizada do aluno;
+IDs de outros tipos ou ausentes resultam em estado indisponível, sem revelar
+dados parciais.
+
+As seções abaixo sobre etapas, autosave, anexos, uploads, rubricas e
+compartilhamento permanecem aspiracionais. Os endpoints listados nesta Page Spec
+não constam integralmente em `SERVICE_API.md` e, portanto, não são utilizados nem
+simulados. A evolução para edição depende de contrato de leitura, ownership/RLS,
+validação de arquivos e proteção contra submissões duplicadas.
+
 ## Objetivo
 
 A página **Activity Detail** é onde o aluno realiza uma atividade proposta pelo professor.

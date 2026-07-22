@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lawrence/presentation/form_controller.dart';
+import 'package:lawrence/features/auth/presentation/controllers/form_controller.dart';
 
 void main() {
   group("FormValidators Unit Tests", () {

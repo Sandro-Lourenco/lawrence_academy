@@ -24,6 +24,17 @@ security:
 
 # Course Player
 
+## Implementação canônica da fase do Player
+
+O player atual possui estados de inicialização, reprodução, pausa, buffering,
+conclusão, offline, acesso negado, sessão expirada e erro recuperável. Falhas
+técnicas são convertidas em mensagens seguras, sem incluir URLs assinados ou
+detalhes internos.
+
+Os controles implementados são reprodução/pausa, scrubbing, tempo e recomeço.
+Controles ainda não funcionais, como tela cheia, qualidade, velocidade, legenda
+e picture-in-picture, não são apresentados nesta fase.
+
 ## Objetivo
 
 O **Course Player** é o principal ambiente de aprendizagem da Lawrence Academy.

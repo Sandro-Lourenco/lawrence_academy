@@ -19,6 +19,22 @@ architecture: Clean Architecture + DDD
 
 # My Courses
 
+## Implementação canônica da fase — curso adquirido
+
+A rota autenticada `/dashboard/courses/:courseId` é a página de detalhes do
+curso adquirido. Ela valida a elegibilidade uma vez no nível do curso, carrega
+o currículo real por ID e combina as aulas com o progresso local/sincronizado.
+
+A implementação não solicita URLs temporárias de stream para montar a lista.
+A autorização final permanece no player, no momento em que o aluno abre uma
+aula. Isso reduz chamadas, evita geração antecipada de tokens e preserva o
+controle BOLA no backend.
+
+São implementados: loading, erro, acesso bloqueado, currículo vazio, progresso
+parcialmente indisponível, curso em andamento e concluído. Materiais, projetos,
+anotações e certificado só devem surgir quando seus contratos estiverem
+integrados à página; não são simulados nesta fase.
+
 ## Objetivo
 
 A página **Meus Cursos** concentra todos os cursos adquiridos pelo aluno.

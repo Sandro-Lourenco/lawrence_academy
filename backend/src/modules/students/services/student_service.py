@@ -1,3 +1,4 @@
+import typing
 from typing import Dict, Any
 from src.shared import database
 from src.core.exceptions import EntityNotFoundException
@@ -16,12 +17,12 @@ class StudentService:
             .execute()
         )
 
-        if not res.data:
+        if res is None or not res.data:
             raise EntityNotFoundException(
                 message=f"Perfil do aluno com ID {student_id} não encontrado."
             )
 
-        return res.data
+        return typing.cast(dict[str, typing.Any], res.data)
 
     async def update_student_profile(
         self, student_id: str, profile_data: Dict[str, Any]
@@ -43,4 +44,4 @@ class StudentService:
                 message=f"Perfil do aluno com ID {student_id} não encontrado para atualização."
             )
 
-        return res.data[0]
+        return typing.cast(dict[str, typing.Any], res.data[0])

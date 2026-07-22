@@ -1,0 +1,2 @@
+-- Intentionally empty.
+-- Staging/demo data must be loaded by an explicit, environment-scoped process.

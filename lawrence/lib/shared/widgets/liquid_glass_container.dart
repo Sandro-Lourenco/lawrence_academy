@@ -21,7 +21,7 @@ class LiquidGlassContainer extends StatelessWidget {
     this.blurSigma = 20.0, // Desfoque de 20px
     this.backgroundColor = const Color(
       0xB8FFFFFF,
-    ), // Branco translúcido (Colors.white.withOpacity(0.72))
+    ), // Branco translúcido (Colors.white.withValues(alpha: 0.72))
     this.borderColor = const Color(0x1FE8E8ED), // Silver Mist com opacidade
     this.borderWidth = 1.0,
     this.padding,
@@ -40,7 +40,7 @@ class LiquidGlassContainer extends StatelessWidget {
         borderRadius: BorderRadius.circular(borderRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),

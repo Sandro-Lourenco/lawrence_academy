@@ -26,7 +26,9 @@ class PillButton extends StatelessWidget {
     final theme = Theme.of(context);
 
     final buttonStyle = ElevatedButton.styleFrom(
-      backgroundColor: isPrimary ? LawrenceColors.primary : Colors.transparent,
+      backgroundColor: isPrimary
+          ? LawrenceColors.actionPrimary
+          : Colors.transparent,
       foregroundColor: isPrimary ? Colors.white : LawrenceColors.textPrimary,
       elevation: 0,
       side: isPrimary
@@ -51,7 +53,7 @@ class PillButton extends StatelessWidget {
             child: CircularProgressIndicator(
               strokeWidth: 2.0,
               valueColor: AlwaysStoppedAnimation<Color>(
-                isPrimary ? Colors.white : LawrenceColors.primary,
+                isPrimary ? Colors.white : LawrenceColors.actionPrimary,
               ),
             ),
           ),
@@ -71,34 +73,42 @@ class PillButton extends StatelessWidget {
       ],
     );
 
-    return SizedBox(
-      height: height,
+    return Semantics(
+      button: true,
+      enabled: onPressed != null && !isLoading,
+      label: label,
+      child: SizedBox(
       width: width,
-      child: isPrimary
-          ? ElevatedButton(
-              style: buttonStyle,
-              onPressed: isLoading ? null : onPressed,
-              child: content,
-              // Ao clicar podemos adicionar efeitos adicionais se desejado
-            )
-          : OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: LawrenceColors.textPrimary,
-                side: const BorderSide(
-                  color: LawrenceColors.borderMist,
-                  width: 1.5,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: height < 48 ? 48 : height),
+          child: isPrimary
+              ? ElevatedButton(
+                  style: buttonStyle,
+                  onPressed: isLoading ? null : onPressed,
+                  child: content,
+                )
+              : OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: LawrenceColors.textPrimary,
+                    side: const BorderSide(
+                      color: LawrenceColors.borderMist,
+                      width: 1.5,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        LawrenceTheme.radiusXl,
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                  ),
+                  onPressed: isLoading ? null : onPressed,
+                  child: content,
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(LawrenceTheme.radiusXl),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-              ),
-              onPressed: isLoading ? null : onPressed,
-              child: content,
-            ),
+        ),
+      ),
     );
   }
 }

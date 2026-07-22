@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lawrence/app/config/env_config.dart';
 import 'package:lawrence/app/router/app_router.dart';
 import 'package:lawrence/features/auth/presentation/controllers/form_controller.dart';
-import 'package:lawrence/features/auth/application/auth_notifier.dart';
+import 'package:lawrence/features/auth/presentation/controllers/auth_controller.dart';
 
 void main() {
   group("Phase 5A - FormValidators Unit Tests", () {
@@ -53,12 +53,25 @@ void main() {
   });
 
   group("Phase 5A - Environment Configuration Tests", () {
-    test("envConfigProvider - default is dev", () {
-      final container = ProviderContainer();
+    test("envConfigProvider - exposes explicit dev configuration", () {
+      final container = ProviderContainer(
+        overrides: [
+          envConfigProvider.overrideWithValue(
+            const EnvConfig(
+              environment: AppEnvironment.dev,
+              supabaseUrl: 'https://test.supabase.co',
+              supabaseAnonKey: 'test-anon-key',
+              apiBaseUrl: 'http://localhost:8000',
+            ),
+          ),
+        ],
+      );
       final env = container.read(envConfigProvider);
 
       expect(env.environment, AppEnvironment.dev);
-      expect(env.apiBaseUrl, 'http://localhost:8000/api/v1');
+      expect(env.apiBaseUrl, isNotEmpty);
+      expect(env.supabaseUrl, startsWith('https://'));
+      expect(env.supabaseAnonKey, isNotEmpty);
     });
   });
 

@@ -1,616 +1,495 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../design_system/tokens/lawrence_theme.dart';
-import '../../../../design_system/widgets/liquid_glass_card.dart';
-import '../../../../design_system/widgets/liquid_glass_container.dart';
-import '../../application/course_detail_provider.dart';
-import '../../domain/entities/course.dart';
 
-class CourseDetailPage extends ConsumerStatefulWidget {
+import '../../../../core/error/app_error.dart';
+import '../../../../design_system/tokens/lawrence_theme.dart';
+import '../../../../design_system/widgets/state_widgets.dart';
+import '../../../../design_system/widgets/status_badge.dart';
+import '../../../../design_system/widgets/student_page_header.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../subscriptions/domain/entities/checkout_eligibility_result.dart';
+import '../../../subscriptions/presentation/controllers/checkout_eligibility_controller.dart';
+import '../../domain/entities/course.dart';
+import '../providers/course_detail_provider.dart';
+
+enum CourseAccessAction { login, subscribe, access, manageSubscription, unavailable }
+
+class CourseAccessPresentation {
+  final CourseAccessAction action;
+  final String label;
+  final String? message;
+
+  const CourseAccessPresentation(this.action, this.label, {this.message});
+}
+
+CourseAccessPresentation resolveCourseAccessPresentation({
+  required bool authenticated,
+  required bool isFree,
+  required CheckoutEligibilityResult? eligibility,
+}) {
+  if (!authenticated) {
+    return CourseAccessPresentation(
+      CourseAccessAction.login,
+      isFree ? 'Entrar para acessar' : 'Entrar para assinar',
+    );
+  }
+  if (eligibility == null) {
+    return const CourseAccessPresentation(
+      CourseAccessAction.unavailable,
+      'Acesso indisponível',
+      message: 'Não foi possível verificar o acesso a este curso.',
+    );
+  }
+  if (eligibility.hasAccess) {
+    return const CourseAccessPresentation(
+      CourseAccessAction.access,
+      'Acessar curso',
+    );
+  }
+  if (eligibility.reasonCode == 'PAST_DUE_EXPIRED') {
+    return CourseAccessPresentation(
+      CourseAccessAction.manageSubscription,
+      'Regularizar assinatura',
+      message: eligibility.message,
+    );
+  }
+  if (eligibility.canPurchase) {
+    return CourseAccessPresentation(
+      CourseAccessAction.subscribe,
+      isFree ? 'Liberar acesso gratuito' : 'Assinar curso',
+    );
+  }
+  return CourseAccessPresentation(
+    CourseAccessAction.unavailable,
+    'Acesso indisponível',
+    message: eligibility.message,
+  );
+}
+
+class CourseDetailPage extends ConsumerWidget {
   final String slug;
 
   const CourseDetailPage({super.key, required this.slug});
 
   @override
-  ConsumerState<CourseDetailPage> createState() => _CourseDetailPageState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final course = ref.watch(courseDetailBySlugProvider(slug));
+    return course.when(
+      loading: () => const SizedBox(
+        height: 560,
+        child: AppLoadingState(message: 'Carregando detalhes do curso'),
+      ),
+      error: (error, _) {
+        final appError = AppError.fromException(error);
+        return SizedBox(
+          height: 560,
+          child: AppErrorState(
+            title: appError.title,
+            message: appError.message,
+            onRetry: () => ref.invalidate(courseDetailBySlugProvider(slug)),
+          ),
+        );
+      },
+      data: (item) => item == null
+          ? const SizedBox(
+              height: 500,
+              child: AppEmptyState(
+                title: 'Curso não encontrado',
+                description: 'Este curso não está disponível no momento.',
+              ),
+            )
+          : _CourseDetailContent(course: item),
+    );
+  }
 }
 
-class _CourseDetailPageState extends ConsumerState<CourseDetailPage> {
+class _CourseDetailContent extends StatelessWidget {
+  final Course course;
+
+  const _CourseDetailContent({required this.course});
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final width = MediaQuery.of(context).size.width;
-    final isMobile = width < 800;
-
-    final courseAsync = ref.watch(courseDetailBySlugProvider(widget.slug));
-
-    return Scaffold(
-      backgroundColor: LawrenceColors.canvasParchment, // Fundo claro #F8F9FB
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: LawrenceColors.textPrimary),
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/courses');
-            }
-          },
-        ),
-        title: Text(
-          "Detalhes do Curso",
-          style: theme.textTheme.titleLarge?.copyWith(
-            color: LawrenceColors.textPrimary,
-          ),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1180),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            StudentPageHeader(
+              title: 'Detalhes do curso',
+              leading: IconButton(
+                tooltip: 'Voltar ao catálogo',
+                onPressed: () => context.canPop()
+                    ? context.pop()
+                    : context.go('/courses'),
+                icon: const Icon(Icons.arrow_back_rounded),
+              ),
+            ),
+            const SizedBox(height: LawrenceSpacing.lg),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final desktop = constraints.maxWidth >= 900;
+                final main = Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _CourseHero(course: course),
+                    if (!desktop) ...[
+                      const SizedBox(height: LawrenceSpacing.lg),
+                      _PurchasePanel(course: course),
+                    ],
+                    const SizedBox(height: LawrenceSpacing.xl),
+                    _CourseOverview(course: course),
+                    const SizedBox(height: LawrenceSpacing.xl),
+                    _Curriculum(course: course),
+                  ],
+                );
+                if (!desktop) return main;
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: main),
+                    const SizedBox(width: LawrenceSpacing.lg),
+                    SizedBox(width: 340, child: _PurchasePanel(course: course)),
+                  ],
+                );
+              },
+            ),
+          ],
         ),
       ),
-      body: courseAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: LawrenceColors.primary),
-        ),
-        error: (err, stack) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
+    );
+  }
+}
+
+class _CourseHero extends StatelessWidget {
+  final Course course;
+
+  const _CourseHero({required this.course});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 680;
+          final visual = Container(
+            width: compact ? double.infinity : 280,
+            height: compact ? 190 : 300,
+            color: LawrenceColors.brandNavy,
+            alignment: Alignment.center,
+            child: const Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
-                  Icons.error_outline,
-                  color: LawrenceColors.danger,
-                  size: 48,
-                ),
-                const SizedBox(height: 16),
+                Icon(Icons.ondemand_video_outlined, color: Colors.white, size: 64),
+                SizedBox(height: LawrenceSpacing.sm),
                 Text(
-                  "Erro ao carregar curso: $err",
-                  style: const TextStyle(
-                    color: LawrenceColors.textPrimary,
-                    fontSize: 16,
-                  ),
-                  textAlign: TextAlign.center,
+                  'Prévia ainda não disponível',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                 ),
               ],
             ),
-          ),
-        ),
-        data: (course) {
-          if (course == null) {
-            return const Center(
-              child: Text(
-                "Curso não encontrado.",
-                style: TextStyle(color: LawrenceColors.textPrimary),
-              ),
-            );
-          }
-          return Stack(
-            children: [
-              SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.only(
-                  bottom: 120,
-                ), // Espaço para a barra flutuante inferior
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 12.0,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 1. CourseHeroSection
-                      _buildHeroSection(course, isMobile),
-                      const SizedBox(height: 32),
-
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Coluna Principal
-                          Expanded(
-                            flex: 7,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // 2. InstructorAuthorityCard
-                                _buildInstructorCard(),
-                                const SizedBox(height: 32),
-
-                                // 3. CurriculumAccordion
-                                const Text(
-                                  "Grade Curricular",
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: LawrenceColors.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                _buildCurriculumAccordion(course),
-                                const SizedBox(height: 32),
-
-                                // 4. RequirementsSection
-                                _buildRequirementsSection(course),
-                              ],
-                            ),
-                          ),
-
-                          if (!isMobile) ...[
-                            const SizedBox(width: 32),
-                            // Lateral fixa (Preview no Desktop)
-                            Expanded(flex: 3, child: _buildSidebarSummary()),
-                          ],
-                        ],
-                      ),
-                    ],
+          );
+          final details = Padding(
+            padding: const EdgeInsets.all(LawrenceSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Wrap(
+                  spacing: LawrenceSpacing.xs,
+                  runSpacing: LawrenceSpacing.xs,
+                  children: [
+                    AppStatusBadge(
+                      label: course.category,
+                      icon: Icons.category_outlined,
+                      tone: AppStatusTone.info,
+                    ),
+                    AppStatusBadge(
+                      label: course.level,
+                      icon: Icons.signal_cellular_alt_rounded,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: LawrenceSpacing.md),
+                Text(
+                  course.title,
+                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                    color: LawrenceColors.brandNavy,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-              ),
-
-              // 5. FloatingStickyCheckoutBar
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: _buildFloatingCheckoutBar(course),
-              ),
-            ],
+                if (course.summary.trim().isNotEmpty) ...[
+                  const SizedBox(height: LawrenceSpacing.sm),
+                  Text(
+                    course.summary,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: LawrenceColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           );
+          return compact
+              ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [visual, details])
+              : Row(children: [visual, Expanded(child: details)]);
         },
       ),
     );
   }
+}
 
-  Widget _buildHeroSection(Course course, bool isMobile) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.72),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.28)),
-      ),
-      padding: const EdgeInsets.all(24),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: LawrenceColors.primary.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  course.category.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: LawrenceColors.primary,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Inter',
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                course.title,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: LawrenceColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                course.summary,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: LawrenceColors.textSecondary,
-                  height: 1.4,
-                  fontFamily: 'Inter',
-                ),
-              ),
-              const SizedBox(height: 24),
-              // HlsTrailerPlayer Placeholder
-              AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: LawrenceColors.borderMist),
-                  ),
-                  child: const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircleAvatar(
-                          radius: 28,
-                          backgroundColor: Colors.white70,
-                          child: Icon(
-                            Icons.play_circle_fill,
-                            color: LawrenceColors.primary,
-                            size: 48,
-                          ),
-                        ),
-                        SizedBox(height: 12),
-                        Text(
-                          "Assistir ao Trailer de Introdução",
-                          style: TextStyle(
-                            color: LawrenceColors.textPrimary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Inter',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+class _CourseOverview extends StatelessWidget {
+  final Course course;
 
-  Widget _buildInstructorCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.72),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.28)),
-      ),
-      padding: const EdgeInsets.all(24),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const CircleAvatar(
-                radius: 30,
-                backgroundImage: NetworkImage(
-                  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
-                ),
-              ),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Ariane Lawrence",
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: LawrenceColors.textPrimary,
-                        fontFamily: 'Inter',
-                      ),
-                    ),
-                    Text(
-                      "Mestra Alfaiate & Fundadora",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: LawrenceColors.primary,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                      ),
-                    ),
-                    SizedBox(height: 6),
-                    Text(
-                      "Especializada em alfaiataria fina feminina por mais de 15 anos. Ensina técnicas tradicionais artesanais focadas no caimento perfeito em manequim.",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: LawrenceColors.textSecondary,
-                        height: 1.4,
-                        fontFamily: 'Inter',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  const _CourseOverview({required this.course});
 
-  Widget _buildCurriculumAccordion(Course course) {
-    if (course.modules.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.72),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withOpacity(0.28)),
-        ),
-        child: const Center(
-          child: Text(
-            "Nenhum módulo cadastrado para este curso.",
-            style: TextStyle(color: LawrenceColors.textSecondary),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.72),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.28)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Column(
-            children: List.generate(course.modules.length, (index) {
-              final module = course.modules[index];
-              return Column(
-                children: [
-                  _buildAccordionTile(
-                    "Módulo ${index + 1}: ${module.title}",
-                    module.lessons
-                        .map((lesson) => _buildLessonItem(lesson.title, true))
-                        .toList(),
-                  ),
-                  if (index < course.modules.length - 1)
-                    const Divider(
-                      color: LawrenceColors.borderMist,
-                      height: 1,
-                      indent: 24,
-                      endIndent: 24,
-                    ),
-                ],
-              );
-            }),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAccordionTile(String title, List<Widget> children) {
-    return ExpansionTile(
-      backgroundColor: Colors.transparent,
-      collapsedBackgroundColor: Colors.transparent,
-      iconColor: LawrenceColors.textPrimary,
-      collapsedIconColor: LawrenceColors.textSecondary,
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: LawrenceColors.textPrimary,
-          fontFamily: 'Inter',
-        ),
-      ),
-      children: children,
-    );
-  }
-
-  Widget _buildLessonItem(String title, bool isUnlocked) {
-    return ListTile(
-      leading: Icon(
-        isUnlocked ? Icons.play_circle_outline : Icons.lock_outline,
-        color: isUnlocked
-            ? LawrenceColors.primary
-            : LawrenceColors.textSecondary.withOpacity(0.5),
-        size: 18,
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontSize: 13,
-          color: isUnlocked
-              ? LawrenceColors.textPrimary
-              : LawrenceColors.textSecondary,
-          fontFamily: 'Inter',
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRequirementsSection(Course course) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.72),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.28)),
-      ),
-      padding: const EdgeInsets.all(24),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Materiais e Requisitos Necessários",
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: LawrenceColors.textPrimary,
-                  fontFamily: 'Inter',
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Icon(Icons.check, color: LawrenceColors.primary, size: 16),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      "Tecido encorpado (lã fria, crepe pesado ou linho estruturado, mínimo 2 metros).",
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: LawrenceColors.textSecondary,
-                        height: 1.4,
-                        fontFamily: 'Inter',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Icon(Icons.check, color: LawrenceColors.primary, size: 16),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      "Máquina de costura reta convencional e ferro de passar industrial com vapor.",
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: LawrenceColors.textSecondary,
-                        height: 1.4,
-                        fontFamily: 'Inter',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSidebarSummary() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.72),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.28)),
-      ),
-      padding: const EdgeInsets.all(24),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Este curso inclui:",
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: LawrenceColors.textPrimary,
-                  fontFamily: 'Inter',
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildSummaryIconItem(
-                Icons.ondemand_video,
-                "12 horas de aulas gravadas",
-              ),
-              const SizedBox(height: 12),
-              _buildSummaryIconItem(
-                Icons.download,
-                "Modelos PDF para download",
-              ),
-              const SizedBox(height: 12),
-              _buildSummaryIconItem(
-                Icons.workspace_premium,
-                "Certificado de conclusão de Alta Costura",
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  static Widget _buildSummaryIconItem(IconData icon, String text) {
-    return Row(
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(icon, color: LawrenceColors.primary, size: 16),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 12,
-              color: LawrenceColors.textSecondary,
-              fontFamily: 'Inter',
+        const StudentSectionHeader(title: 'Sobre o curso'),
+        const SizedBox(height: LawrenceSpacing.sm),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(LawrenceSpacing.lg),
+            child: Wrap(
+              spacing: LawrenceSpacing.xl,
+              runSpacing: LawrenceSpacing.md,
+              children: [
+                _Fact(icon: Icons.view_module_outlined, label: '${course.modules.length} módulos'),
+                _Fact(icon: Icons.play_lesson_outlined, label: '${course.lessonCount} aulas'),
+                _Fact(icon: Icons.signal_cellular_alt_rounded, label: 'Nível ${course.level}'),
+              ],
             ),
           ),
         ),
       ],
     );
   }
+}
 
-  Widget _buildFloatingCheckoutBar(Course course) {
-    return LiquidGlassContainer(
-      borderRadius: 0,
-      borderColor: LawrenceColors.borderMist.withOpacity(0.5),
-      backgroundColor: Colors.white.withOpacity(0.72),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Plano de Assinatura Completo",
-                style: TextStyle(
-                  fontSize: 10,
-                  color: LawrenceColors.textSecondary,
-                  fontFamily: 'Inter',
-                ),
+class _Fact extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _Fact({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: LawrenceColors.actionPrimary),
+        const SizedBox(width: LawrenceSpacing.xs),
+        Text(label, style: const TextStyle(color: LawrenceColors.textPrimary)),
+      ],
+    );
+  }
+}
+
+class _Curriculum extends StatelessWidget {
+  final Course course;
+
+  const _Curriculum({required this.course});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const StudentSectionHeader(title: 'Conteúdo do curso'),
+        const SizedBox(height: LawrenceSpacing.sm),
+        if (course.modules.isEmpty)
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(LawrenceSpacing.lg),
+              child: Text('O currículo deste curso ainda não foi publicado.'),
+            ),
+          )
+        else
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                for (var index = 0; index < course.modules.length; index++)
+                  ExpansionTile(
+                    title: Text(
+                      'Módulo ${index + 1}: ${course.modules[index].title}',
+                      style: const TextStyle(
+                        color: LawrenceColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    subtitle: Text('${course.modules[index].lessons.length} aulas'),
+                    children: [
+                      for (final lesson in course.modules[index].lessons)
+                        ListTile(
+                          leading: const Icon(Icons.lock_outline_rounded),
+                          title: Text(lesson.title),
+                          subtitle: const Text('Disponível após liberar o acesso'),
+                        ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _PurchasePanel extends StatelessWidget {
+  final Course course;
+
+  const _PurchasePanel({required this.course});
+
+  @override
+  Widget build(BuildContext context) {
+    final price = course.isFree
+        ? 'Gratuito'
+        : 'R\$ ${course.monthlyPrice.toStringAsFixed(2).replaceAll('.', ',')} por mês';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(LawrenceSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              course.isFree ? 'Acesso ao curso' : 'Assinatura deste curso',
+              style: const TextStyle(
+                color: LawrenceColors.textSecondary,
+                fontWeight: FontWeight.w600,
               ),
-              SizedBox(height: 2),
-              Text(
-                "R\$ 89,90 / mês",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: LawrenceColors.textPrimary,
-                  fontFamily: 'Inter',
-                ),
+            ),
+            const SizedBox(height: LawrenceSpacing.xs),
+            Text(
+              price,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: LawrenceColors.brandNavy,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            if (!course.isFree) ...[
+              const SizedBox(height: LawrenceSpacing.sm),
+              const Text(
+                'Cobrança recorrente por curso. Você pode gerenciar ou cancelar esta assinatura separadamente.',
+                style: TextStyle(color: LawrenceColors.textSecondary),
               ),
             ],
+            const SizedBox(height: LawrenceSpacing.lg),
+            _CourseAccessButton(course: course),
+            const SizedBox(height: LawrenceSpacing.md),
+            const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.verified_user_outlined, size: 20, color: LawrenceColors.success),
+                SizedBox(width: LawrenceSpacing.xs),
+                Expanded(
+                  child: Text(
+                    'Pagamento e autorização são validados com segurança antes da liberação.',
+                    style: TextStyle(color: LawrenceColors.textSecondary),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: LawrenceSpacing.sm),
+            const Text(
+              'Certificados seguem os critérios de conclusão e aprovação definidos para a plataforma.',
+              style: TextStyle(color: LawrenceColors.textSecondary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CourseAccessButton extends ConsumerWidget {
+  final Course course;
+
+  const _CourseAccessButton({required this.course});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authenticated = ref.watch(authNotifierProvider).user != null;
+    if (!authenticated) {
+      return _ActionButton(
+        presentation: resolveCourseAccessPresentation(
+          authenticated: false,
+          isFree: course.isFree,
+          eligibility: null,
+        ),
+        course: course,
+      );
+    }
+
+    return ref.watch(checkoutEligibilityProvider(course.id)).when(
+      loading: () => Semantics(
+        liveRegion: true,
+        label: 'Verificando acesso ao curso',
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, _) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Não foi possível verificar seu acesso.',
+            style: TextStyle(color: LawrenceColors.danger),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: LawrenceColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 0,
-            ),
-            onPressed: () {
-              context.go('/register');
-            },
-            child: const Text(
-              "Comprar Curso",
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Inter',
-              ),
-            ),
+          const SizedBox(height: LawrenceSpacing.sm),
+          OutlinedButton.icon(
+            onPressed: () => ref
+                .read(checkoutEligibilityProvider(course.id).notifier)
+                .checkEligibility(),
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Tentar novamente'),
           ),
         ],
       ),
+      data: (eligibility) => _ActionButton(
+        presentation: resolveCourseAccessPresentation(
+          authenticated: true,
+          isFree: course.isFree,
+          eligibility: eligibility,
+        ),
+        course: course,
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final CourseAccessPresentation presentation;
+  final Course course;
+
+  const _ActionButton({required this.presentation, required this.course});
+
+  @override
+  Widget build(BuildContext context) {
+    final VoidCallback? action = switch (presentation.action) {
+      CourseAccessAction.login => () => context.go('/login'),
+      CourseAccessAction.subscribe => () => context.push('/checkout/${course.id}'),
+      CourseAccessAction.access => () => context.go('/dashboard/courses/${course.id}'),
+      CourseAccessAction.manageSubscription => () => context.go('/dashboard/subscriptions'),
+      CourseAccessAction.unavailable => null,
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FilledButton(onPressed: action, child: Text(presentation.label)),
+        if (presentation.message != null) ...[
+          const SizedBox(height: LawrenceSpacing.xs),
+          Text(
+            presentation.message!,
+            style: const TextStyle(color: LawrenceColors.textSecondary),
+          ),
+        ],
+      ],
     );
   }
 }

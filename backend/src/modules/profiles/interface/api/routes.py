@@ -2,10 +2,8 @@ from fastapi import APIRouter, Depends
 from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 from src.core.security.security import get_current_user, CurrentUser
-from src.core.database.database import get_admin_supabase_client
-from src.modules.profiles.infrastructure.repositories.supabase_profile_repository import (
-    SupabaseProfileRepository,
-)
+from src.modules.profiles.domain.repositories import ProfileRepository
+from src.modules.profiles.interface.api.dependencies import get_profile_repository
 from src.modules.profiles.application.use_cases.get_my_profile_use_case import (
     GetMyProfileUseCase,
 )
@@ -39,10 +37,12 @@ class ProfileResponseSchema(BaseModel):
 
 
 @router.get("/me", response_model=ProfileResponseSchema)
-async def get_my_profile(current_user: CurrentUser = Depends(get_current_user)):
+async def get_my_profile(
+    current_user: CurrentUser = Depends(get_current_user),
+    repository: ProfileRepository = Depends(get_profile_repository),
+):
     """Retorna os dados do próprio perfil do usuário autenticado de forma BOLA-safe."""
-    repo = SupabaseProfileRepository(get_admin_supabase_client())
-    use_case = GetMyProfileUseCase(repo)
+    use_case = GetMyProfileUseCase(repository)
     profile = await use_case.execute(current_user.id)
     return ProfileResponseSchema(
         id=profile.id,
@@ -57,10 +57,10 @@ async def get_my_profile(current_user: CurrentUser = Depends(get_current_user)):
 async def update_my_profile(
     payload: ProfileUpdateInputSchema,
     current_user: CurrentUser = Depends(get_current_user),
+    repository: ProfileRepository = Depends(get_profile_repository),
 ):
     """Atualiza as informações de perfil do próprio usuário autenticado (BOLA-safe)."""
-    repo = SupabaseProfileRepository(get_admin_supabase_client())
-    use_case = UpdateMyProfileUseCase(repo)
+    use_case = UpdateMyProfileUseCase(repository)
     profile = await use_case.execute(
         user_id=current_user.id,
         full_name=payload.full_name,

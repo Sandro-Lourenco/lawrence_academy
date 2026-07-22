@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../theme.dart';
+import '../../design_system/tokens/liquid_theme.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -299,7 +299,7 @@ class HomePage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: LiquidTheme.primary.withOpacity(0.1),
+                  color: LiquidTheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(

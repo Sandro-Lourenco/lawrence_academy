@@ -28,6 +28,22 @@ gamification:
 
 # Achievements
 
+## Implementação canônica da fase de Conquistas
+
+A implementação atual preserva a rota autenticada e os estados da experiência,
+mas não ativa gamificação avançada sem backend. O PED classifica essa capacidade
+como fora do MVP e `SERVICE_API.md` não confirma endpoints de conquistas, nível,
+XP, sequência ou ranking.
+
+Por isso, o loader é injetável e retorna estado vazio até existir um use case
+respaldado por API e RLS. A tela não apresenta medalhas, pontos, percentuais ou
+ranking fictícios. Quando dados autorizados forem fornecidos, exibe nível e uma
+grade responsiva de conquistas, sempre comunicando bloqueio e liberação por
+ícone e texto.
+
+Compartilhamento, realtime, streaks, milestones, ranking e animações de
+celebração permanecem recomendações futuras, não critérios implementados.
+
 ## Objetivo
 
 A página **Achievements** concentra todas as conquistas do aluno durante sua jornada de aprendizagem.

@@ -23,6 +23,14 @@ class GetLessonStreamUseCase:
             # Admin e professores têm acesso irrestrito
             return await self.repository.generate_signed_url(storage_path)
 
+        course = await self.repository.get_by_id(course_id)
+        if not course or course.status != "published":
+            raise NotFoundError("Curso publicado não encontrado.")
+
+        # Cursos gratuitos publicados dispensam assinatura.
+        if course.monthly_price <= 0:
+            return await self.repository.generate_signed_url(storage_path)
+
         # Se for aluno, verificar se há assinatura ativa (incluindo grace period)
         has_access = await self.repository.has_active_subscription(user_id, course_id)
         if not has_access:

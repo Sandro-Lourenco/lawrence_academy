@@ -22,6 +22,21 @@ security:
 
 # Lesson
 
+## Implementação canônica da fase de Aula
+
+A rota implementada é
+`/dashboard/courses/:courseId/lessons/:lessonId`. Ela combina o player seguro,
+detalhes confirmados da aula, progresso local e navegação anterior/próxima.
+
+O stream é solicitado somente pelo repositório autenticado e o URL temporário
+não é exibido em mensagens. O progresso é persistido a cada 15 segundos, ao
+pausar, ao trocar de aula e quando o aplicativo perde foco, com proteção contra
+gravações concorrentes. A conclusão automática segue o contrato de 90%.
+
+Materiais, comentários, anotações, atividades, legendas, velocidade e tela cheia
+não aparecem como controles inertes. Essas capacidades dependem de contratos e
+implementações específicas antes de serem adicionadas.
+
 ## Objetivo
 
 A página **Lesson** representa a experiência completa de uma aula dentro da Lawrence Academy.

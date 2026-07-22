@@ -1,4 +1,5 @@
-from typing import List
+import typing
+from typing import List, Optional
 from decimal import Decimal
 from datetime import datetime
 from supabase import Client
@@ -52,7 +53,52 @@ class SupabaseSubscriptionRepository(SubscriptionRepository):
             .eq("course_id", course_id)
             .execute()
         )
-        return [self._map_row(r) for r in (res.data or [])]
+        return [
+            self._map_row(typing.cast(dict[str, typing.Any], r))
+            for r in (res.data or [])
+        ]
+
+    async def get_by_student(self, student_id: str) -> List[Subscription]:
+        res = (
+            self.client.table("subscriptions")
+            .select("*")
+            .eq("student_id", student_id)
+            .execute()
+        )
+        return [
+            self._map_row(typing.cast(dict[str, typing.Any], r))
+            for r in (res.data or [])
+        ]
+
+    async def get_by_id(self, subscription_id: str) -> Optional[Subscription]:
+        res = (
+            self.client.table("subscriptions")
+            .select("*")
+            .eq("id", subscription_id)
+            .maybe_single()
+            .execute()
+        )
+        if res is None or not res.data:
+            return None
+        return self._map_row(typing.cast(dict[str, typing.Any], res.data))
+
+    async def mark_cancel_at_period_end(
+        self, subscription_id: str, canceled_at: datetime
+    ) -> Subscription:
+        data = {
+            "cancel_at_period_end": True,
+            "canceled_at": canceled_at.isoformat(),
+            "updated_at": canceled_at.isoformat(),
+        }
+        res = (
+            self.client.table("subscriptions")
+            .update(typing.cast(typing.Any, data))
+            .eq("id", subscription_id)
+            .execute()
+        )
+        if not isinstance(res.data, list) or not res.data:
+            raise RuntimeError("Subscription cancellation was not persisted")
+        return self._map_row(typing.cast(dict[str, typing.Any], res.data[0]))
 
     async def save(self, subscription: Subscription) -> Subscription:
         data = {
@@ -70,8 +116,10 @@ class SupabaseSubscriptionRepository(SubscriptionRepository):
         }
         res = (
             self.client.table("subscriptions")
-            .upsert(data, on_conflict="provider_subscription_id")
+            .upsert(
+                typing.cast(typing.Any, data), on_conflict="provider_subscription_id"
+            )
             .execute()
         )
         row = res.data[0] if isinstance(res.data, list) and res.data else data
-        return self._map_row(row)
+        return self._map_row(typing.cast(dict[str, typing.Any], row))

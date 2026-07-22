@@ -1,0 +1,49 @@
+name: Database CI
+
+on:
+  pull_request:
+    paths:
+      - "supabase/**"
+      - ".github/workflows/database-ci.yml"
+  push:
+    branches: [main, staging, develop, "refactor/**"]
+    paths:
+      - "supabase/**"
+      - ".github/workflows/database-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migrations-and-rls:
+    name: Migrations, lint, and RLS tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: supabase/setup-cli@v2
+        with:
+          version: 2.84.2
+          github-token: ${{ github.token }}
+      - name: Start isolated Supabase stack
+        run: supabase start
+      - name: Rebuild database from migrations
+        run: supabase db reset
+      - name: Lint database
+        run: supabase db lint --level warning
+      - name: Execute database security tests
+        env:
+          PGURL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: |
+          for test_file in supabase/tests/*.sql; do
+            echo "Running ${test_file}"
+            psql "$PGURL" -v ON_ERROR_STOP=1 -f "$test_file"
+          done
+      - name: Stop Supabase stack
+        if: always()
+        run: supabase stop --no-backup

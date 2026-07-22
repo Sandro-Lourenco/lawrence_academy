@@ -1,9 +1,10 @@
+from typing import Optional
 from supabase import create_client, Client
 from src.shared.config import settings
 
 # Instâncias singleton inicializadas preguiçosamente
-_admin_client: Client = None
-_anon_client: Client = None
+_admin_client: Optional[Client] = None
+_anon_client: Optional[Client] = None
 
 
 def get_admin_supabase_client() -> Client:
@@ -26,7 +27,7 @@ def get_admin_supabase_client() -> Client:
     return _admin_client
 
 
-def get_authenticated_supabase_client(token: str = None) -> Client:
+def get_authenticated_supabase_client(token: Optional[str] = None) -> Client:
     """Retorna o cliente Supabase anon ou autenticado com token JWT."""
     if token:
         client = create_client(settings.supabase_url, settings.supabase_anon_key)

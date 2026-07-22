@@ -40,7 +40,7 @@ docs/architecture/SYSTEM_ARCHITECTURE.md
 
 3. Design
 
-docs/design/design-system.md
+docs/design/DESIGN_SYSTEM.md
 
 
 4. Navigation

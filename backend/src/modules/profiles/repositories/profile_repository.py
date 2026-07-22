@@ -1,6 +1,7 @@
+import typing
 from typing import Optional
 from src.shared import database
-from src.core.entities.profile import Profile
+from src.modules.profiles.domain.entities import Profile
 from src.core.exceptions import EntityNotFoundException
 
 
@@ -18,10 +19,10 @@ class ProfileRepository:
             .execute()
         )
 
-        if not res.data:
+        if res is None or not res.data:
             return None
 
-        return Profile(**res.data)
+        return Profile(**typing.cast(dict[str, typing.Any], res.data))
 
     @staticmethod
     def update(profile_id: str, update_data: dict) -> Profile:
@@ -31,7 +32,7 @@ class ProfileRepository:
 
         res = (
             database.db.table("profiles")
-            .update(update_data)
+            .update(typing.cast(typing.Any, update_data))
             .eq("id", profile_id)
             .execute()
         )
@@ -39,4 +40,4 @@ class ProfileRepository:
         if not res.data:
             raise EntityNotFoundException("Perfil não encontrado para atualização.")
 
-        return Profile(**res.data[0])
+        return Profile(**typing.cast(dict[str, typing.Any], res.data[0]))

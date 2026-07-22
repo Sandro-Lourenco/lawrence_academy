@@ -5,6 +5,8 @@ type: DevOps & Cloud Engineering Specification
 
 status: Production Ready
 
+flutter_environment: ENV, SUPABASE_URL, SUPABASE_ANON_KEY and API_BASE_URL must be supplied with dart-define; service_role is forbidden in Flutter and production URLs require HTTPS.
+
 platform:
   frontend:
     - Flutter Web

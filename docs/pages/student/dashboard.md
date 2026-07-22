@@ -19,6 +19,46 @@ architecture: Clean Architecture + DDD
 
 # Student Dashboard
 
+> Implementação canônica da Fase 03: a Home prioriza `Continue Learning`,
+> seguida de `My Courses` e do resumo de progresso. Recomendações por IA,
+> indicação promocional, gamificação avançada e dados não suportados por
+> contrato não fazem parte desta composição.
+
+## Composição aprovada
+
+1. Título personalizado e ações de pesquisa/notificações.
+2. Aviso de conteúdo salvo quando o acesso não puder ser atualizado.
+3. Continuar aprendendo ou começar curso.
+4. Meus cursos com acesso confirmado.
+5. Resumo de progresso derivado de aulas reais.
+
+Somente cursos associados a assinaturas com `hasAccess` podem ser exibidos. Em
+falha de rede, a tela limita a lista aos cursos com progresso local e informa a
+limitação. Cursos publicados do catálogo não podem ser apresentados como “Meus
+Cursos” sem comprovação de acesso.
+
+### Responsividade
+
+- Mobile: uma coluna e hero empilhado.
+- Tablet: até duas colunas para cursos e métricas.
+- Desktop: hero horizontal e até três colunas para cursos.
+
+### Estados
+
+- loading: skeleton da hierarquia final;
+- empty: convite para explorar cursos;
+- error: mensagem humana e retry;
+- offline/parcial: conteúdo salvo com aviso textual;
+- success: acesso, progresso e próxima aula derivados dos contratos reais.
+
+### Acessibilidade
+
+- progresso sempre possui label e percentual textual;
+- ações de ícone possuem tooltip/label;
+- estados são anunciados por leitor de tela;
+- cards e ações preservam área mínima de 48 dp;
+- layout deve suportar texto ampliado sem reduzir a fonte.
+
 ## Objetivo
 
 O Dashboard é o coração da experiência do aluno.

@@ -1,0 +1,10 @@
+[core]
+	repositoryformatversion = 0
+	filemode = false
+	bare = true
+	symlinks = false
+	ignorecase = true
+[remote "origin"]
+	url = C:\\Users\\sandr\\Documents\\site ariane\\temp\\history-recovery-20260712\\pre-cleanup-all-refs.bundle
+	fetch = +refs/*:refs/*
+	mirror = true

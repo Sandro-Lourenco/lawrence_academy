@@ -1,0 +1,12 @@
+.env
+.git
+.venv/
+**/.venv/**
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+**/__pycache__/
+*.pyc
+audit_output.txt
+mypy_output.txt
+tests

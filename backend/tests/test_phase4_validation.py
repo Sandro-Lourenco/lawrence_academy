@@ -19,6 +19,7 @@ import inspect
 import sys
 import os
 import pytest
+from decimal import Decimal
 
 # Configuração de envs antes de imports do projeto
 os.environ["SUPABASE_URL"] = "https://mock.supabase.co"
@@ -112,7 +113,6 @@ def test_grace_period_blocks_past_due_within_5_days():
         ValidateCheckoutEligibilityUseCase,
     )
     from src.modules.subscriptions.domain.entities import Subscription
-    from src.core.errors.errors import ConflictError
     import asyncio
 
     # Simular assinatura past_due vencida há 3 dias (dentro do grace period)
@@ -132,12 +132,11 @@ def test_grace_period_blocks_past_due_within_5_days():
     use_case = ValidateCheckoutEligibilityUseCase(mock_repo)
 
     async def run():
-        await use_case.execute("student-1", "course-1")
+        return await use_case.execute("student-1", "course-1")
 
-    with pytest.raises(ConflictError) as exc_info:
-        asyncio.run(run())
-
-    assert "carência" in str(exc_info.value.message).lower()
+    result = asyncio.run(run())
+    assert result.can_purchase is False
+    assert result.reason_code == "GRACE_PERIOD"
 
 
 def test_grace_period_allows_past_due_after_5_days():
@@ -169,10 +168,11 @@ def test_grace_period_allows_past_due_after_5_days():
     use_case = ValidateCheckoutEligibilityUseCase(mock_repo)
 
     async def run():
-        await use_case.execute("student-2", "course-2")
+        return await use_case.execute("student-2", "course-2")
 
-    # Não deve levantar exceção
-    asyncio.run(run())
+    result = asyncio.run(run())
+    assert result.can_purchase is True
+    assert result.reason_code == "PAST_DUE_EXPIRED"
 
 
 # ─── 3. CHECKOUT USE CASE NO CONTEXTO CORRETO ───────────────────────────────
@@ -201,25 +201,8 @@ def test_validate_checkout_use_case_location():
     assert "ValidateCheckoutEligibilityUseCase" in v1_src
     assert "CreateCheckoutUseCase" not in v1_src
 
+    # ─── 4. ROTAS LEGADAS USANDO MESMOS USE CASES QUE v1 ────────────────────────
 
-# ─── 4. ROTAS LEGADAS USANDO MESMOS USE CASES QUE v1 ────────────────────────
-
-
-def test_legacy_payment_routes_use_same_use_case_as_v1():
-    """
-    Garantia de consistência: as rotas legadas e as v1 devem usar
-    o mesmo UseCase (ValidateCheckoutEligibilityUseCase).
-    """
-    import inspect
-    from src.modules.payments.interfaces import routes as legacy_routes
-    from src.modules.payments.interface.api import routes as v1_routes
-
-    legacy_src = inspect.getsource(legacy_routes)
-    v1_src = inspect.getsource(v1_routes)
-
-    assert "ValidateCheckoutEligibilityUseCase" in legacy_src, (
-        "Rota legada de pagamento não usa ValidateCheckoutEligibilityUseCase"
-    )
     assert "ValidateCheckoutEligibilityUseCase" in v1_src, (
         "Rota v1 de pagamento não usa ValidateCheckoutEligibilityUseCase"
     )
@@ -286,6 +269,9 @@ def test_stream_blocked_for_subscription_to_different_course():
 
     # Simular que o aluno NÃO tem assinatura ativa no curso Y
     mock_repo.has_active_subscription = AsyncMock(return_value=False)
+    mock_repo.get_by_id = AsyncMock(
+        return_value=MagicMock(status="published", monthly_price=Decimal("89.90"))
+    )
 
     use_case = GetLessonStreamUseCase(mock_repo)
 
@@ -325,7 +311,7 @@ def test_grade_submission_blocked_for_student(mock_supabase, mock_get_user):
     mock_get_user.return_value = mock_auth_res
 
     response = _client.put(
-        "/api/v1/assessments/submissions/some-submission-id/review",
+        "/api/teacher/submissions/some-submission-id/review",
         json={"score": 9.0, "teacher_comment": "Muito bom!"},
         headers={"Authorization": "Bearer valid-jwt-token"},
     )
@@ -349,14 +335,14 @@ def test_missing_jwt_returns_401(mock_supabase, mock_get_user):
 # ─── 7. WEBHOOK: RAW BODY PRESERVADO PARA VALIDAÇÃO ────────────────────────
 
 
-@patch("src.modules.payments.interfaces.routes.stripe.Webhook.construct_event")
+@patch("src.modules.payments.interface.api.routes.stripe.Webhook.construct_event")
 @patch("src.shared.database.db")
 def test_webhook_uses_raw_body_bytes_not_decoded(mock_supabase, mock_construct):
     """
     Garantia de segurança: o webhook deve passar os bytes brutos (não decodificados)
     para stripe.Webhook.construct_event para preservar a integridade da assinatura HMAC.
     """
-    from src.modules.payments.interfaces.routes import router
+    from src.modules.payments.interface.api.routes import router
 
     _app = FastAPI()
     _app.include_router(router)

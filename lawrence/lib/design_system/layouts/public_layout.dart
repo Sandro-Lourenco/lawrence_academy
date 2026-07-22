@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../features/auth/presentation/controllers/auth_controller.dart';
 import '../tokens/lawrence_theme.dart';
 
-class PublicLayout extends StatelessWidget {
+String publicAccountDestination(String? role) =>
+    role == 'teacher' || role == 'super_admin' ? '/teacher' : '/dashboard/home';
+
+class PublicLayout extends ConsumerWidget {
   final Widget child;
 
   const PublicLayout({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final width = MediaQuery.of(context).size.width;
     final isMobile = width < 600;
+    final user = ref.watch(authNotifierProvider).user;
+    final role = user?.appMetadata['role'] as String?;
 
     return Scaffold(
       backgroundColor: LawrenceColors.canvasParchment,
@@ -67,44 +75,10 @@ class PublicLayout extends StatelessWidget {
                     ],
                   ),
 
-                // Auth CTAs
-                Row(
-                  children: [
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white70,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                      ),
-                      onPressed: () => context.go('/login'),
-                      child: const Text(
-                        "Entrar",
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: LawrenceColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        minimumSize: const Size(0, 26),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () => context.go('/register'),
-                      child: const Text(
-                        "Matricular",
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
+                _PublicSessionActions(
+                  authenticated: user != null,
+                  accountDestination: publicAccountDestination(role),
+                  compact: isMobile,
                 ),
               ],
             ),
@@ -280,6 +254,79 @@ class PublicLayout extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PublicSessionActions extends StatelessWidget {
+  final bool authenticated;
+  final String accountDestination;
+  final bool compact;
+
+  const _PublicSessionActions({
+    required this.authenticated,
+    required this.accountDestination,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (authenticated) {
+      return Row(
+        children: [
+          if (!compact) ...[
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.white70),
+              onPressed: () => context.go('/dashboard/courses'),
+              child: const Text('Meus cursos'),
+            ),
+            const SizedBox(width: 8),
+          ],
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: LawrenceColors.primary,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(0, 30),
+            ),
+            onPressed: () => context.go(accountDestination),
+            icon: const Icon(Icons.account_circle_outlined, size: 16),
+            label: Text(compact ? 'Conta' : 'Minha conta'),
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        TextButton(
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.white70,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+          ),
+          onPressed: () => context.go('/login'),
+          child: const Text(
+            'Entrar',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: LawrenceColors.primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            minimumSize: const Size(0, 26),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          onPressed: () => context.go('/register'),
+          child: const Text(
+            'Matricular',
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
     );
   }
 }

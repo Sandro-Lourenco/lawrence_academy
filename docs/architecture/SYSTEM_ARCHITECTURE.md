@@ -5,6 +5,8 @@ type: Software Architecture & Repository Structure Specification
 
 status: Production Ready
 
+phase_2_note: Dashboard metrics are derived from UseCase state; Widgets do not access Supabase directly. A future RLS-protected read model may aggregate these reads.
+
 platforms:
   - Flutter Web
   - Flutter Android
@@ -1049,9 +1051,6 @@ SERVICE_API
 
 ---
 
-# Final Architecture Rule
-
-
 Domain contém regra.
 
 
@@ -1065,3 +1064,18 @@ Presentation contém interface.
 
 
 Nenhuma exceção.
+
+---
+
+# 17. Video Processing Worker Architecture
+
+O processamento de arquivos de vídeo pesados da Lawrence Academy é executado de forma assíncrona off-main-thread por um worker desacoplado.
+
+## Pipeline Flow
+1. **Intenção (FastAPI):** O professor gera URL de upload, inserindo um job em `video_processing_jobs` como `upload_pending`.
+2. **Upload (Storage Trigger):** O arquivo é enviado diretamente ao bucket privado `raw-videos`. A trigger PostgreSQL atualiza o job para `uploaded`.
+3. **Loop do Worker (Polling):** O worker em background detecta o job `uploaded` e o move para `validating`.
+4. **Validação (ffprobe):** Valida arquivo real e codec de vídeo (deve ser suportado pelo HLS) e compara tamanhos. Rejeita falhas.
+5. **Conversão (ffmpeg):** Transcodifica para HLS multi-bitrate (`480p`, `720p`, `1080p`), gera manifestos `.m3u8` e poster/thumbnail.
+6. **Upload & Ativação:** Envia os arquivos de saída HLS de forma isolada (`lessons/{lesson_id}/{job_id}/`). Ativa a versão candidata na tabela `lessons` de forma atômica no banco ao final.
+

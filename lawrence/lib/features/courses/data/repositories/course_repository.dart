@@ -1,5 +1,4 @@
 import '../../../../core/network/network_client.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/course.dart';
 import '../../domain/repositories/course_repository_interface.dart';
 
@@ -10,7 +9,7 @@ class CourseRepository implements ICourseRepository {
 
   @override
   Future<List<Course>> fetchPublishedCourses() async {
-    final response = await _networkClient.get<List<dynamic>>('/courses');
+    final response = await _networkClient.get<List<dynamic>>('/api/v1/courses');
     final data = response.data ?? [];
     return data
         .map((json) => Course.fromJson(json as Map<String, dynamic>))
@@ -20,7 +19,7 @@ class CourseRepository implements ICourseRepository {
   @override
   Future<Course?> fetchCourseDetails(String courseId) async {
     final response = await _networkClient.get<Map<String, dynamic>>(
-      '/courses/$courseId',
+      '/api/v1/courses/$courseId',
     );
     final data = response.data;
     if (data == null) return null;
@@ -30,15 +29,10 @@ class CourseRepository implements ICourseRepository {
   @override
   Future<Course?> fetchCourseBySlug(String slug) async {
     final response = await _networkClient.get<Map<String, dynamic>>(
-      '/courses/slug/$slug',
+      '/api/v1/courses/slug/$slug',
     );
     final data = response.data;
     if (data == null) return null;
     return Course.fromJson(data);
   }
 }
-
-final courseRepositoryProvider = Provider<ICourseRepository>((ref) {
-  final client = ref.watch(networkClientProvider);
-  return CourseRepository(client);
-});

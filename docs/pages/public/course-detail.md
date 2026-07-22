@@ -19,6 +19,55 @@ seo: true
 
 # Course Detail Page
 
+> Implementação canônica da fase de curso não adquirido: a interface apresenta
+> apenas campos disponíveis no contrato `Course` e usa a elegibilidade de
+> checkout como autoridade para acesso e assinatura. Conteúdo ilustrativo não
+> pode ser promovido a dado real.
+
+## Composição aprovada
+
+1. Voltar ao catálogo.
+2. Categoria, nível, título e resumo.
+3. Estado explícito da prévia; nenhum player falso.
+4. Quantidade real de módulos e aulas.
+5. Currículo público com conteúdo protegido identificado.
+6. Painel comercial com preço mensal e recorrência.
+7. CTA derivado de autenticação e elegibilidade.
+
+Instrutor, avaliações, alunos, duração, materiais, requisitos, descontos e
+trailer somente podem aparecer quando existirem no contrato retornado pela API.
+
+### CTAs por estado
+
+- anônimo: `Entrar para assinar` ou `Entrar para acessar`;
+- elegível: `Assinar curso`;
+- gratuito elegível: `Liberar acesso gratuito` pelo fluxo autorizado;
+- com acesso: `Acessar curso`;
+- pagamento vencido: `Regularizar assinatura`;
+- elegibilidade indisponível: ação desativada e mensagem recuperável.
+
+### Regras comerciais
+
+- Cada curso possui assinatura mensal independente.
+- Preço sempre vem do backend.
+- A interface não calcula desconto.
+- Cancelamento e gerenciamento são separados por curso.
+- Certificado depende de conclusão e aprovação; não é liberado apenas por
+  progresso visual.
+
+### Responsividade
+
+- Mobile/tablet estreito: conteúdo e painel comercial empilhados.
+- Desktop: conteúdo principal e painel comercial lateral de 340 px.
+- Texto ampliado pode aumentar a altura dos componentes sem truncamento.
+
+### Segurança e acessibilidade
+
+- Conteúdo protegido não possui URL pública ou MP4 exposto.
+- Currículo informa textualmente o bloqueio.
+- Estado de elegibilidade possui loading, error e retry acessíveis.
+- Botões possuem label textual e área mínima de 48 dp.
+
 ## Objetivo
 
 A página de detalhes do curso é a principal Landing Page de conversão da Lawrence Academy.
@@ -613,23 +662,20 @@ Footer
 
 # APIs
 
-GET /api/courses/:slug
+Implementação confirmada para o detalhe:
 
-GET /api/courses/:slug/modules
+```http
+GET /api/v1/courses/slug/{slug}
+```
 
-GET /api/courses/:slug/reviews
+A elegibilidade e a criação do checkout devem seguir os contratos canônicos de
+assinatura e pagamento. Há divergência histórica entre `SERVICE_API.md`, o
+contrato de assinaturas e o datasource Flutter; essa divergência deve ser
+resolvida antes de alterar endpoints.
 
-GET /api/courses/:slug/instructor
-
-GET /api/courses/:slug/materials
-
-GET /api/courses/:slug/related
-
-POST /api/cart
-
-POST /api/favorites
-
-POST /api/share
+Reviews, instrutor detalhado, materiais, relacionados, carrinho, favoritos e
+compartilhamento não possuem suporte confirmado para esta página e não devem
+ser chamados ou simulados.
 
 ---
 

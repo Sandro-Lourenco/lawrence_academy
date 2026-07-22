@@ -20,6 +20,16 @@ real-time: Supabase Realtime
 
 # Settings
 
+## Implementação canônica da fase de Configurações
+
+A rota `/dashboard/settings` funciona como central progressiva das opções que
+possuem fluxo real: downloads offline, assinaturas, faturas e encerramento de
+sessão. O logout exige confirmação e utiliza o `LogoutUseCase` existente.
+
+Tema, idioma, notificações, reprodução, privacidade, dispositivos e contas
+conectadas não possuem providers e contratos completos nesta versão. Por isso,
+nenhum switch ou valor fictício é apresentado e não há promessa de autosave.
+
 ## Objetivo
 
 A página **Settings** concentra todas as configurações globais da Lawrence Academy.

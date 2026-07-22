@@ -1,6 +1,6 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../tokens/lawrence_theme.dart';
 import '../widgets/liquid_glass_sidebar.dart';
 
@@ -9,180 +9,185 @@ class StudentLayout extends StatelessWidget {
 
   const StudentLayout({super.key, required this.body});
 
+  static const _destinations = <_StudentDestination>[
+    _StudentDestination(
+      label: 'Início',
+      path: '/dashboard/home',
+      icon: Icons.home_outlined,
+      selectedIcon: Icons.home_rounded,
+    ),
+    _StudentDestination(
+      label: 'Cursos',
+      path: '/dashboard/courses',
+      icon: Icons.menu_book_outlined,
+      selectedIcon: Icons.menu_book_rounded,
+    ),
+    _StudentDestination(
+      label: 'Projetos',
+      path: '/dashboard/projects',
+      icon: Icons.architecture_outlined,
+      selectedIcon: Icons.architecture_rounded,
+    ),
+    _StudentDestination(
+      label: 'Conquistas',
+      path: '/dashboard/achievements',
+      icon: Icons.emoji_events_outlined,
+      selectedIcon: Icons.emoji_events_rounded,
+    ),
+    _StudentDestination(
+      label: 'Perfil',
+      path: '/dashboard/profile',
+      icon: Icons.person_outline_rounded,
+      selectedIcon: Icons.person_rounded,
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final isDesktop = media.size.width >= 768.0;
+    final width = MediaQuery.sizeOf(context).width;
     final currentPath = GoRouterState.of(context).uri.path;
+    final selectedIndex = _selectedIndex(currentPath);
+    final isDesktop = LawrenceBreakpoints.isDesktop(width);
+    final isTablet = LawrenceBreakpoints.isTablet(width);
 
     return Scaffold(
-      backgroundColor:
-          LawrenceColors.canvasParchment, // Fundo principal claro #F8F9FB
+      backgroundColor: LawrenceColors.canvasParchment,
       body: SafeArea(
-        child: isDesktop
-            ? Row(
-                children: [
-                  // Sidebar fixa de 260px na esquerda
-                  Container(
-                    width: 260,
-                    height: double.infinity,
-                    padding: const EdgeInsets.all(16.0),
-                    child: LiquidGlassSidebar(
-                      currentPath: currentPath,
-                      onNavigate: (path) => context.go(path),
-                    ),
-                  ),
-
-                  // Conteúdo Principal dinâmico responsivo (Expanded)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24.0,
-                        vertical: 16.0,
-                      ),
-                      child: body,
-                    ),
-                  ),
-                ],
-              )
-            : Column(
-                children: [
-                  // Cabeçalho para mobile
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16.0),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border(
-                        bottom: BorderSide(
-                          color: LawrenceColors.borderMist.withOpacity(0.5),
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const CircleAvatar(
-                          backgroundColor: LawrenceColors.primary,
-                          radius: 16,
-                          child: Text(
-                            'L',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Lawrence Academy',
-                            style: Theme.of(
-                              context,
-                            ).textTheme.titleLarge?.copyWith(fontSize: 16),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Conteúdo do body responsivo
-                  Expanded(child: body),
-                ],
-              ),
-      ),
-      // BottomNav flutuante, arredondado de 24 e de vidro (Liquid Glass) para Mobile
-      bottomNavigationBar: !isDesktop
-          ? SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  16.0,
-                  0,
-                  16.0,
-                  16.0,
-                ), // Floating
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.72),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white.withOpacity(0.28)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
-                        blurRadius: 16,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                      child: BottomNavigationBar(
-                        currentIndex: _getSelectedIndex(currentPath),
-                        selectedItemColor: LawrenceColors.primary,
-                        unselectedItemColor: LawrenceColors.textSecondary,
-                        backgroundColor: Colors
-                            .transparent, // Transparência para o BackdropFilter
-                        elevation: 0,
-                        type: BottomNavigationBarType.fixed,
-                        onTap: (index) => _onBottomNavTapped(context, index),
-                        items: const [
-                          BottomNavigationBarItem(
-                            icon: Icon(Icons.dashboard_outlined),
-                            activeIcon: Icon(Icons.dashboard),
-                            label: 'Início',
-                          ),
-                          BottomNavigationBarItem(
-                            icon: Icon(Icons.school_outlined),
-                            activeIcon: Icon(Icons.school),
-                            label: 'Cursos',
-                          ),
-                          BottomNavigationBarItem(
-                            icon: Icon(Icons.sensors_outlined),
-                            activeIcon: Icon(Icons.sensors),
-                            label: 'Lives',
-                          ),
-                          BottomNavigationBarItem(
-                            icon: Icon(Icons.person_outline),
-                            activeIcon: Icon(Icons.person),
-                            label: 'Perfil',
-                          ),
-                        ],
-                      ),
-                    ),
+        child: Row(
+          children: [
+            if (isDesktop)
+              SizedBox(
+                width: 272,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: LiquidGlassSidebar(
+                    currentPath: currentPath,
+                    onNavigate: context.go,
                   ),
                 ),
+              )
+            else if (isTablet)
+              NavigationRail(
+                selectedIndex: selectedIndex,
+                groupAlignment: -0.72,
+                labelType: NavigationRailLabelType.all,
+                backgroundColor: Colors.white,
+                indicatorColor: LawrenceColors.primary.withValues(alpha: .10),
+                selectedIconTheme: const IconThemeData(
+                  color: LawrenceColors.primary,
+                ),
+                onDestinationSelected: (index) =>
+                    context.go(_destinations[index].path),
+                leading: const Padding(
+                  padding: EdgeInsets.only(top: 12, bottom: 20),
+                  child: _BrandMark(compact: true),
+                ),
+                destinations: [
+                  for (final destination in _destinations)
+                    NavigationRailDestination(
+                      icon: Icon(destination.icon),
+                      selectedIcon: Icon(destination.selectedIcon),
+                      label: Text(destination.label),
+                    ),
+                ],
               ),
+            Expanded(child: body),
+          ],
+        ),
+      ),
+      bottomNavigationBar: LawrenceBreakpoints.isMobile(width)
+          ? NavigationBar(
+              selectedIndex: selectedIndex,
+              height: 72,
+              backgroundColor: Colors.white,
+              indicatorColor: LawrenceColors.primary.withValues(alpha: .10),
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+              onDestinationSelected: (index) =>
+                  context.go(_destinations[index].path),
+              destinations: [
+                for (final destination in _destinations)
+                  NavigationDestination(
+                    icon: Icon(destination.icon),
+                    selectedIcon: Icon(
+                      destination.selectedIcon,
+                      color: LawrenceColors.primary,
+                    ),
+                    label: destination.label,
+                    tooltip: destination.label,
+                  ),
+              ],
             )
           : null,
     );
   }
 
-  int _getSelectedIndex(String path) {
-    if (path.startsWith('/dashboard/home')) return 0;
-    if (path.startsWith('/courses')) return 1;
-    if (path.startsWith('/dashboard/lives')) return 2;
-    if (path.startsWith('/dashboard/profile')) return 3;
+  int _selectedIndex(String path) {
+    for (var index = 0; index < _destinations.length; index++) {
+      if (path.startsWith(_destinations[index].path)) return index;
+    }
     return 0;
   }
+}
 
-  void _onBottomNavTapped(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.go('/dashboard/home');
-        break;
-      case 1:
-        context.go('/courses');
-        break;
-      case 2:
-        context.go('/dashboard/lives');
-        break;
-      case 3:
-        context.go('/dashboard/profile');
-        break;
-    }
+class _BrandMark extends StatelessWidget {
+  final bool compact;
+
+  const _BrandMark({this.compact = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Lawrence Academy',
+      image: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: LawrenceColors.primary,
+              borderRadius: BorderRadius.circular(LawrenceTheme.radiusSm),
+            ),
+            alignment: Alignment.center,
+            child: const Text(
+              'L',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          if (!compact) ...[
+            const SizedBox(width: 12),
+            const Text(
+              'LAWRENCE\nACADEMY',
+              style: TextStyle(
+                color: LawrenceColors.textPrimary,
+                fontSize: 13,
+                height: 1.05,
+                letterSpacing: 1.4,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
+}
+
+class _StudentDestination {
+  final String label;
+  final String path;
+  final IconData icon;
+  final IconData selectedIcon;
+
+  const _StudentDestination({
+    required this.label,
+    required this.path,
+    required this.icon,
+    required this.selectedIcon,
+  });
 }

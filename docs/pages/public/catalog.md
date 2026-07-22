@@ -19,6 +19,45 @@ seo: true
 
 # Course Catalog
 
+> Implementação canônica da fase de Catálogo: busca e filtros utilizam os query
+> parameters `q`, `category`, `level` e `access`. Cards exibem somente campos
+> presentes no contrato atual. Avaliação, quantidade de alunos, duração,
+> certificado, ordenação e coleções editoriais não devem ser simulados.
+
+## Composição aprovada
+
+1. Título e descrição da tarefa.
+2. Campo de pesquisa com label persistente e debounce de 300 ms.
+3. Filtro de acesso: todos, gratuitos ou assinatura mensal.
+4. Categoria e nível em sidebar no desktop ou bottom sheet nas demais faixas.
+5. Quantidade de resultados.
+6. Lista responsiva de cursos.
+
+### Responsividade
+
+- Mobile: uma coluna e filtros em bottom sheet.
+- Tablet: duas colunas e filtros em bottom sheet.
+- Desktop: sidebar de 280 px e até três colunas no espaço restante.
+
+As colunas podem diminuir quando a escala de texto ou a largura disponível
+exigirem. Não reduzir fonte para preservar uma quantidade fixa de cards.
+
+### Estados
+
+- loading: skeleton equivalente aos cards;
+- success: quantidade e resultados;
+- empty: explicação e ação “Limpar filtros”;
+- error: mensagem humana e retry;
+- offline: erro recuperável até existir cache de catálogo documentado.
+
+### Acessibilidade
+
+- busca possui label visível;
+- filtros possuem nome de grupo, seleção e área adequada;
+- resultado atualizado é anunciado como live region;
+- card informa título, nível, aulas, preço e periodicidade;
+- motion de pressão é removido quando `disableAnimations` estiver ativo.
+
 ## Objetivo
 
 A página de catálogo é o principal ponto de descoberta da plataforma.

@@ -16,7 +16,77 @@ depends_on:
 
 # Lawrence Academy — Component Specification
 
+> A especificação abaixo contém componentes legados. Para novas telas do aluno,
+> os componentes canônicos da Fase 02 são os descritos na seção
+> “Fundação compartilhada da área do aluno”. Glass não deve ser aplicado a
+> listas, cards de conteúdo ou navegação persistente.
+
 Este documento define as especificações de design e implementação dos componentes de interface de usuário (UI) da plataforma Lawrence Academy, garantindo fidelidade com as diretrizes do Apple Human Interface Guidelines e a estética premium.
+
+## Fundação compartilhada da área do aluno
+
+### StudentPageScaffold
+
+Responsável por largura de leitura, padding adaptativo, cabeçalho e rolagem.
+
+- largura máxima padrão: 1280 px;
+- padding horizontal: 16 px no mobile compacto e 24 px nas demais faixas;
+- aceita título, descrição, ação, leading e conteúdo;
+- não contém regra de negócio ou acesso a provider;
+- telas com slivers ou player podem desativar a rolagem interna.
+
+### StudentPageHeader
+
+- título semântico de página;
+- subtítulo opcional;
+- leading com área mínima de 48 × 48 dp;
+- ações ao lado do título em largura ampla;
+- ações empilhadas abaixo do título quando houver menos de 620 px disponíveis.
+
+### StudentSectionHeader
+
+- cria hierarquia consistente entre seções;
+- ação textual opcional com área mínima de 48 dp;
+- não usar “Ver tudo”, “Ver todos” e “Ver todas” na mesma jornada: a microcopy
+  deve concordar com o substantivo da seção.
+
+### AppStatusBadge
+
+Tons: `neutral`, `info`, `practice`, `success`, `warning` e `danger`.
+
+- sempre contém ícone e texto;
+- expõe `Status: <label>` para tecnologias assistivas;
+- cor nunca é a única fonte de significado;
+- status de projetos usa `practice` apenas como contexto, não como erro.
+
+### SemanticProgressIndicator
+
+- recebe valor normalizado entre 0 e 1 e limita entradas fora da faixa;
+- mostra label, percentual e barra;
+- expõe percentual completo por semântica;
+- descrição de apoio é opcional;
+- não usar barra isolada sem valor textual.
+
+### PillButton
+
+- altura mínima de 48 dp, nunca altura rígida para acomodar texto ampliado;
+- CTA primário usa `actionPrimary` com texto branco;
+- loading desativa a ação e mantém label semântico;
+- variante secundária usa superfície opaca e borda `borderMist`.
+
+### Estados compartilhados
+
+`AppLoadingState`, `AppSkeletonState`, `AppEmptyState`, `AppErrorState` e
+`AppOfflineState` são os estados canônicos. A tela escolhe apenas os estados
+aplicáveis definidos em sua Page Spec.
+
+### Migração
+
+- `LiquidGlassCard`, `LiquidGlassContainer` e `LiquidGlassSidebar` são legados;
+- blur fica restrito a overlays e elementos flutuantes com função comprovada;
+- novos cards usam superfície `canvas`, borda `borderMist` e raio `card`;
+- novas telas devem consumir tokens de `LawrenceColors`, `LawrenceSpacing`,
+  `LawrenceRadii` e `LawrenceBreakpoints`.
 
 ---
 

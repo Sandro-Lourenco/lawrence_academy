@@ -81,7 +81,7 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
     try {
       final client = ref.read(supabaseClientProvider);
       await client.auth.signInWithPassword(email: email, password: password);
-    } on AuthException catch (e) {
+    } on AuthException {
       state = state.copyWith(
         isLoading: false,
         errorMessage:
@@ -107,10 +107,7 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
       await client.auth.signUp(
         email: email,
         password: password,
-        data: {
-          'full_name': fullName,
-          if (referralCode != null) 'referred_by_code': referralCode,
-        },
+        data: {'full_name': fullName, 'referred_by_code': ?referralCode},
       );
       state = state.copyWith(isLoading: false);
     } on AuthException catch (e) {

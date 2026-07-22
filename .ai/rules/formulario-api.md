@@ -1,56 +1,29 @@
 ---
-trigger: always_on
+name: forms-and-api
+trigger: scoped
+scope: [flutter-forms, fastapi-input, authentication]
+version: 2.0.0
 ---
 
+# Formulários e integração de API
 
+## Flutter
 
----
+- Widgets cuidam de apresentação, foco e mensagens; controllers/providers coordenam submissão.
+- Validação local melhora UX, mas o backend valida novamente todas as entradas.
+- O botão evita submissões concorrentes enquanto a operação está em andamento. Operações mutáveis também usam idempotency key quando duplicidade tem impacto.
+- Tokens são enviados por uma camada de rede central e nunca entram em logs, corpo do formulário ou mensagens de erro.
+- Erros de campo, globais, timeout e indisponibilidade devem ser recuperáveis e acessíveis.
 
-# IA Rules — Formulários e Integração com a API (Lawrence Academy)
+## FastAPI
 
-Você é um Engenheiro de Software Sênior e deve aplicar este conjunto de regras restritivas sempre que o usuário solicitar a criação, modificação ou depuração de formulários, validações de dados, endpoints de API ou interações de persistência com o Supabase.
+- Requests e responses usam DTOs Pydantic com limites explícitos e política de campos extras adequada ao contrato. Imutabilidade é aplicada quando semanticamente necessária, não de forma universal.
+- O servidor deriva identidade e tenant do JWT validado; IDs de recurso enviados pelo cliente continuam permitidos, mas sempre passam por verificação de ownership/permissão para impedir BOLA.
+- Preserve texto do usuário quando fizer parte do domínio. Para prevenir XSS, valide formatos e encode/escape no contexto de renderização; regex não é sanitizador HTML.
+- Rotas apenas adaptam HTTP. Use cases aplicam regras; repositories acessam dados.
+- Respostas de erro seguem o contrato da API e incluem um correlation ID seguro. Stack trace e detalhes de infraestrutura ficam apenas em telemetria protegida.
 
----
+## Testes mínimos
 
-## 1. Restrições do Frontend (Strictly Flutter / Dart)
+Validação de limites, double submit, timeout, token ausente/expirado, role incorreta, ownership de outro usuário, campos extras, caracteres Unicode e resposta inesperada do servidor.
 
-* **Proibição Absoluta de Frameworks Web JS:** É terminantemente proibido gerar códigos, componentes ou exemplos de formulários utilizando React, Vue, Angular ou JavaScript puro. Todo o ecossistema cliente (Android e Web) roda estritamente em **Flutter (Dart)**.
-* **Isolamento de Estado (Riverpod):** Toda a lógica de captura de inputs, submissão de payloads e gerenciamento de estados de carregamento (`loading`) deve ser isolada em *Providers* do Riverpod. A árvore de widgets (UI) deve conter apenas componentes visuais limpos.
-* **UX Resiliente:** Todo formulário gerado em Flutter deve implementar:
-* Validação local em tempo real utilizando a propriedade `validator` do `TextFormField`.
-* Desativação mecânica do botão de envio e exibição de um `CircularProgressIndicator` imediatamente após o primeiro clique, bloqueando requisições duplicadas (Anti-Debounce).
-* Injeção transparente do JWT no cabeçalho HTTP (`Authorization: Bearer <JWT>`) através de interceptores na camada de rede (pacote `dio` ou `http`), sem expor o token no corpo do formulário.
-
-
-
----
-
-## 2. Padrões de Backend, Sanitização e DTOs (Python / FastAPI)
-
-O backend atua como o validador definitivo da integridade dos dados antes que estes atinjam o banco de dados.
-
-* **Validação via Pydantic:** Todo payload recebido por uma rota FastAPI deve ser tipado rigidamente através de classes Pydantic configuradas com `frozen=True` e `extra="forbid"`, impedindo ataques de injeção de campos em massa (*Mass Assignment*).
-* **Sanitização de Strings contra XSS:** Injete limpadores de string baseados em Regex nos campos de texto (`field_validator` do Pydantic) para remover tags HTML brutas e scripts maliciosos antes da persistência no banco.
-* **Proteção Absoluta contra BOLA (Broken Object Level Authorization):** Você deve **negar** a geração de rotas de contexto do aluno que aceitem um `user_id` enviado explicitamente no corpo do formulário. O identificador único do perfil deve ser extraído de forma imutável e obrigatória a partir da claim segura do token JWT decodificado no servidor através do método `auth.uid()` do Supabase.
-
----
-
-## 3. Protocolo de Resposta de Erros e Ofuscamento (OWASP)
-
-Siga rigorosamente as boas práticas de segurança da informação para mitigar a enumeração de contas e vazamento de infraestrutura:
-
-* **Ofuscamento em Telas Críticas (Autenticação/Registo):** Rotas de login, cadastro ou redefinição de senha que falharem devem retornar o código HTTP `400 Bad Request` ou `401 Unauthorized` com uma mensagem genérica de erro. Nunca discrimine se o e-mail ou a senha estavam errados. Retorne estritamente:
-```json
-{
-  "status": "error",
-  "code": "INVALID_CREDENTIALS",
-  "message": "Credenciais inválidas ou link de verificação expirado."
-}
-
-```
-
-
-* **Erros de Validação Limpos (422):** Formate erros de validação de esquema de forma simples para que o Flutter consiga mapear o erro ao campo correto (ex: `{"field": "full_name", "reason": "Too short"}`).
-* **Mascaramento de Exceções Internas (500):** É estritamente proibido expor *stack traces* brutas do Python, erros de sintaxe ou exceptions de chaves estrangeiras do Postgres para o Flutter. Intercepte o erro globalmente no FastAPI, envie o rastro real para um log interno e seguro, e retorne o payload neutro: *"Ocorreu um erro interno no processamento dos dados. Nossa equipe de engenharia foi notificada."*
-
----

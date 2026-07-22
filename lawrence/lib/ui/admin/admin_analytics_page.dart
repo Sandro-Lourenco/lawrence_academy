@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme.dart';
+import '../../design_system/tokens/liquid_theme.dart';
 
 class AdminAnalyticsPage extends StatefulWidget {
   const AdminAnalyticsPage({super.key});
@@ -187,7 +187,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                       // Cabeçalho da Tabela
                       TableRow(
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.04),
+                          color: Colors.white.withValues(alpha: 0.04),
                         ),
                         children: const [
                           Padding(
@@ -293,7 +293,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
 
                   // Paginação
                   Container(
-                    color: Colors.white.withOpacity(0.01),
+                    color: Colors.white.withValues(alpha: 0.01),
                     padding: const EdgeInsets.all(12),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

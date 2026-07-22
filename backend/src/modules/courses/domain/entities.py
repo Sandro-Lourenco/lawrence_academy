@@ -12,7 +12,7 @@ class Lesson:
     module_id: str
     course_id: str
     title: str
-    hls_storage_path: str
+    hls_storage_path: Optional[str]
     description: Optional[str] = None
     order_index: int = 0
     duration_seconds: int = 0
@@ -31,6 +31,7 @@ class Module:
     title: str
     order_index: int = 0
     created_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
     lessons: List[Lesson] = field(default_factory=list)
 
 

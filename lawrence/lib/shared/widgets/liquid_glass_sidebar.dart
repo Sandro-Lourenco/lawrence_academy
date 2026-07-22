@@ -19,8 +19,8 @@ class LiquidGlassSidebar extends StatelessWidget {
     return LiquidGlassContainer(
       borderRadius: 24.0,
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
-      backgroundColor: Colors.white.withOpacity(0.72),
-      borderColor: Colors.white.withOpacity(0.28),
+      backgroundColor: Colors.white.withValues(alpha: 0.72),
+      borderColor: Colors.white.withValues(alpha: 0.28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -73,7 +73,7 @@ class LiquidGlassSidebar extends StatelessWidget {
             icon: Icons.school_outlined,
             activeIcon: Icons.school,
             label: 'Meus Cursos',
-            path: '/courses',
+            path: '/dashboard/courses',
           ),
           _buildNavItem(
             context,
@@ -96,7 +96,7 @@ class LiquidGlassSidebar extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(LawrenceTheme.radiusMd),
             ),
             child: Row(
@@ -154,7 +154,7 @@ class LiquidGlassSidebar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
           decoration: BoxDecoration(
             color: isActive
-                ? LawrenceTheme.primary.withOpacity(0.08)
+                ? LawrenceTheme.primary.withValues(alpha: 0.08)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(LawrenceTheme.radiusSm),
           ),

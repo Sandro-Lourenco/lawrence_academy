@@ -827,6 +827,14 @@ Backend
 
 ---
 
+# Webhook Idempotency
+
+Obrigatório:
+
+- Restrição UNIQUE em `provider_event_id` na tabela `payment_events`.
+- Registro de status: `received`, `processing`, `processed`, `failed`.
+- Bloqueio imediato de reprocessamento (retorna 200 para eventos já finalizados).
+
 Salvar:
 
 
@@ -860,6 +868,11 @@ Regra:
 
 1 Curso = 1 Assinatura
 
+Exceção explícita:
+
+Curso publicado com `monthly_price = 0` possui acesso gratuito autenticado e
+não cria checkout nem assinatura.
+
 
 ---
 
@@ -879,6 +892,8 @@ Course
 +
 
 Subscription ACTIVE
+
+ou Course `monthly_price = 0` e status `published`
 
 ```
 

@@ -10,4 +10,5 @@ class ListCoursesUseCase:
         self.repository = repository
 
     async def execute(self) -> List[Course]:
-        return await self.repository.list_all()
+        courses = await self.repository.list_all()
+        return [course for course in courses if course.status == "published"]

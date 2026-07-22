@@ -18,7 +18,7 @@ class LiquidGlassCard extends StatefulWidget {
     required this.child,
     this.padding = const EdgeInsets.all(20.0),
     this.margin,
-    this.borderRadius = LawrenceTheme.radiusLg, // 24px
+    this.borderRadius = LawrenceTheme.AppRadiusLarge,
     this.width,
     this.height,
     this.borderColor,
@@ -36,7 +36,7 @@ class _LiquidGlassCardState extends State<LiquidGlassCard> {
   void _onTapDown(TapDownDetails details) {
     if (widget.onTap != null) {
       setState(() {
-        _scale = 0.97; // Efeito de clique tátil de escala
+        _scale = LawrenceTheme.AppMotionScalePressed;
       });
     }
   }
@@ -59,8 +59,11 @@ class _LiquidGlassCardState extends State<LiquidGlassCard> {
 
   @override
   Widget build(BuildContext context) {
-    final themeBg = widget.backgroundColor ?? Colors.white.withOpacity(0.72);
-    final themeBorder = widget.borderColor ?? Colors.white.withOpacity(0.28);
+    final themeBg =
+        widget.backgroundColor ??
+        Colors.white.withValues(alpha: LawrenceTheme.AppGlassOpacityMedium);
+    final themeBorder =
+        widget.borderColor ?? Colors.white.withValues(alpha: 0.28);
 
     final cardContent = Container(
       width: widget.width,
@@ -73,7 +76,10 @@ class _LiquidGlassCardState extends State<LiquidGlassCard> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(widget.borderRadius),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          filter: ImageFilter.blur(
+            sigmaX: LawrenceTheme.AppGlassBlurMedium,
+            sigmaY: LawrenceTheme.AppGlassBlurMedium,
+          ),
           child: Padding(padding: widget.padding, child: widget.child),
         ),
       ),

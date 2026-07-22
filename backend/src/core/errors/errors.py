@@ -59,3 +59,29 @@ class ConflictError(DomainError):
 
 # Alias genérico para uso externo
 AppError = DomainError
+
+
+class ExternalServiceError(InfrastructureError):
+    """Exceção para falhas em serviços externos, mapeada para HTTP 502."""
+
+    def __init__(
+        self,
+        message: str = "Falha de comunicação com serviço externo.",
+        provider: str = "unknown",
+        request_id: str = "unknown",
+    ):
+        super().__init__(message, code="EXTERNAL_SERVICE_ERROR")
+        self.provider = provider
+        self.request_id = request_id
+
+
+class ServiceUnavailableError(InfrastructureError):
+    """Exceção para indisponibilidade temporária de serviço, mapeada para HTTP 503."""
+
+    def __init__(
+        self,
+        message: str = "Serviço temporariamente indisponível.",
+        retry_after: int | None = None,
+    ):
+        super().__init__(message, code="SERVICE_UNAVAILABLE")
+        self.retry_after = retry_after
