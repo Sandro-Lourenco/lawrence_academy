@@ -25,8 +25,11 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
   final _slugController = TextEditingController();
   final _categoryController = TextEditingController(text: "costura");
   final _summaryController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _requirementsController = TextEditingController();
   final _monthlyPriceController = TextEditingController(text: "0,00");
   bool _isFreeCourse = false;
+  String _level = 'iniciante';
 
   @override
   void initState() {
@@ -42,6 +45,8 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
     _slugController.dispose();
     _categoryController.dispose();
     _summaryController.dispose();
+    _descriptionController.dispose();
+    _requirementsController.dispose();
     _monthlyPriceController.dispose();
     super.dispose();
   }
@@ -54,6 +59,11 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
         _slugController.text = state.value!.course!.slug;
         _categoryController.text = state.value!.course!.category;
         _summaryController.text = state.value!.course!.summary;
+        _descriptionController.text = state.value!.course!.description;
+        _requirementsController.text = state.value!.course!.requirements.join(
+          '\n',
+        );
+        _level = state.value!.course!.level;
         _monthlyPriceController.text = state.value!.course!.monthlyPrice
             .toStringAsFixed(2)
             .replaceAll('.', ',');
@@ -108,7 +118,14 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
             "title": _titleController.text.trim(),
             "slug": _slugController.text.trim(),
             "category": _categoryController.text.trim(),
+            "level": _level,
             "summary": _summaryController.text.trim(),
+            "description": _descriptionController.text.trim(),
+            "requirements": _requirementsController.text
+                .split('\n')
+                .map((requirement) => requirement.trim())
+                .where((requirement) => requirement.isNotEmpty)
+                .toList(),
             "monthly_price": _isFreeCourse
                 ? 0.0
                 : double.parse(

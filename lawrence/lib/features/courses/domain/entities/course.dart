@@ -210,6 +210,8 @@ class Course {
   final String category;
   final String level;
   final String summary;
+  final String description;
+  final List<String> requirements;
   final String status;
   final double monthlyPrice;
   final List<Module> modules;
@@ -222,6 +224,8 @@ class Course {
     required this.category,
     required this.level,
     required this.summary,
+    this.description = '',
+    this.requirements = const [],
     required this.status,
     this.monthlyPrice = 0,
     required this.modules,
@@ -248,6 +252,12 @@ class Course {
       category: json['category'] as String? ?? 'costura',
       level: json['level'] as String? ?? 'iniciante',
       summary: json['summary'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      requirements:
+          (json['requirements'] as List?)
+              ?.map((requirement) => requirement.toString())
+              .toList() ??
+          const [],
       status: json['status'] as String? ?? 'draft',
       monthlyPrice: monthlyPrice,
       modules:
@@ -266,6 +276,8 @@ class Course {
     'category': category,
     'level': level,
     'summary': summary,
+    'description': description,
+    'requirements': requirements,
     'status': status,
     'monthly_price': monthlyPrice,
     'modules': modules.map((e) => e.toJson()).toList(),
