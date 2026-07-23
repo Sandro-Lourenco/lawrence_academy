@@ -9,14 +9,25 @@ class PlanningPhaseForm extends StatelessWidget {
     required this.titleController,
     required this.slugController,
     required this.summaryController,
+    required this.subtitleController,
     required this.descriptionController,
     required this.requirementsController,
+    required this.durationController,
+    required this.learningObjectivesController,
+    required this.targetAudienceController,
+    required this.requiredMaterialsController,
+    required this.competenciesController,
+    required this.expectedOutcomesController,
     required this.category,
     required this.level,
+    required this.courseType,
+    required this.language,
     required this.isSaving,
     required this.onChanged,
     required this.onCategoryChanged,
     required this.onLevelChanged,
+    required this.onCourseTypeChanged,
+    required this.onLanguageChanged,
     required this.onSave,
   });
 
@@ -24,14 +35,25 @@ class PlanningPhaseForm extends StatelessWidget {
   final TextEditingController titleController;
   final TextEditingController slugController;
   final TextEditingController summaryController;
+  final TextEditingController subtitleController;
   final TextEditingController descriptionController;
   final TextEditingController requirementsController;
+  final TextEditingController durationController;
+  final TextEditingController learningObjectivesController;
+  final TextEditingController targetAudienceController;
+  final TextEditingController requiredMaterialsController;
+  final TextEditingController competenciesController;
+  final TextEditingController expectedOutcomesController;
   final String category;
   final String level;
+  final String courseType;
+  final String language;
   final bool isSaving;
   final VoidCallback onChanged;
   final ValueChanged<String> onCategoryChanged;
   final ValueChanged<String> onLevelChanged;
+  final ValueChanged<String> onCourseTypeChanged;
+  final ValueChanged<String> onLanguageChanged;
   final VoidCallback onSave;
 
   @override
@@ -69,7 +91,11 @@ class PlanningPhaseForm extends StatelessWidget {
                   style: TextStyle(color: LawrenceColors.textSecondary),
                 ),
                 const SizedBox(height: LawrenceSpacing.lg),
-                const _CourseTypeSummary(),
+                _CourseTypeSelector(
+                  value: courseType,
+                  onChanged: onCourseTypeChanged,
+                  compact: compact,
+                ),
                 const SizedBox(height: LawrenceSpacing.xl),
                 const _SectionTitle('Informações básicas'),
                 const SizedBox(height: LawrenceSpacing.md),
@@ -86,6 +112,18 @@ class PlanningPhaseForm extends StatelessWidget {
                   validator: (value) => value == null || value.trim().isEmpty
                       ? 'Informe o nome do curso.'
                       : null,
+                ),
+                const SizedBox(height: LawrenceSpacing.md),
+                TextFormField(
+                  controller: subtitleController,
+                  textInputAction: TextInputAction.next,
+                  maxLength: 160,
+                  decoration: const InputDecoration(
+                    labelText: 'Subtítulo',
+                    hintText: 'Da tomada de medidas à construção dos primeiros moldes',
+                    helperText: 'Complemente o nome sem repetir a mesma informação.',
+                  ),
+                  onChanged: (_) => onChanged(),
                 ),
                 const SizedBox(height: LawrenceSpacing.md),
                 TextFormField(
@@ -143,15 +181,32 @@ class PlanningPhaseForm extends StatelessWidget {
                       _categoryField(),
                       const SizedBox(height: LawrenceSpacing.md),
                       _levelField(),
+                      const SizedBox(height: LawrenceSpacing.md),
+                      _languageField(),
+                      const SizedBox(height: LawrenceSpacing.md),
+                      _durationField(),
                     ],
                   )
                 else
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Column(
                     children: [
-                      Expanded(child: _categoryField()),
-                      const SizedBox(width: LawrenceSpacing.md),
-                      Expanded(child: _levelField()),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: _categoryField()),
+                          const SizedBox(width: LawrenceSpacing.md),
+                          Expanded(child: _levelField()),
+                        ],
+                      ),
+                      const SizedBox(height: LawrenceSpacing.md),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: _languageField()),
+                          const SizedBox(width: LawrenceSpacing.md),
+                          Expanded(child: _durationField()),
+                        ],
+                      ),
                     ],
                   ),
                 const SizedBox(height: LawrenceSpacing.xl),
