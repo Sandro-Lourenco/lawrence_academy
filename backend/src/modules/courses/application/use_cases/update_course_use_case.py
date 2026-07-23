@@ -23,9 +23,7 @@ class UpdateCourseUseCase:
             if not instructor_id:
                 raise NotFoundError("Curso não encontrado.")
             if instructor_id != current_user_id:
-                raise AuthorizationError(
-                    "Acesso negado. Você não é o instrutor deste curso."
-                )
+                raise AuthorizationError("Acesso negado. Você não é o instrutor deste curso.")
 
         # Buscar entidade para preservar campos não atualizados ou criar nova
         existing = await self.repository.get_by_id(course_id)
@@ -51,23 +49,13 @@ class UpdateCourseUseCase:
             learning_objectives=course_data.get(
                 "learning_objectives", existing.learning_objectives
             ),
-            target_audience=course_data.get(
-                "target_audience", existing.target_audience
-            ),
-            required_materials=course_data.get(
-                "required_materials", existing.required_materials
-            ),
+            target_audience=course_data.get("target_audience", existing.target_audience),
+            required_materials=course_data.get("required_materials", existing.required_materials),
             competencies=course_data.get("competencies", existing.competencies),
-            expected_outcomes=course_data.get(
-                "expected_outcomes", existing.expected_outcomes
-            ),
+            expected_outcomes=course_data.get("expected_outcomes", existing.expected_outcomes),
             thumbnail_url=course_data.get("thumbnail_url", existing.thumbnail_url),
-            trailer_hls_path=course_data.get(
-                "trailer_hls_path", existing.trailer_hls_path
-            ),
-            monthly_price=Decimal(
-                str(course_data.get("monthly_price", existing.monthly_price))
-            ),
+            trailer_hls_path=course_data.get("trailer_hls_path", existing.trailer_hls_path),
+            monthly_price=Decimal(str(course_data.get("monthly_price", existing.monthly_price))),
             status=course_data.get("status", existing.status),
         )
         return await self.repository.update(course_id, updated)

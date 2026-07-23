@@ -18,7 +18,8 @@ architecture: Clean Architecture + DDD
 real-time: Supabase Realtime
 
 wizard:
-  steps: 8
+  phases: 5
+  internal_steps: 13
   autosave: true
   draft: true
   publish_workflow: true
@@ -176,6 +177,39 @@ Opacity
 ---
 
 # Wizard
+
+## Navegação canônica
+
+O Studio de Autoria apresenta cinco fases ao professor, preservando treze
+tarefas internas. O dashboard é a entrada da jornada e não conta como etapa do
+wizard.
+
+1. Planejamento: tipo, informações básicas e objetivos pedagógicos.
+2. Apresentação e oferta: configurações comerciais e mídia.
+3. Estrutura: módulos e aulas.
+4. Conteúdo: blocos, materiais, “Saiba mais” e atividades.
+5. Revisão e publicação: prévia, checklist e publicação.
+
+Rascunhos podem ser salvos incompletos. Requisitos de publicação são validados
+separadamente e não bloqueiam a continuidade da autoria.
+
+### Fase 1 — Planejamento
+
+Contrato persistente:
+
+- `course_type`: `complete`, `quick` ou `workshop`;
+- nome, slug, subtítulo, descrição curta e descrição completa;
+- categoria, nível, idioma e carga horária estimada em minutos;
+- pré-requisitos;
+- objetivos de aprendizagem;
+- público-alvo;
+- materiais necessários;
+- competências desenvolvidas;
+- resultados esperados.
+
+Objetivos e demais listas pedagógicas aceitam no máximo 20 itens, com um item
+por linha na interface. A carga horária informada pelo professor é estimativa;
+a duração processada dos vídeos permanece como fonte da duração real.
 
 Stepper horizontal (Desktop)
 

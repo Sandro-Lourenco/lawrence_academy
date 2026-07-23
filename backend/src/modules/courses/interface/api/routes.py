@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
-from typing import List, Literal, Optional
+from typing import Annotated, List, Literal, Optional
 from decimal import Decimal
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from src.core.security.security import get_current_user, require_role, CurrentUser
 from src.modules.courses.domain.repositories import CourseRepository
 from src.modules.courses.interface.api.dependencies import get_course_repository
@@ -31,6 +31,8 @@ from src.modules.courses.application.use_cases.delete_course_use_case import (
 )
 
 router = APIRouter(prefix="/api/v1/courses", tags=["courses"])
+
+PlanningItem = Annotated[str, Field(min_length=2, max_length=240)]
 
 
 class LessonCreateInputSchema(BaseModel):
@@ -78,12 +80,12 @@ class CourseCreateInputSchema(BaseModel):
     category: Optional[str] = "costura"
     level: Optional[str] = "iniciante"
     description: Optional[str] = Field(default=None, max_length=5000)
-    requirements: List[str] = Field(default_factory=list, max_length=20)
-    learning_objectives: List[str] = Field(default_factory=list, max_length=20)
-    target_audience: List[str] = Field(default_factory=list, max_length=20)
-    required_materials: List[str] = Field(default_factory=list, max_length=20)
-    competencies: List[str] = Field(default_factory=list, max_length=20)
-    expected_outcomes: List[str] = Field(default_factory=list, max_length=20)
+    requirements: List[PlanningItem] = Field(default_factory=list, max_length=20)
+    learning_objectives: List[PlanningItem] = Field(default_factory=list, max_length=20)
+    target_audience: List[PlanningItem] = Field(default_factory=list, max_length=20)
+    required_materials: List[PlanningItem] = Field(default_factory=list, max_length=20)
+    competencies: List[PlanningItem] = Field(default_factory=list, max_length=20)
+    expected_outcomes: List[PlanningItem] = Field(default_factory=list, max_length=20)
     thumbnail_url: Optional[str] = None
     trailer_hls_path: Optional[str] = None
     monthly_price: Decimal
@@ -148,9 +150,7 @@ async def get_course(
     return course
 
 
-@router.post(
-    "", response_model=CourseResponseSchema, status_code=status.HTTP_201_CREATED
-)
+@router.post("", response_model=CourseResponseSchema, status_code=status.HTTP_201_CREATED)
 async def create_course(
     payload: CourseCreateInputSchema,
     current_user: CurrentUser = Depends(require_role(["teacher", "admin"])),

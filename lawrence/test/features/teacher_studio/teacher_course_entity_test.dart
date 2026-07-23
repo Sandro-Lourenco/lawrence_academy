@@ -40,6 +40,15 @@ void main() {
         'slug': 'modelagem',
         'description': 'Formação completa em modelagem feminina.',
         'requirements': ['Fita métrica', 'Conhecimentos básicos de costura'],
+        'course_type': 'complete',
+        'subtitle': 'Do básico ao primeiro molde',
+        'language': 'pt-BR',
+        'estimated_duration_minutes': 720,
+        'learning_objectives': ['Tirar medidas com precisão'],
+        'target_audience': ['Pessoas iniciantes'],
+        'required_materials': ['Papel kraft'],
+        'competencies': ['Construção de bases'],
+        'expected_outcomes': ['Criar moldes com autonomia'],
       });
 
       expect(course.description, 'Formação completa em modelagem feminina.');
@@ -48,6 +57,11 @@ void main() {
         'Conhecimentos básicos de costura',
       ]);
       expect(course.toJson()['requirements'], course.requirements);
+      expect(course.courseType, 'complete');
+      expect(course.subtitle, 'Do básico ao primeiro molde');
+      expect(course.estimatedDurationMinutes, 720);
+      expect(course.learningObjectives, ['Tirar medidas com precisão']);
+      expect(course.targetAudience, ['Pessoas iniciantes']);
     });
   });
 }

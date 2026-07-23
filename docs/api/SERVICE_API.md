@@ -334,6 +334,24 @@ Request:
  category
 }
 
+### Contrato de planejamento do curso
+
+O payload de criação e o `PATCH /teacher/courses/{id}` aceitam:
+
+- `course_type`: `complete | quick | workshop`;
+- `subtitle`: texto de até 160 caracteres;
+- `language`: `pt-BR | en | es`;
+- `estimated_duration_minutes`: inteiro positivo opcional;
+- `learning_objectives`: lista de até 20 itens;
+- `target_audience`: lista de até 20 itens;
+- `required_materials`: lista de até 20 itens;
+- `competencies`: lista de até 20 itens;
+- `expected_outcomes`: lista de até 20 itens.
+
+Cada item pedagógico possui de 2 a 240 caracteres. `requirements` continua
+representando pré-requisitos. O backend valida enumerações, limites, JWT, role
+e ownership; o frontend não é autoridade para esses campos.
+
 
 
 ---

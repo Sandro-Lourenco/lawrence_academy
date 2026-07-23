@@ -433,6 +433,27 @@ PRIMARY KEY(user_id,role_id)
 # TEACHER CONTEXT
 # ======================================
 
+## Course Planning — Fase 1 do Studio de Autoria
+
+`public.courses` mantém o planejamento no agregado do curso:
+
+```text
+course_type                  complete | quick | workshop
+subtitle                     varchar(160)
+language                     pt-BR | en | es
+estimated_duration_minutes   integer positivo, opcional
+learning_objectives          text[]
+target_audience              text[]
+required_materials           text[]
+competencies                 text[]
+expected_outcomes            text[]
+```
+
+`requirements` permanece como a lista de pré-requisitos. As novas colunas usam
+defaults retrocompatíveis e continuam protegidas pelas policies de ownership e
+RLS da tabela `courses`. A duração estimada não substitui a duração real obtida
+do pipeline de mídia.
+
 
 Dados específicos de professores.
 

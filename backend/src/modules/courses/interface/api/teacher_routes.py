@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, status
-from typing import Literal, Optional, List
+from typing import Annotated, Literal, Optional, List
 from pydantic import BaseModel, Field
 from src.core.security.security import require_role, CurrentUser
 from src.core.storage.repositories import StorageRepository
@@ -54,6 +54,8 @@ from src.modules.courses.interface.api.routes import (
 
 router = APIRouter(prefix="/api/v1/teacher/courses", tags=["teacher", "courses"])
 
+PlanningItem = Annotated[str, Field(min_length=2, max_length=240)]
+
 
 class CourseUpdateInputSchema(BaseModel):
     title: Optional[str] = None
@@ -66,12 +68,12 @@ class CourseUpdateInputSchema(BaseModel):
     category: Optional[str] = None
     level: Optional[str] = None
     description: Optional[str] = None
-    requirements: Optional[List[str]] = None
-    learning_objectives: Optional[List[str]] = Field(default=None, max_length=20)
-    target_audience: Optional[List[str]] = Field(default=None, max_length=20)
-    required_materials: Optional[List[str]] = Field(default=None, max_length=20)
-    competencies: Optional[List[str]] = Field(default=None, max_length=20)
-    expected_outcomes: Optional[List[str]] = Field(default=None, max_length=20)
+    requirements: Optional[List[PlanningItem]] = Field(default=None, max_length=20)
+    learning_objectives: Optional[List[PlanningItem]] = Field(default=None, max_length=20)
+    target_audience: Optional[List[PlanningItem]] = Field(default=None, max_length=20)
+    required_materials: Optional[List[PlanningItem]] = Field(default=None, max_length=20)
+    competencies: Optional[List[PlanningItem]] = Field(default=None, max_length=20)
+    expected_outcomes: Optional[List[PlanningItem]] = Field(default=None, max_length=20)
     thumbnail_url: Optional[str] = None
     trailer_hls_path: Optional[str] = None
     monthly_price: Optional[float] = None
@@ -106,9 +108,7 @@ class UploadUrlRequestSchema(BaseModel):
     filename: str
     content_type: str
     size_bytes: int
-    idempotency_key: Optional[str] = (
-        None  # Chave única por tentativa (UUID recomendado)
-    )
+    idempotency_key: Optional[str] = None  # Chave única por tentativa (UUID recomendado)
 
 
 class UploadUrlResponseSchema(BaseModel):
@@ -143,9 +143,7 @@ async def get_teacher_course(
     )
 
 
-@router.post(
-    "", response_model=CourseResponseSchema, status_code=status.HTTP_201_CREATED
-)
+@router.post("", response_model=CourseResponseSchema, status_code=status.HTTP_201_CREATED)
 async def create_course(
     payload: CourseCreateInputSchema,
     current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
@@ -311,9 +309,7 @@ async def delete_lesson(
     return {"status": "success", "message": "Aula arquivada com sucesso."}
 
 
-@router.post(
-    "/{course_id}/lessons/{lesson_id}/upload", response_model=UploadUrlResponseSchema
-)
+@router.post("/{course_id}/lessons/{lesson_id}/upload", response_model=UploadUrlResponseSchema)
 async def generate_upload_url(
     course_id: str,
     lesson_id: str,

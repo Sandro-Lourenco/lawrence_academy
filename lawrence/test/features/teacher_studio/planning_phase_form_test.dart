@@ -8,24 +8,45 @@ void main() {
   late TextEditingController titleController;
   late TextEditingController slugController;
   late TextEditingController summaryController;
+  late TextEditingController subtitleController;
   late TextEditingController descriptionController;
   late TextEditingController requirementsController;
+  late TextEditingController durationController;
+  late TextEditingController learningObjectivesController;
+  late TextEditingController targetAudienceController;
+  late TextEditingController requiredMaterialsController;
+  late TextEditingController competenciesController;
+  late TextEditingController expectedOutcomesController;
 
   setUp(() {
     formKey = GlobalKey<FormState>();
     titleController = TextEditingController();
     slugController = TextEditingController();
     summaryController = TextEditingController();
+    subtitleController = TextEditingController();
     descriptionController = TextEditingController();
     requirementsController = TextEditingController();
+    durationController = TextEditingController();
+    learningObjectivesController = TextEditingController();
+    targetAudienceController = TextEditingController();
+    requiredMaterialsController = TextEditingController();
+    competenciesController = TextEditingController();
+    expectedOutcomesController = TextEditingController();
   });
 
   tearDown(() {
     titleController.dispose();
     slugController.dispose();
     summaryController.dispose();
+    subtitleController.dispose();
     descriptionController.dispose();
     requirementsController.dispose();
+    durationController.dispose();
+    learningObjectivesController.dispose();
+    targetAudienceController.dispose();
+    requiredMaterialsController.dispose();
+    competenciesController.dispose();
+    expectedOutcomesController.dispose();
   });
 
   Widget buildSubject({VoidCallback? onSave}) => MaterialApp(
@@ -37,14 +58,25 @@ void main() {
           titleController: titleController,
           slugController: slugController,
           summaryController: summaryController,
+          subtitleController: subtitleController,
           descriptionController: descriptionController,
           requirementsController: requirementsController,
+          durationController: durationController,
+          learningObjectivesController: learningObjectivesController,
+          targetAudienceController: targetAudienceController,
+          requiredMaterialsController: requiredMaterialsController,
+          competenciesController: competenciesController,
+          expectedOutcomesController: expectedOutcomesController,
           category: 'modelagem',
           level: 'iniciante',
+          courseType: 'complete',
+          language: 'pt-BR',
           isSaving: false,
           onChanged: () {},
           onCategoryChanged: (_) {},
           onLevelChanged: (_) {},
+          onCourseTypeChanged: (_) {},
+          onLanguageChanged: (_) {},
           onSave: onSave ?? () {},
         ),
       ),
@@ -63,14 +95,14 @@ void main() {
 
     expect(find.text('Planejamento do curso'), findsOneWidget);
     expect(find.text('Curso completo'), findsOneWidget);
+    expect(find.text('Curso rápido'), findsOneWidget);
+    expect(find.text('Workshop ou oficina'), findsOneWidget);
     expect(find.text('Nome do curso'), findsOneWidget);
     expect(find.text('Descrição curta'), findsOneWidget);
     expect(find.text('Descrição completa'), findsOneWidget);
     expect(find.text('Pré-requisitos do curso'), findsOneWidget);
-    expect(
-      find.textContaining('quando o contrato dessa estrutura for aprovado'),
-      findsOneWidget,
-    );
+    expect(find.text('O que o aluno aprenderá'), findsOneWidget);
+    expect(find.text('Público-alvo'), findsOneWidget);
   });
 
   testWidgets('reports actionable validation errors', (tester) async {
@@ -86,6 +118,7 @@ void main() {
     expect(find.text('Informe o nome do curso.'), findsOneWidget);
     expect(find.text('Informe o endereço do curso.'), findsOneWidget);
     expect(find.text('Escreva ao menos 10 caracteres.'), findsOneWidget);
+    expect(find.text('Adicione pelo menos um item.'), findsNWidgets(2));
   });
 
   testWidgets('uses a full-width primary action on compact layouts', (

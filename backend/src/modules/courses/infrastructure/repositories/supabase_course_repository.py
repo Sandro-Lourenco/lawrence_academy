@@ -122,8 +122,7 @@ class SupabaseCourseRepository(CourseRepository):
             .execute()
         )
         return [
-            self._map_course(typing.cast(dict[str, typing.Any], row))
-            for row in (res.data or [])
+            self._map_course(typing.cast(dict[str, typing.Any], row)) for row in (res.data or [])
         ]
 
     async def list_by_instructor(self, instructor_id: str) -> List[Course]:
@@ -135,8 +134,7 @@ class SupabaseCourseRepository(CourseRepository):
             .execute()
         )
         return [
-            self._map_course(typing.cast(dict[str, typing.Any], row))
-            for row in (res.data or [])
+            self._map_course(typing.cast(dict[str, typing.Any], row)) for row in (res.data or [])
         ]
 
     async def create(self, course: Course) -> Course:
@@ -200,12 +198,7 @@ class SupabaseCourseRepository(CourseRepository):
             "monthly_price": float(course.monthly_price),
             "status": course.status,
         }
-        res = (
-            self.client.table("courses")
-            .update(course_data)
-            .eq("id", course_id)
-            .execute()
-        )
+        res = self.client.table("courses").update(course_data).eq("id", course_id).execute()
         if not res.data:
             raise NotFoundError("Curso não encontrado para atualização.")
         return self._map_course(typing.cast(dict[str, typing.Any], res.data[0]))
@@ -221,9 +214,7 @@ class SupabaseCourseRepository(CourseRepository):
         )
         return len(res.data) > 0
 
-    async def get_lesson_by_id(
-        self, course_id: str, lesson_id: str
-    ) -> Optional[Lesson]:
+    async def get_lesson_by_id(self, course_id: str, lesson_id: str) -> Optional[Lesson]:
         res = (
             self.client.table("lessons")
             .select("*")
@@ -282,9 +273,7 @@ class SupabaseCourseRepository(CourseRepository):
         )
         return len(res.data or []) > 0
 
-    async def get_lesson_stream_path(
-        self, course_id: str, lesson_id: str
-    ) -> Optional[str]:
+    async def get_lesson_stream_path(self, course_id: str, lesson_id: str) -> Optional[str]:
         res = (
             self.client.table("lessons")
             .select("hls_storage_path")
@@ -326,12 +315,7 @@ class SupabaseCourseRepository(CourseRepository):
         return self._map_module(typing.cast(dict[str, typing.Any], res.data[0]))
 
     async def update_module(self, module_id: str, module_data: dict) -> Module:
-        res = (
-            self.client.table("modules")
-            .update(module_data)
-            .eq("id", module_id)
-            .execute()
-        )
+        res = self.client.table("modules").update(module_data).eq("id", module_id).execute()
         if not res.data:
             raise NotFoundError("Módulo não encontrado para atualização.")
         return self._map_module(typing.cast(dict[str, typing.Any], res.data[0]))
@@ -378,9 +362,7 @@ class SupabaseCourseRepository(CourseRepository):
 
     async def generate_signed_url(self, storage_path: str) -> str:
         try:
-            res = self.client.storage.from_("lessons-hls").create_signed_url(
-                storage_path, 3600
-            )
+            res = self.client.storage.from_("lessons-hls").create_signed_url(storage_path, 3600)
             signed_url = res.get("signedURL") or res.get("signedUrl")
             if not signed_url:
                 from src.core.errors.errors import ExternalServiceError
