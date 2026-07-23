@@ -14,7 +14,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^2.6.1
   supabase_flutter: ^2.6.0
-  video_player: ^2.8.6
+  video_player: ^2.13.0
   dio: ^5.10.0
   http: ^1.6.0
   crypto: ^3.0.7
