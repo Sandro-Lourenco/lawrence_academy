@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, status
-from typing import List, Optional
+from typing import List, Literal, Optional
 from decimal import Decimal
 from pydantic import BaseModel
 from src.core.security.security import get_current_user, require_role, CurrentUser
@@ -68,13 +68,22 @@ class ModuleResponseSchema(BaseModel):
 
 
 class CourseCreateInputSchema(BaseModel):
-    title: str
-    slug: str
-    summary: str
+    title: str = Field(min_length=3, max_length=120)
+    slug: str = Field(min_length=3, max_length=255, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+    summary: str = Field(min_length=10, max_length=240)
+    course_type: Literal["complete", "quick", "workshop"] = "complete"
+    subtitle: str = Field(default="", max_length=160)
+    language: Literal["pt-BR", "en", "es"] = "pt-BR"
+    estimated_duration_minutes: Optional[int] = Field(default=None, ge=1, le=100000)
     category: Optional[str] = "costura"
     level: Optional[str] = "iniciante"
-    description: Optional[str] = None
-    requirements: Optional[List[str]] = []
+    description: Optional[str] = Field(default=None, max_length=5000)
+    requirements: List[str] = Field(default_factory=list, max_length=20)
+    learning_objectives: List[str] = Field(default_factory=list, max_length=20)
+    target_audience: List[str] = Field(default_factory=list, max_length=20)
+    required_materials: List[str] = Field(default_factory=list, max_length=20)
+    competencies: List[str] = Field(default_factory=list, max_length=20)
+    expected_outcomes: List[str] = Field(default_factory=list, max_length=20)
     thumbnail_url: Optional[str] = None
     trailer_hls_path: Optional[str] = None
     monthly_price: Decimal
@@ -89,8 +98,17 @@ class CourseResponseSchema(BaseModel):
     category: str
     level: str
     summary: str
+    course_type: str = "complete"
+    subtitle: str = ""
+    language: str = "pt-BR"
+    estimated_duration_minutes: Optional[int] = None
     description: Optional[str] = None
     requirements: List[str]
+    learning_objectives: List[str] = Field(default_factory=list)
+    target_audience: List[str] = Field(default_factory=list)
+    required_materials: List[str] = Field(default_factory=list)
+    competencies: List[str] = Field(default_factory=list)
+    expected_outcomes: List[str] = Field(default_factory=list)
     thumbnail_url: Optional[str] = None
     trailer_hls_path: Optional[str] = None
     monthly_price: Decimal

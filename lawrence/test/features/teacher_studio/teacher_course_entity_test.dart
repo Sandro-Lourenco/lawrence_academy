@@ -31,5 +31,23 @@ void main() {
 
       expect(course.monthlyPrice, 49.90);
     });
+
+    test('preserves planning description and requirements', () {
+      final course = Course.fromJson({
+        'id': 'course-id',
+        'instructor_id': 'teacher-id',
+        'title': 'Modelagem',
+        'slug': 'modelagem',
+        'description': 'Formação completa em modelagem feminina.',
+        'requirements': ['Fita métrica', 'Conhecimentos básicos de costura'],
+      });
+
+      expect(course.description, 'Formação completa em modelagem feminina.');
+      expect(course.requirements, [
+        'Fita métrica',
+        'Conhecimentos básicos de costura',
+      ]);
+      expect(course.toJson()['requirements'], course.requirements);
+    });
   });
 }

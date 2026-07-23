@@ -44,10 +44,19 @@ class Course:
     title: str
     slug: str
     summary: str
+    course_type: str = "complete"
+    subtitle: str = ""
+    language: str = "pt-BR"
+    estimated_duration_minutes: Optional[int] = None
     category: str = "costura"
     level: str = "iniciante"
     description: Optional[str] = None
     requirements: List[str] = field(default_factory=list)
+    learning_objectives: List[str] = field(default_factory=list)
+    target_audience: List[str] = field(default_factory=list)
+    required_materials: List[str] = field(default_factory=list)
+    competencies: List[str] = field(default_factory=list)
+    expected_outcomes: List[str] = field(default_factory=list)
     thumbnail_url: Optional[str] = None
     trailer_hls_path: Optional[str] = None
     monthly_price: Decimal = Decimal("0.00")

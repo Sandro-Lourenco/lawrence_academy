@@ -212,6 +212,15 @@ class Course {
   final String summary;
   final String description;
   final List<String> requirements;
+  final String courseType;
+  final String subtitle;
+  final String language;
+  final int? estimatedDurationMinutes;
+  final List<String> learningObjectives;
+  final List<String> targetAudience;
+  final List<String> requiredMaterials;
+  final List<String> competencies;
+  final List<String> expectedOutcomes;
   final String status;
   final double monthlyPrice;
   final List<Module> modules;
@@ -226,6 +235,15 @@ class Course {
     required this.summary,
     this.description = '',
     this.requirements = const [],
+    this.courseType = 'complete',
+    this.subtitle = '',
+    this.language = 'pt-BR',
+    this.estimatedDurationMinutes,
+    this.learningObjectives = const [],
+    this.targetAudience = const [],
+    this.requiredMaterials = const [],
+    this.competencies = const [],
+    this.expectedOutcomes = const [],
     required this.status,
     this.monthlyPrice = 0,
     required this.modules,
@@ -258,6 +276,15 @@ class Course {
               ?.map((requirement) => requirement.toString())
               .toList() ??
           const [],
+      courseType: json['course_type'] as String? ?? 'complete',
+      subtitle: json['subtitle'] as String? ?? '',
+      language: json['language'] as String? ?? 'pt-BR',
+      estimatedDurationMinutes: json['estimated_duration_minutes'] as int?,
+      learningObjectives: _stringList(json['learning_objectives']),
+      targetAudience: _stringList(json['target_audience']),
+      requiredMaterials: _stringList(json['required_materials']),
+      competencies: _stringList(json['competencies']),
+      expectedOutcomes: _stringList(json['expected_outcomes']),
       status: json['status'] as String? ?? 'draft',
       monthlyPrice: monthlyPrice,
       modules:
@@ -278,8 +305,20 @@ class Course {
     'summary': summary,
     'description': description,
     'requirements': requirements,
+    'course_type': courseType,
+    'subtitle': subtitle,
+    'language': language,
+    'estimated_duration_minutes': estimatedDurationMinutes,
+    'learning_objectives': learningObjectives,
+    'target_audience': targetAudience,
+    'required_materials': requiredMaterials,
+    'competencies': competencies,
+    'expected_outcomes': expectedOutcomes,
     'status': status,
     'monthly_price': monthlyPrice,
     'modules': modules.map((e) => e.toJson()).toList(),
   };
+
+  static List<String> _stringList(dynamic value) =>
+      (value as List?)?.map((item) => item.toString()).toList() ?? const [];
 }

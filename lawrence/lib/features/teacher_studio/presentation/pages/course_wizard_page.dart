@@ -6,6 +6,7 @@ import '../controllers/course_wizard_controller.dart';
 import 'components/module_editor_dialog.dart';
 import 'components/lesson_editor_dialog.dart';
 import 'components/module_lessons_section.dart';
+import 'components/planning_phase_form.dart';
 import '../../../courses/domain/entities/course.dart';
 
 class CourseWizardPage extends ConsumerStatefulWidget {
@@ -19,17 +20,26 @@ class CourseWizardPage extends ConsumerStatefulWidget {
 class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
   int _currentStep = 0;
 
-  // Forms
+  // Forms for the persisted planning draft.
   final _basicFormKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _slugController = TextEditingController();
   final _categoryController = TextEditingController(text: "costura");
   final _summaryController = TextEditingController();
+  final _subtitleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _requirementsController = TextEditingController();
+  final _durationController = TextEditingController();
+  final _learningObjectivesController = TextEditingController();
+  final _targetAudienceController = TextEditingController();
+  final _requiredMaterialsController = TextEditingController();
+  final _competenciesController = TextEditingController();
+  final _expectedOutcomesController = TextEditingController();
   final _monthlyPriceController = TextEditingController(text: "0,00");
-  bool _isFreeCourse = false;
+  bool _isFreeCourse = true;
   String _level = 'iniciante';
+  String _courseType = 'complete';
+  String _language = 'pt-BR';
 
   @override
   void initState() {
@@ -45,8 +55,15 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
     _slugController.dispose();
     _categoryController.dispose();
     _summaryController.dispose();
+    _subtitleController.dispose();
     _descriptionController.dispose();
     _requirementsController.dispose();
+    _durationController.dispose();
+    _learningObjectivesController.dispose();
+    _targetAudienceController.dispose();
+    _requiredMaterialsController.dispose();
+    _competenciesController.dispose();
+    _expectedOutcomesController.dispose();
     _monthlyPriceController.dispose();
     super.dispose();
   }
@@ -59,11 +76,33 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
         _slugController.text = state.value!.course!.slug;
         _categoryController.text = state.value!.course!.category;
         _summaryController.text = state.value!.course!.summary;
+        _subtitleController.text = state.value!.course!.subtitle;
         _descriptionController.text = state.value!.course!.description;
         _requirementsController.text = state.value!.course!.requirements.join(
           '\n',
         );
         _level = state.value!.course!.level;
+        _courseType = state.value!.course!.courseType;
+        _language = state.value!.course!.language;
+        _durationController.text =
+            state.value!.course!.estimatedDurationMinutes?.toString() ?? '';
+        _learningObjectivesController.text = state
+            .value!
+            .course!
+            .learningObjectives
+            .join('\n');
+        _targetAudienceController.text = state.value!.course!.targetAudience
+            .join('\n');
+        _requiredMaterialsController.text = state
+            .value!
+            .course!
+            .requiredMaterials
+            .join('\n');
+        _competenciesController.text = state.value!.course!.competencies.join(
+          '\n',
+        );
+        _expectedOutcomesController.text = state.value!.course!.expectedOutcomes
+            .join('\n');
         _monthlyPriceController.text = state.value!.course!.monthlyPrice
             .toStringAsFixed(2)
             .replaceAll('.', ',');
@@ -120,12 +159,23 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
             "category": _categoryController.text.trim(),
             "level": _level,
             "summary": _summaryController.text.trim(),
+            "course_type": _courseType,
+            "subtitle": _subtitleController.text.trim(),
+            "language": _language,
+            "estimated_duration_minutes": int.tryParse(
+              _durationController.text.trim(),
+            ),
             "description": _descriptionController.text.trim(),
             "requirements": _requirementsController.text
                 .split('\n')
                 .map((requirement) => requirement.trim())
                 .where((requirement) => requirement.isNotEmpty)
                 .toList(),
+            "learning_objectives": _lines(_learningObjectivesController),
+            "target_audience": _lines(_targetAudienceController),
+            "required_materials": _lines(_requiredMaterialsController),
+            "competencies": _lines(_competenciesController),
+            "expected_outcomes": _lines(_expectedOutcomesController),
             "monthly_price": _isFreeCourse
                 ? 0.0
                 : double.parse(
@@ -140,6 +190,12 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
       }
     }
   }
+
+  List<String> _lines(TextEditingController controller) => controller.text
+      .split('\n')
+      .map((item) => item.trim())
+      .where((item) => item.isNotEmpty)
+      .toList();
 
   void _createModule() async {
     final data = await ModuleEditorDialog.show(context);
@@ -324,7 +380,7 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text(
-            "Teacher Studio - Wizard",
+            'Studio de autoria',
             style: TextStyle(fontFamily: 'Outfit', fontSize: 16),
           ),
           backgroundColor: Colors.transparent,
@@ -436,17 +492,145 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
     );
   }
 
-  Widget _buildStepBasicInfo(bool isSaving) {
+  Widget _buildStepBasicInfo(bool isSaving) => PlanningPhaseForm(
+    formKey: _basicFormKey,
+    titleController: _titleController,
+    slugController: _slugController,
+    summaryController: _summaryController,
+    subtitleController: _subtitleController,
+    descriptionController: _descriptionController,
+    requirementsController: _requirementsController,
+    durationController: _durationController,
+    learningObjectivesController: _learningObjectivesController,
+    targetAudienceController: _targetAudienceController,
+    requiredMaterialsController: _requiredMaterialsController,
+    competenciesController: _competenciesController,
+    expectedOutcomesController: _expectedOutcomesController,
+    category: _categoryController.text,
+    level: _level,
+    courseType: _courseType,
+    language: _language,
+    isSaving: isSaving,
+    onChanged: () => ref
+        .read(courseWizardControllerProvider.notifier)
+        .markUnsavedChanges(),
+    onCategoryChanged: (value) {
+      setState(() => _categoryController.text = value);
+      ref.read(courseWizardControllerProvider.notifier).markUnsavedChanges();
+    },
+    onLevelChanged: (value) {
+      setState(() => _level = value);
+      ref.read(courseWizardControllerProvider.notifier).markUnsavedChanges();
+    },
+    onCourseTypeChanged: (value) {
+      setState(() => _courseType = value);
+      ref.read(courseWizardControllerProvider.notifier).markUnsavedChanges();
+    },
+    onLanguageChanged: (value) {
+      setState(() => _language = value);
+      ref.read(courseWizardControllerProvider.notifier).markUnsavedChanges();
+    },
+    onSave: _saveBasicInfo,
+  );
+
+  Widget _buildLegacyBasicInfo(bool isSaving) {
     return Form(
       key: _basicFormKey,
       child: Container(
-        decoration: LiquidTheme.glassDecoration(radius: 16),
-        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: LawrenceColors.canvas,
+          border: Border.all(color: LawrenceColors.borderMist),
+          borderRadius: BorderRadius.circular(LawrenceRadii.card),
+        ),
+        padding: const EdgeInsets.all(LawrenceSpacing.lg),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Semantics(
+              header: true,
+              child: const Text(
+                'Planejamento do curso',
+                style: TextStyle(
+                  color: LawrenceColors.textPrimary,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(height: LawrenceSpacing.xs),
+            const Text(
+              'Fase 1 de 5 · Defina a proposta e as informações que identificam o curso.',
+              style: TextStyle(color: LawrenceColors.textSecondary),
+            ),
+            const SizedBox(height: LawrenceSpacing.lg),
+            Semantics(
+              selected: true,
+              label: 'Tipo selecionado: Curso completo',
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(LawrenceSpacing.md),
+                decoration: BoxDecoration(
+                  color: LawrenceColors.infoSurface,
+                  border: Border.all(
+                    color: LawrenceColors.actionPrimary,
+                    width: 2,
+                  ),
+                  borderRadius: BorderRadius.circular(LawrenceRadii.card),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.school_outlined,
+                      color: LawrenceColors.actionPrimary,
+                    ),
+                    SizedBox(width: LawrenceSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Curso completo',
+                            style: TextStyle(
+                              color: LawrenceColors.textPrimary,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(height: LawrenceSpacing.xxs),
+                          Text(
+                            'Formação extensa organizada em módulos, aulas, materiais e atividades.',
+                            style: TextStyle(
+                              color: LawrenceColors.textSecondary,
+                            ),
+                          ),
+                          SizedBox(height: LawrenceSpacing.xs),
+                          Text(
+                            'Os demais formatos dependem de definição do produto.',
+                            style: TextStyle(
+                              color: LawrenceColors.info,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.check_circle,
+                      color: LawrenceColors.actionPrimary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: LawrenceSpacing.xl),
+            _sectionTitle('Informações básicas'),
+            const SizedBox(height: LawrenceSpacing.md),
             TextFormField(
               controller: _titleController,
-              style: const TextStyle(color: Colors.white),
+              textInputAction: TextInputAction.next,
+              maxLength: 120,
               decoration: const InputDecoration(
                 labelText: "Título do Curso",
                 labelStyle: TextStyle(color: Colors.white60),
@@ -460,7 +644,7 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _slugController,
-              style: const TextStyle(color: Colors.white),
+              textInputAction: TextInputAction.next,
               decoration: const InputDecoration(
                 labelText: "Slug",
                 labelStyle: TextStyle(color: Colors.white60),
@@ -474,8 +658,8 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _summaryController,
-              style: const TextStyle(color: Colors.white),
               maxLines: 3,
+              maxLength: 240,
               decoration: const InputDecoration(
                 labelText: "Resumo do curso",
                 labelStyle: TextStyle(color: Colors.white60),

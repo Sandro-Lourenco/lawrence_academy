@@ -38,10 +38,29 @@ class UpdateCourseUseCase:
             title=course_data.get("title", existing.title),
             slug=course_data.get("slug", existing.slug),
             summary=course_data.get("summary", existing.summary),
+            course_type=course_data.get("course_type", existing.course_type),
+            subtitle=course_data.get("subtitle", existing.subtitle),
+            language=course_data.get("language", existing.language),
+            estimated_duration_minutes=course_data.get(
+                "estimated_duration_minutes", existing.estimated_duration_minutes
+            ),
             category=course_data.get("category", existing.category),
             level=course_data.get("level", existing.level),
             description=course_data.get("description", existing.description),
             requirements=course_data.get("requirements", existing.requirements),
+            learning_objectives=course_data.get(
+                "learning_objectives", existing.learning_objectives
+            ),
+            target_audience=course_data.get(
+                "target_audience", existing.target_audience
+            ),
+            required_materials=course_data.get(
+                "required_materials", existing.required_materials
+            ),
+            competencies=course_data.get("competencies", existing.competencies),
+            expected_outcomes=course_data.get(
+                "expected_outcomes", existing.expected_outcomes
+            ),
             thumbnail_url=course_data.get("thumbnail_url", existing.thumbnail_url),
             trailer_hls_path=course_data.get(
                 "trailer_hls_path", existing.trailer_hls_path

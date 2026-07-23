@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, status
-from typing import Optional, List
+from typing import Literal, Optional, List
 from pydantic import BaseModel, Field
 from src.core.security.security import require_role, CurrentUser
 from src.core.storage.repositories import StorageRepository
@@ -59,10 +59,19 @@ class CourseUpdateInputSchema(BaseModel):
     title: Optional[str] = None
     slug: Optional[str] = None
     summary: Optional[str] = None
+    course_type: Optional[Literal["complete", "quick", "workshop"]] = None
+    subtitle: Optional[str] = Field(default=None, max_length=160)
+    language: Optional[Literal["pt-BR", "en", "es"]] = None
+    estimated_duration_minutes: Optional[int] = Field(default=None, ge=1, le=100000)
     category: Optional[str] = None
     level: Optional[str] = None
     description: Optional[str] = None
     requirements: Optional[List[str]] = None
+    learning_objectives: Optional[List[str]] = Field(default=None, max_length=20)
+    target_audience: Optional[List[str]] = Field(default=None, max_length=20)
+    required_materials: Optional[List[str]] = Field(default=None, max_length=20)
+    competencies: Optional[List[str]] = Field(default=None, max_length=20)
+    expected_outcomes: Optional[List[str]] = Field(default=None, max_length=20)
     thumbnail_url: Optional[str] = None
     trailer_hls_path: Optional[str] = None
     monthly_price: Optional[float] = None
