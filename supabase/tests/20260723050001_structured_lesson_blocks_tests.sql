@@ -1,0 +1,11 @@
+BEGIN;
+SELECT plan(7);
+SELECT has_table('lesson_blocks');
+SELECT has_column('lesson_blocks','block_type');
+SELECT has_column('lesson_blocks','content');
+SELECT has_column('lesson_blocks','order_index');
+SELECT isnt_empty($$SELECT 1 FROM pg_class WHERE oid='public.lesson_blocks'::regclass AND relrowsecurity$$);
+SELECT isnt_empty($$SELECT 1 FROM pg_policies WHERE tablename='lesson_blocks' AND cmd='UPDATE' AND with_check IS NOT NULL$$);
+SELECT isnt_empty($$SELECT 1 FROM information_schema.role_table_grants WHERE table_name='lesson_blocks' AND grantee='service_role'$$);
+SELECT * FROM finish();
+ROLLBACK;

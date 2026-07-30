@@ -50,7 +50,10 @@ def test_teacher_create_module_success(mock_db, mock_get_user):
     response = client.post(
         "/api/v1/teacher/courses/course_uuid_1/modules",
         json={"title": "Módulo de Teste", "order_index": 0},
-        headers={"Authorization": "Bearer token"},
+        headers={
+            "Authorization": "Bearer token",
+            "Idempotency-Key": "module-create-attempt-0001",
+        },
     )
     assert response.status_code == 201
     assert response.json()["title"] == "Módulo de Teste"
@@ -65,7 +68,10 @@ def test_student_cannot_create_module(mock_db, mock_get_user):
     response = client.post(
         "/api/v1/teacher/courses/course_uuid_1/modules",
         json={"title": "Módulo de Teste"},
-        headers={"Authorization": "Bearer token"},
+        headers={
+            "Authorization": "Bearer token",
+            "Idempotency-Key": "module-create-attempt-0002",
+        },
     )
     assert response.status_code == 403
 
@@ -84,7 +90,10 @@ def test_non_owner_teacher_cannot_create_module(mock_db, mock_get_user):
     response = client.post(
         "/api/v1/teacher/courses/course_uuid_1/modules",
         json={"title": "Módulo de Teste"},
-        headers={"Authorization": "Bearer token"},
+        headers={
+            "Authorization": "Bearer token",
+            "Idempotency-Key": "module-create-attempt-0003",
+        },
     )
     assert response.status_code == 403
 
@@ -116,7 +125,10 @@ def test_admin_can_create_module(mock_db, mock_get_user):
     response = client.post(
         "/api/v1/teacher/courses/course_uuid_1/modules",
         json={"title": "Módulo de Admin"},
-        headers={"Authorization": "Bearer token"},
+        headers={
+            "Authorization": "Bearer token",
+            "Idempotency-Key": "module-create-attempt-0003",
+        },
     )
     assert response.status_code == 201
 
@@ -144,7 +156,7 @@ def test_patch_module_partial_update(mock_db, mock_get_user):
     )
 
     # Mock update
-    mock_db.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(
+    mock_db.table.return_value.update.return_value.eq.return_value.select.return_value.execute.return_value = MagicMock(
         data=[
             {
                 "id": "module_uuid_1",

@@ -9,6 +9,8 @@ class StatelessPlayerView extends StatelessWidget {
   final VoidCallback onReplay;
   final VoidCallback onRetry;
   final VoidCallback onManageAccess;
+  final VoidCallback onFullscreen;
+  final bool isFullscreen;
 
   const StatelessPlayerView({
     super.key,
@@ -17,6 +19,8 @@ class StatelessPlayerView extends StatelessWidget {
     required this.onReplay,
     required this.onRetry,
     required this.onManageAccess,
+    required this.onFullscreen,
+    this.isFullscreen = false,
   });
 
   @override
@@ -71,7 +75,12 @@ class StatelessPlayerView extends StatelessWidget {
                 child: VideoPlayer(controller),
               ),
             ),
-            _PlayerControls(controller: controller, onPlayPause: onPlayPause),
+            _PlayerControls(
+              controller: controller,
+              onPlayPause: onPlayPause,
+              onFullscreen: onFullscreen,
+              isFullscreen: isFullscreen,
+            ),
           ],
         );
       case PlayerStatus.completed:
@@ -144,8 +153,15 @@ class StatelessPlayerView extends StatelessWidget {
 class _PlayerControls extends StatelessWidget {
   final VideoPlayerController controller;
   final VoidCallback onPlayPause;
+  final VoidCallback onFullscreen;
+  final bool isFullscreen;
 
-  const _PlayerControls({required this.controller, required this.onPlayPause});
+  const _PlayerControls({
+    required this.controller,
+    required this.onPlayPause,
+    required this.onFullscreen,
+    required this.isFullscreen,
+  });
 
   String _formatDuration(Duration duration) {
     final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -194,6 +210,18 @@ class _PlayerControls extends StatelessWidget {
                         ),
                       );
                     },
+                  ),
+                  IconButton(
+                    tooltip: isFullscreen
+                        ? 'Sair da tela cheia'
+                        : 'Entrar em tela cheia',
+                    onPressed: onFullscreen,
+                    icon: Icon(
+                      isFullscreen
+                          ? Icons.fullscreen_exit_rounded
+                          : Icons.fullscreen_rounded,
+                    ),
+                    color: Colors.white,
                   ),
                 ],
               ),

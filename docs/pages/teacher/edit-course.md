@@ -591,7 +591,9 @@ POST /teacher/courses/{id}/archive
 
 GET /teacher/courses/{id}/versions
 
-POST /teacher/courses/{id}/restore-version
+GET /teacher/courses/{id}/versions/{versionId}
+
+POST /teacher/courses/{id}/versions/{versionId}/restore
 
 POST /teacher/upload
 
@@ -966,3 +968,24 @@ A pré-visualização deve mostrar exatamente como o aluno verá o curso após a
 - A interface deve seguir integralmente o Lawrence Design System.
 - O efeito **Liquid Glass** deve ser utilizado apenas em elementos flutuantes.
 - A experiência deve ser rápida, minimalista e inspirada no Apple Pages, Notion e Linear.
+## Implementação do ciclo de vida
+
+O painel diferencia cursos publicados, rascunhos, em revisão, despublicados e
+arquivados. Despublicar, arquivar e restaurar exigem autorização de
+proprietário no backend, admitem motivo e registram uma transição auditável.
+Um curso restaurado volta como despublicado e passa novamente pelo checklist
+antes da republicação.
+
+O histórico editorial com comparação e rollback continua separado do
+histórico operacional de status. Ele não deve ser apresentado como
+implementado até existir isolamento entre a versão pública e o rascunho.
+## Implementação do isolamento editorial
+
+Cada publicação cria uma versão imutável e numerada do agregado completo. O
+aluno consome exclusivamente a versão vigente, enquanto o professor continua
+editando a fonte de autoria. A seção de revisão lista o histórico de versões e
+identifica a versão atual.
+
+Comparação visual e restauração de uma versão antiga ainda permanecem
+pendentes. Restauração não deve ser habilitada até possuir prévia, confirmação
+e nova publicação auditável; versões anteriores nunca são sobrescritas.

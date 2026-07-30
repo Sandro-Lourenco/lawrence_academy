@@ -10,7 +10,7 @@ class GetCourseBySlugUseCase:
         self.repository = repository
 
     async def execute(self, slug: str) -> Course:
-        course = await self.repository.get_by_slug(slug)
+        course = await self.repository.get_published_by_slug(slug)
         if not course or course.status != "published":
             raise NotFoundError("Curso não encontrado.")
         return course

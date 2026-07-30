@@ -1,4 +1,5 @@
 import '../../../../features/courses/domain/entities/course.dart';
+import '../entities/upload_file_payload.dart';
 import '../repositories/teacher_course_repository.dart';
 
 class TeacherCourseUseCases {
@@ -14,20 +15,31 @@ class TeacherCourseUseCases {
     return _repository.getTeacherCourse(courseId);
   }
 
-  Future<Course> createCourse(Map<String, dynamic> data) {
-    return _repository.createCourse(data);
+  Future<Course> createCourse(
+    Map<String, dynamic> data, {
+    required String idempotencyKey,
+  }) {
+    return _repository.createCourse(data, idempotencyKey: idempotencyKey);
   }
 
   Future<Course> updateCourse(String courseId, Map<String, dynamic> data) {
     return _repository.updateCourse(courseId, data);
   }
 
-  Future<void> archiveCourse(String courseId) {
-    return _repository.archiveCourse(courseId);
+  Future<void> archiveCourse(String courseId, {String? reason}) {
+    return _repository.archiveCourse(courseId, reason: reason);
   }
 
-  Future<Module> createModule(String courseId, Map<String, dynamic> data) {
-    return _repository.createModule(courseId, data);
+  Future<Module> createModule(
+    String courseId,
+    Map<String, dynamic> data, {
+    required String idempotencyKey,
+  }) {
+    return _repository.createModule(
+      courseId,
+      data,
+      idempotencyKey: idempotencyKey,
+    );
   }
 
   Future<Module> updateModule(
@@ -45,9 +57,15 @@ class TeacherCourseUseCases {
   Future<Lesson> createLesson(
     String courseId,
     String moduleId,
-    Map<String, dynamic> data,
-  ) {
-    return _repository.createLesson(courseId, moduleId, data);
+    Map<String, dynamic> data, {
+    required String idempotencyKey,
+  }) {
+    return _repository.createLesson(
+      courseId,
+      moduleId,
+      data,
+      idempotencyKey: idempotencyKey,
+    );
   }
 
   Future<Lesson> updateLesson(
@@ -65,18 +83,99 @@ class TeacherCourseUseCases {
   Future<void> uploadLessonVideo({
     required String courseId,
     required String lessonId,
-    required String filePath,
-    required String filename,
-    required int sizeBytes,
-    required String contentType,
+    required UploadFilePayload file,
+    required String idempotencyKey,
   }) {
     return _repository.uploadLessonVideo(
       courseId: courseId,
       lessonId: lessonId,
-      filePath: filePath,
-      filename: filename,
-      sizeBytes: sizeBytes,
-      contentType: contentType,
+      file: file,
+      idempotencyKey: idempotencyKey,
     );
   }
+
+  Future<void> uploadCourseMedia({
+    required String courseId,
+    required String assetType,
+    required UploadFilePayload file,
+    String altText = '',
+  }) => _repository.uploadCourseMedia(
+    courseId: courseId,
+    assetType: assetType,
+    file: file,
+    altText: altText,
+  );
+  Future<LessonBlock> createLessonBlock(
+    String courseId,
+    String lessonId,
+    Map<String, dynamic> data, {
+    required String idempotencyKey,
+  }) => _repository.createLessonBlock(
+    courseId,
+    lessonId,
+    data,
+    idempotencyKey: idempotencyKey,
+  );
+  Future<List<LessonBlock>> listLessonBlocks(
+    String courseId,
+    String lessonId,
+  ) => _repository.listLessonBlocks(courseId, lessonId);
+  Future<LessonBlock> updateLessonBlock(
+    String courseId,
+    String lessonId,
+    String blockId,
+    Map<String, dynamic> data,
+  ) => _repository.updateLessonBlock(courseId, lessonId, blockId, data);
+  Future<LessonBlock> duplicateLessonBlock(
+    String courseId,
+    String lessonId,
+    String blockId, {
+    required String idempotencyKey,
+  }) => _repository.duplicateLessonBlock(
+    courseId,
+    lessonId,
+    blockId,
+    idempotencyKey: idempotencyKey,
+  );
+  Future<void> deleteLessonBlock(
+    String courseId,
+    String lessonId,
+    String blockId,
+  ) => _repository.deleteLessonBlock(courseId, lessonId, blockId);
+  Future<Map<String, String>> uploadLessonAsset({
+    required String courseId,
+    required String lessonId,
+    required UploadFilePayload file,
+  }) => _repository.uploadLessonAsset(
+    courseId: courseId,
+    lessonId: lessonId,
+    file: file,
+  );
+  Future<Map<String, dynamic>> getPublicationChecklist(String courseId) =>
+      _repository.getPublicationChecklist(courseId);
+  Future<Course> publishCourse(
+    String courseId, {
+    required String idempotencyKey,
+  }) => _repository.publishCourse(courseId, idempotencyKey: idempotencyKey);
+  Future<List<Map<String, dynamic>>> getCourseVersions(String courseId) =>
+      _repository.getCourseVersions(courseId);
+  Future<Map<String, dynamic>> getCourseVersion(
+    String courseId,
+    String versionId,
+  ) => _repository.getCourseVersion(courseId, versionId);
+  Future<Course> restoreCourseVersion(
+    String courseId,
+    String versionId, {
+    required String expectedAuthoringUpdatedAt,
+    String? reason,
+  }) => _repository.restoreCourseVersion(
+    courseId,
+    versionId,
+    expectedAuthoringUpdatedAt: expectedAuthoringUpdatedAt,
+    reason: reason,
+  );
+  Future<void> unpublishCourse(String courseId, {String? reason}) =>
+      _repository.unpublishCourse(courseId, reason: reason);
+  Future<void> restoreCourse(String courseId, {String? reason}) =>
+      _repository.restoreCourse(courseId, reason: reason);
 }

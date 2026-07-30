@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Header, status
 from src.core.security.security import get_current_user, require_role, CurrentUser
 from src.core.database.database import get_admin_supabase_client
 from src.modules.courses.infrastructure.repositories.supabase_course_repository import (
@@ -70,9 +70,7 @@ def _to_legacy_dict(course):
 
 
 @router.get("/slug/{slug}")
-async def get_course_by_slug(
-    slug: str, current_user: CurrentUser = Depends(get_current_user)
-):
+async def get_course_by_slug(slug: str, current_user: CurrentUser = Depends(get_current_user)):
     """Retorna os detalhes completos de um curso pelo Slug (Legacy route redirection)."""
     repo = SupabaseCourseRepository(get_admin_supabase_client())
     use_case = GetCourseBySlugUseCase(repo)
@@ -90,9 +88,7 @@ async def get_published_courses(current_user: CurrentUser = Depends(get_current_
 
 
 @router.get("/{course_id}")
-async def get_course_details(
-    course_id: str, current_user: CurrentUser = Depends(get_current_user)
-):
+async def get_course_details(course_id: str, current_user: CurrentUser = Depends(get_current_user)):
     """Retorna os detalhes completos de um curso pelo ID (Legacy route redirection)."""
     repo = SupabaseCourseRepository(get_admin_supabase_client())
     use_case = GetCourseUseCase(repo)
@@ -116,6 +112,9 @@ async def create_course(
 async def update_course(
     course_id: str,
     course_data: CourseCreateSchema,
+    expected_authoring_revision: int = Header(
+        alias="If-Match-Authoring-Revision", ge=0
+    ),
     current_user: CurrentUser = Depends(require_role(["teacher", "admin"])),
 ):
     """Atualiza as informações de um curso existente (Legacy route redirection)."""
@@ -126,6 +125,7 @@ async def update_course(
         course_data=course_data.model_dump(),
         current_user_id=current_user.id,
         current_user_role=current_user.role,
+        expected_authoring_revision=expected_authoring_revision,
     )
     return _to_legacy_dict(course)
 

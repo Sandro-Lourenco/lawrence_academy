@@ -35,6 +35,7 @@ from src.core.errors.errors import (
     ValidationError,
     ExternalServiceError,
 )
+from src.core.storage.supabase_storage_repository import SupabaseStorageRepository
 
 
 # ============================================================
@@ -77,6 +78,7 @@ class MockStorageRepository:
     def __init__(self):
         self.generated_urls: list = []
         self.created_jobs: list = []
+        self.candidate_link_calls: list = []
         self.existing_job: Optional[dict] = None  # para simular idempotência
         self.signed_url = "https://example.supabase.co/storage/v1/object/sign/raw-videos/uploads/course/uuid/lesson.mp4?token=MOCK_TOKEN"
         self.fail_generate_url = False
@@ -100,6 +102,17 @@ class MockStorageRepository:
         idempotency_key: str,
         raw_video_path: str,
     ) -> str:
+        self.candidate_link_calls.append(
+            {
+                "lesson_id": lesson_id,
+                "course_id": course_id,
+                "initiated_by": initiated_by,
+                "idempotency_key": idempotency_key,
+                "raw_video_path": raw_video_path,
+            }
+        )
+        if self.existing_job is not None:
+            return str(self.existing_job["id"])
         job = {
             "id": "job-uuid-9999",
             "lesson_id": lesson_id,
@@ -384,6 +397,15 @@ def test_idempotency_key_existing_job_reuses():
     assert result["path"] == existing_path
     # Não deve criar novo job
     assert len(storage_repo.created_jobs) == 0
+    assert storage_repo.candidate_link_calls == [
+        {
+            "lesson_id": DEFAULT_PARAMS["lesson_id"],
+            "course_id": DEFAULT_PARAMS["course_id"],
+            "initiated_by": DEFAULT_PARAMS["user_id"],
+            "idempotency_key": "chave-existente-unica",
+            "raw_video_path": existing_path,
+        }
+    ]
     # Deve gerar nova URL para o mesmo path
     assert existing_path in storage_repo.generated_urls
 
@@ -395,6 +417,40 @@ def test_no_idempotency_key_creates_new_job():
     # Deve criar novo job
     assert len(storage_repo.created_jobs) == 1
     assert result["job_id"] == "job-uuid-9999"
+
+
+def test_supabase_repository_registers_job_and_lesson_candidate_atomically():
+    response = type("Response", (), {"data": "job-atomic"})()
+    rpc_query = type("RpcQuery", (), {"execute": lambda self: response})()
+
+    class Client:
+        def rpc(self, function_name, params):
+            self.function_name = function_name
+            self.params = params
+            return rpc_query
+
+    client = Client()
+    repository = SupabaseStorageRepository(client)
+
+    result = asyncio.run(
+        repository.create_upload_job(
+            lesson_id="lesson-1",
+            course_id="course-1",
+            initiated_by="teacher-1",
+            idempotency_key="upload-key-1",
+            raw_video_path="uploads/course-1/upload-1/lesson-1.mp4",
+        )
+    )
+
+    assert result == "job-atomic"
+    assert client.function_name == "register_lesson_video_upload_job"
+    assert client.params == {
+        "p_lesson_id": "lesson-1",
+        "p_course_id": "course-1",
+        "p_initiated_by": "teacher-1",
+        "p_idempotency_key": "upload-key-1",
+        "p_raw_video_path": "uploads/course-1/upload-1/lesson-1.mp4",
+    }
 
 
 # ============================================================

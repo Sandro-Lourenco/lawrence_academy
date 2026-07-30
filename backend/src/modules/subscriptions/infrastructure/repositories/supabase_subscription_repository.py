@@ -4,6 +4,7 @@ from decimal import Decimal
 from datetime import datetime
 from supabase import Client
 
+from src.core.concurrency import run_sync_io
 from src.modules.subscriptions.domain.entities import Subscription
 from src.modules.subscriptions.domain.repositories import SubscriptionRepository
 
@@ -46,38 +47,38 @@ class SupabaseSubscriptionRepository(SubscriptionRepository):
     async def get_by_student_and_course(
         self, student_id: str, course_id: str
     ) -> List[Subscription]:
-        res = (
+        query = (
             self.client.table("subscriptions")
             .select("*")
             .eq("student_id", student_id)
             .eq("course_id", course_id)
-            .execute()
         )
+        res = await run_sync_io(query.execute)
         return [
             self._map_row(typing.cast(dict[str, typing.Any], r))
             for r in (res.data or [])
         ]
 
     async def get_by_student(self, student_id: str) -> List[Subscription]:
-        res = (
+        query = (
             self.client.table("subscriptions")
             .select("*")
             .eq("student_id", student_id)
-            .execute()
         )
+        res = await run_sync_io(query.execute)
         return [
             self._map_row(typing.cast(dict[str, typing.Any], r))
             for r in (res.data or [])
         ]
 
     async def get_by_id(self, subscription_id: str) -> Optional[Subscription]:
-        res = (
+        query = (
             self.client.table("subscriptions")
             .select("*")
             .eq("id", subscription_id)
             .maybe_single()
-            .execute()
         )
+        res = await run_sync_io(query.execute)
         if res is None or not res.data:
             return None
         return self._map_row(typing.cast(dict[str, typing.Any], res.data))
@@ -90,12 +91,12 @@ class SupabaseSubscriptionRepository(SubscriptionRepository):
             "canceled_at": canceled_at.isoformat(),
             "updated_at": canceled_at.isoformat(),
         }
-        res = (
+        query = (
             self.client.table("subscriptions")
             .update(typing.cast(typing.Any, data))
             .eq("id", subscription_id)
-            .execute()
         )
+        res = await run_sync_io(query.execute)
         if not isinstance(res.data, list) or not res.data:
             raise RuntimeError("Subscription cancellation was not persisted")
         return self._map_row(typing.cast(dict[str, typing.Any], res.data[0]))
@@ -114,12 +115,12 @@ class SupabaseSubscriptionRepository(SubscriptionRepository):
             "current_period_end": subscription.current_period_end.isoformat(),
             "cancel_at_period_end": subscription.cancel_at_period_end,
         }
-        res = (
+        query = (
             self.client.table("subscriptions")
             .upsert(
                 typing.cast(typing.Any, data), on_conflict="provider_subscription_id"
             )
-            .execute()
         )
+        res = await run_sync_io(query.execute)
         row = res.data[0] if isinstance(res.data, list) and res.data else data
         return self._map_row(typing.cast(dict[str, typing.Any], row))

@@ -8,12 +8,14 @@ class CatalogFilters {
   final String? category;
   final String? level;
   final String access;
+  final String contentType;
 
   const CatalogFilters({
     this.query = '',
     this.category,
     this.level,
     this.access = 'all',
+    this.contentType = 'all',
   });
 
   @override
@@ -23,31 +25,41 @@ class CatalogFilters {
           query == other.query &&
           category == other.category &&
           level == other.level &&
-          access == other.access;
+          access == other.access &&
+          contentType == other.contentType;
 
   @override
-  int get hashCode => Object.hash(query, category, level, access);
+  int get hashCode => Object.hash(query, category, level, access, contentType);
 
   bool get hasActiveFilters =>
       query.trim().isNotEmpty ||
       category != null ||
       level != null ||
-      access != 'all';
+      access != 'all' ||
+      contentType != 'all';
+
+  bool get hasActiveFacets =>
+      category != null || level != null || access != 'all';
 
   Map<String, String> toQueryParameters() => {
     if (query.trim().isNotEmpty) 'q': query.trim(),
     'category': ?category,
     'level': ?level,
     if (access != 'all') 'access': access,
+    if (contentType != 'all') 'content': contentType,
   };
 
   factory CatalogFilters.fromQueryParameters(Map<String, String> parameters) {
     final access = parameters['access'];
+    final contentType = parameters['content'];
     return CatalogFilters(
       query: parameters['q']?.trim() ?? '',
       category: _emptyToNull(parameters['category']),
       level: _emptyToNull(parameters['level']),
       access: access == 'free' || access == 'paid' ? access! : 'all',
+      contentType: contentType == 'courses' || contentType == 'books'
+          ? contentType!
+          : 'all',
     );
   }
 
@@ -61,6 +73,7 @@ class CatalogFilters {
     String? category,
     String? level,
     String? access,
+    String? contentType,
     bool clearCategory = false,
     bool clearLevel = false,
   }) {
@@ -69,6 +82,7 @@ class CatalogFilters {
       category: clearCategory ? null : category ?? this.category,
       level: clearLevel ? null : level ?? this.level,
       access: access ?? this.access,
+      contentType: contentType ?? this.contentType,
     );
   }
 }
@@ -86,6 +100,7 @@ class CatalogFiltersNotifier extends StateNotifier<CatalogFilters> {
   void setLevel(String? value) =>
       state = state.copyWith(level: value, clearLevel: value == null);
   void setAccess(String value) => state = state.copyWith(access: value);
+  void setContentType(String value) => state = state.copyWith(contentType: value);
   void clear() => state = const CatalogFilters();
 }
 

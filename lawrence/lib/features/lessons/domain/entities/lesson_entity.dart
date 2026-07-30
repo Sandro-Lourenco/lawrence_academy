@@ -9,6 +9,7 @@ class LessonEntity {
   final String hlsStoragePath;
   final String? materialPdfUrl;
   final String status; // 'preview', 'published', 'draft'
+  final List<Map<String, dynamic>> blocks;
 
   LessonEntity({
     required this.id,
@@ -21,6 +22,7 @@ class LessonEntity {
     required this.hlsStoragePath,
     this.materialPdfUrl,
     required this.status,
+    this.blocks = const [],
   });
 
   bool get isPreview => status == 'preview';

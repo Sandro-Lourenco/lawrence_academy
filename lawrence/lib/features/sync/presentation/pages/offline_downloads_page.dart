@@ -13,8 +13,7 @@ class OfflineDownloadsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final downloads = ref.watch(downloadProvider);
-    final syncState =
-        SyncState.synced; // TODO: Implementar real syncState from provider
+    const syncState = SyncState.stopped;
     final hasDownloads = downloads.isNotEmpty;
 
     return Scaffold(
@@ -52,7 +51,10 @@ class OfflineDownloadsPage extends ConsumerWidget {
                 horizontal: 16.0,
                 vertical: 8.0,
               ),
-              child: SyncStatusBanner(state: syncState),
+              child: const SyncStatusBanner(
+                state: syncState,
+                message: 'Sincronização automática indisponível nesta versão',
+              ),
             ),
           ),
           if (!hasDownloads)
@@ -100,7 +102,7 @@ class OfflineDownloadsPage extends ConsumerWidget {
 
                   return OfflineDownloadCard(
                     title: 'Aula: $lessonId',
-                    subtitle: 'Curso Associado', // TODO: Fetch from metadata
+                    subtitle: 'Conteúdo salvo para acesso offline',
                     progress: progress,
                     status: statusText,
                     sizeInfo:
@@ -116,9 +118,7 @@ class OfflineDownloadsPage extends ConsumerWidget {
                             .startDownload(lessonId, task.url);
                       }
                     },
-                    onCancel: () {
-                      // TODO: cancel download method doesn't exist yet maybe?
-                    },
+                    onCancel: null,
                   );
                 }, childCount: downloads.length),
               ),

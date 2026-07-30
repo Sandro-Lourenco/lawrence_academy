@@ -13,13 +13,9 @@ class FiltersSidebar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final filters = ref.watch(catalogFiltersProvider);
     final notifier = ref.read(catalogFiltersProvider.notifier);
-
     return Material(
-      color: LawrenceColors.canvas,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(LawrenceRadii.card),
-        side: const BorderSide(color: LawrenceColors.borderMist),
-      ),
+      color: const Color(0xFFEAF0FB),
+      shape: const RoundedRectangleBorder(),
       child: Padding(
         padding: const EdgeInsets.all(LawrenceSpacing.lg),
         child: Column(
@@ -33,8 +29,8 @@ class FiltersSidebar extends ConsumerWidget {
                     'Filtros',
                     style: TextStyle(
                       color: LawrenceColors.brandNavy,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -47,31 +43,79 @@ class FiltersSidebar extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: LawrenceSpacing.lg),
-            _FilterGroup(
-              label: 'Categoria',
-              selected: filters.category,
-              values: const {
-                'costura': 'Costura',
-                'modelagem': 'Modelagem',
-                'alfaiataria': 'Alfaiataria',
-              },
-              onSelected: notifier.setCategory,
+            const _GroupLabel('Acesso'),
+            _SquareChoice(
+              label: 'Todos',
+              selected: filters.access == 'all',
+              onChanged: () => notifier.setAccess('all'),
+            ),
+            _SquareChoice(
+              label: 'Gratuitos',
+              selected: filters.access == 'free',
+              onChanged: () => notifier.setAccess('free'),
+            ),
+            _SquareChoice(
+              label: 'Assinatura mensal',
+              selected: filters.access == 'paid',
+              onChanged: () => notifier.setAccess('paid'),
             ),
             const SizedBox(height: LawrenceSpacing.lg),
-            _FilterGroup(
-              label: 'Nível',
-              selected: filters.level,
-              values: const {
-                'iniciante': 'Iniciante',
-                'intermediario': 'Intermediário',
-                'avancado': 'Avançado',
-              },
-              onSelected: notifier.setLevel,
+            const _GroupLabel('Categorias'),
+            _SquareChoice(
+              label: 'Costura',
+              selected: filters.category == 'costura',
+              onChanged: () => notifier.setCategory(
+                filters.category == 'costura' ? null : 'costura',
+              ),
             ),
-            if (filters.hasActiveFilters) ...[
+            _SquareChoice(
+              label: 'Modelagem',
+              selected: filters.category == 'modelagem',
+              onChanged: () => notifier.setCategory(
+                filters.category == 'modelagem' ? null : 'modelagem',
+              ),
+            ),
+            _SquareChoice(
+              label: 'Alfaiataria',
+              selected: filters.category == 'alfaiataria',
+              onChanged: () => notifier.setCategory(
+                filters.category == 'alfaiataria' ? null : 'alfaiataria',
+              ),
+            ),
+            const SizedBox(height: LawrenceSpacing.lg),
+            const _GroupLabel('Nível'),
+            _SquareChoice(
+              label: 'Iniciante',
+              selected: filters.level == 'iniciante',
+              onChanged: () => notifier.setLevel(
+                filters.level == 'iniciante' ? null : 'iniciante',
+              ),
+            ),
+            _SquareChoice(
+              label: 'Intermediário',
+              selected: filters.level == 'intermediario',
+              onChanged: () => notifier.setLevel(
+                filters.level == 'intermediario' ? null : 'intermediario',
+              ),
+            ),
+            _SquareChoice(
+              label: 'Avançado',
+              selected: filters.level == 'avancado',
+              onChanged: () => notifier.setLevel(
+                filters.level == 'avancado' ? null : 'avancado',
+              ),
+            ),
+            if (filters.hasActiveFacets) ...[
               const SizedBox(height: LawrenceSpacing.lg),
               OutlinedButton.icon(
-                onPressed: notifier.clear,
+                style: OutlinedButton.styleFrom(
+                  shape: const RoundedRectangleBorder(),
+                ),
+                onPressed: () {
+                  final content = filters.contentType;
+                  notifier.clear();
+                  notifier.setContentType(content);
+                },
                 icon: const Icon(Icons.filter_alt_off_outlined),
                 label: const Text('Limpar filtros'),
               ),
@@ -83,51 +127,83 @@ class FiltersSidebar extends ConsumerWidget {
   }
 }
 
-class _FilterGroup extends StatelessWidget {
+class _GroupLabel extends StatelessWidget {
   final String label;
-  final String? selected;
-  final Map<String, String> values;
-  final ValueChanged<String?> onSelected;
 
-  const _FilterGroup({
+  const _GroupLabel(this.label);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: LawrenceSpacing.sm),
+    child: Text(
+      label.toUpperCase(),
+      style: const TextStyle(
+        color: LawrenceColors.textSecondary,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1,
+      ),
+    ),
+  );
+}
+
+class _SquareChoice extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onChanged;
+
+  const _SquareChoice({
     required this.label,
     required this.selected,
-    required this.values,
-    required this.onSelected,
+    required this.onChanged,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      container: true,
-      label: 'Filtro por $label',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: LawrenceColors.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: LawrenceSpacing.sm),
-          Wrap(
-            spacing: LawrenceSpacing.xs,
-            runSpacing: LawrenceSpacing.xs,
-            children: [
-              for (final entry in values.entries)
-                FilterChip(
-                  label: Text(entry.value),
-                  selected: selected == entry.key,
-                  showCheckmark: true,
-                  onSelected: (isSelected) =>
-                      onSelected(isSelected ? entry.key : null),
+  Widget build(BuildContext context) => Semantics(
+    checked: selected,
+    button: true,
+    child: InkWell(
+      onTap: onChanged,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(
+          children: [
+            AnimatedContainer(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 180),
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: selected
+                    ? LawrenceColors.actionPrimary
+                    : LawrenceColors.canvas,
+                border: Border.all(
+                  color: selected
+                      ? LawrenceColors.actionPrimary
+                      : LawrenceColors.borderMist,
+                  width: 2,
                 ),
-            ],
-          ),
-        ],
+              ),
+              child: selected
+                  ? const Icon(Icons.check, color: Colors.white, size: 18)
+                  : null,
+            ),
+            const SizedBox(width: LawrenceSpacing.sm),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: selected
+                      ? LawrenceColors.actionPrimary
+                      : LawrenceColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-    );
-  }
+    ),
+  );
 }

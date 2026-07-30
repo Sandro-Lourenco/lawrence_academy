@@ -38,10 +38,11 @@ class SupabaseAssessmentRepository(AssessmentRepository):
     def _map_task_row(self, row: dict) -> Task:
         return Task(
             id=row.get("id", ""),
+            course_id=row.get("course_id", ""),
             lesson_id=row.get("lesson_id", ""),
             title=row.get("title", ""),
             task_type=row.get("task_type", ""),
-            description=row.get("description"),
+            description=row.get("prompt_question"),
             options=row.get("options"),
             correct_option=row.get("correct_option"),
             max_attempts=row.get("max_attempts", 1),
@@ -158,3 +159,43 @@ class SupabaseAssessmentRepository(AssessmentRepository):
         if not res.data:
             raise NotFoundError("Submissão não encontrada para avaliação.")
         return self._map_row(typing.cast(dict[str, typing.Any], res.data[0]))
+
+    async def save_task(self, task: Task) -> Task:
+        data = {
+            "course_id": task.course_id,
+            "lesson_id": task.lesson_id,
+            "title": task.title,
+            "prompt_question": task.description or "",
+            "task_type": task.task_type,
+            "options": task.options,
+            "correct_option": task.correct_option,
+            "max_attempts": task.max_attempts,
+            "passing_score": float(task.passing_score) if task.passing_score is not None else None,
+        }
+        if task.id:
+            res = (
+                self.client.table("tasks")
+                .update(typing.cast(typing.Any, data))
+                .eq("id", task.id)
+                .execute()
+            )
+        else:
+            res = (
+                self.client.table("tasks")
+                .insert(typing.cast(typing.Any, data))
+                .execute()
+            )
+        if not res.data:
+            raise NotFoundError("Falha ao salvar tarefa.")
+        row = res.data[0] if isinstance(res.data, list) else res.data
+        return self._map_task_row(typing.cast(dict[str, typing.Any], row))
+
+    async def delete_task(self, task_id: str) -> None:
+        res = (
+            self.client.table("tasks")
+            .update({"deleted_at": datetime.now(timezone.utc).isoformat()})
+            .eq("id", task_id)
+            .execute()
+        )
+        if not res.data:
+            raise NotFoundError("Tarefa não encontrada para exclusão.")

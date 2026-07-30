@@ -1,6 +1,7 @@
 import typing
 from typing import Optional
 from supabase import Client
+from src.core.concurrency import run_sync_io
 from src.modules.profiles.domain.entities import Profile
 from src.modules.profiles.domain.repositories import ProfileRepository
 from src.core.errors.errors import NotFoundError
@@ -13,13 +14,13 @@ class SupabaseProfileRepository(ProfileRepository):
         self.client = client
 
     async def get_by_id(self, user_id: str) -> Optional[Profile]:
-        res = (
+        query = (
             self.client.table("profiles")
             .select("*")
             .eq("id", user_id)
             .maybe_single()
-            .execute()
         )
+        res = await run_sync_io(query.execute)
 
         if res is None or not res.data:
             return None
@@ -42,12 +43,12 @@ class SupabaseProfileRepository(ProfileRepository):
         if referred_by is not None:
             update_data["referred_by"] = referred_by
 
-        res = (
+        query = (
             self.client.table("profiles")
             .update(typing.cast(typing.Any, update_data))
             .eq("id", user_id)
-            .execute()
         )
+        res = await run_sync_io(query.execute)
 
         if not res.data:
             raise NotFoundError("Perfil não encontrado para atualização.")

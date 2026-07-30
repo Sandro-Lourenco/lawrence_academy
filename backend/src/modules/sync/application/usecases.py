@@ -3,6 +3,9 @@ import uuid
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
+from src.core.concurrency import run_sync_io
+from src.core.errors.errors import ExternalServiceError
+from src.core.storage.public_url import to_public_supabase_url
 from src.modules.sync.domain.entities import LessonProgress
 from src.modules.sync.domain.repositories import (
     LessonProgressRepository,
@@ -41,7 +44,8 @@ class TelemetryAggregationService:
 
     async def process_event(self, user_id: str, event: dict) -> bool:
         payload = event.get("payload", {})
-        return self.event_repository.append_event(
+        return await run_sync_io(
+            self.event_repository.append_event,
             event_type=event["action"],
             event_id=event["id"],
             idempotency_key=event["idempotency_key"],
@@ -64,6 +68,9 @@ class ProcessLessonProgressEventUseCase:
         self.validator = AntiFraudProgressValidator()
 
     async def execute(self, student_id: str, event: dict) -> LessonProgress:
+        return await run_sync_io(self._execute_sync, student_id, event)
+
+    def _execute_sync(self, student_id: str, event: dict) -> LessonProgress:
         payload = ProgressPayload.model_validate(event.get("payload", {}))
         payload_dict = payload.model_dump(mode="json")
         if not self.validator.validate_progress(
@@ -226,34 +233,43 @@ class GenerateDownloadTokenUseCase:
         )
         token = token_data["token"]
         payload = token_data["payload"]
-        token_repository.register_token(
+        registered = await run_sync_io(
+            token_repository.register_token,
             jti=payload["jti"],
             user_id=user_id,
             lesson_id=request.lesson_id,
             expires_at=payload["exp"],
         )
+        if not registered:
+            raise ExternalServiceError(
+                message="Não foi possível registrar a autorização de download.",
+                provider="supabase",
+                request_id=correlation_id,
+            )
 
-        signed_hls_url = (
-            "https://mock.supabase.co/storage/v1/object/sign/lessons/"
-            f"{request.course_id}/{request.lesson_id}/index.m3u8?token=mock"
-        )
         try:
-            result = database.db.storage.from_("lessons").create_signed_url(
+            result = await run_sync_io(
+                database.db.storage.from_("lessons").create_signed_url,
                 f"{request.course_id}/{request.lesson_id}/index.m3u8",
                 duration_seconds,
             )
             if isinstance(result, dict) and "signedURL" in result:
-                signed_hls_url = str(result["signedURL"])
+                signed_hls_url = to_public_supabase_url(str(result["signedURL"]))
             elif hasattr(result, "signed_url"):
-                signed_hls_url = str(result.signed_url)
+                signed_hls_url = to_public_supabase_url(str(result.signed_url))
             else:
-                signed_hls_url = str(result)
+                raise ValueError("Storage returned an invalid signed URL response")
         except Exception as error:
             logger.error(
                 "Signed URL generation failed correlation_id=%s error=%s",
                 correlation_id,
                 type(error).__name__,
             )
+            raise ExternalServiceError(
+                message="Não foi possível gerar a URL segura de download.",
+                provider="supabase",
+                request_id=correlation_id,
+            ) from error
 
         return DownloadTokenResponse(
             download_token=token,

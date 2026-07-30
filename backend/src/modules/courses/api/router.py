@@ -48,7 +48,12 @@ async def get_lesson(
     """Retorna os detalhes de uma aula específica associada a um curso (Legacy route redirection)."""
     repo = SupabaseCourseRepository(get_admin_supabase_client())
     use_case = GetLessonUseCase(repo)
-    lesson = await use_case.execute(course_id=id, lesson_id=lesson_id)
+    lesson = await use_case.execute(
+        user_id=current_user.id,
+        role=current_user.role,
+        course_id=id,
+        lesson_id=lesson_id,
+    )
     return {
         "id": lesson.id,
         "module_id": lesson.module_id,

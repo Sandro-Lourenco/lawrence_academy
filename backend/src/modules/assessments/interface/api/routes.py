@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+from typing import Optional, Dict, Any
+from decimal import Decimal
 from src.core.security.security import get_current_user, require_role, CurrentUser
 from src.modules.assessments.domain.repositories import AssessmentRepository
 from src.modules.assessments.interface.api.dependencies import (
@@ -16,6 +17,15 @@ from src.modules.assessments.application.use_cases.grade_submission_use_case imp
 )
 from src.modules.assessments.application.use_cases.get_lesson_tasks_use_case import (
     GetLessonTasksUseCase,
+)
+from src.modules.assessments.application.use_cases.create_task_use_case import (
+    CreateTaskUseCase,
+)
+from src.modules.assessments.application.use_cases.update_task_use_case import (
+    UpdateTaskUseCase,
+)
+from src.modules.assessments.application.use_cases.delete_task_use_case import (
+    DeleteTaskUseCase,
 )
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
@@ -41,6 +51,34 @@ class GradeReviewInputSchema(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     score: float = Field(..., ge=0.0, le=10.0, description="Nota de 0 a 10")
     teacher_comment: str = Field(..., min_length=3, description="Feedback textual")
+
+
+class TaskCreateInputSchema(BaseModel):
+    """Payload de entrada para criação de tarefa."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    course_id: str = Field(..., description="UUID do curso")
+    lesson_id: str = Field(..., description="UUID da lição")
+    title: str = Field(..., min_length=3, max_length=255, description="Título da tarefa")
+    task_type: str = Field(..., description="Tipo de tarefa (ex: single_choice, essay)")
+    description: Optional[str] = Field(None, description="Enunciado/pergunta da tarefa")
+    options: Optional[Dict[str, Any]] = Field(None, description="Opções para múltipla escolha")
+    correct_option: Optional[str] = Field(None, description="Opção correta")
+    max_attempts: int = Field(default=1, ge=1, description="Máximo de tentativas")
+    passing_score: Optional[Decimal] = Field(default=None, ge=0.0, le=10.0, description="Nota mínima para aprovação")
+
+
+class TaskUpdateInputSchema(BaseModel):
+    """Payload de entrada para atualização de tarefa."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    title: Optional[str] = Field(None, min_length=3, max_length=255, description="Título da tarefa")
+    task_type: Optional[str] = Field(None, description="Tipo de tarefa")
+    description: Optional[str] = Field(None, description="Enunciado/pergunta da tarefa")
+    options: Optional[Dict[str, Any]] = Field(None, description="Opções")
+    correct_option: Optional[str] = Field(None, description="Opção correta")
+    max_attempts: Optional[int] = Field(None, ge=1, description="Máximo de tentativas")
+    passing_score: Optional[Decimal] = Field(None, ge=0.0, le=10.0, description="Nota mínima")
 
 
 @router.get("/lesson/{lesson_id}", status_code=status.HTTP_200_OK)
@@ -111,3 +149,90 @@ async def review_submission(
             "graded_by": res.graded_by,
         },
     }
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+async def create_task(
+    payload: TaskCreateInputSchema,
+    current_user: CurrentUser = Depends(require_role(["teacher", "admin", "super_admin"])),
+    assessment_repository: AssessmentRepository = Depends(get_assessment_repository),
+    course_repository: CourseRepository = Depends(get_course_repository),
+):
+    """Cria uma nova tarefa/atividade em uma lição (BOLA-safe)."""
+    use_case = CreateTaskUseCase(assessment_repository, course_repository)
+    task = await use_case.execute(
+        course_id=payload.course_id,
+        lesson_id=payload.lesson_id,
+        title=payload.title,
+        task_type=payload.task_type,
+        description=payload.description,
+        options=payload.options,
+        correct_option=payload.correct_option,
+        max_attempts=payload.max_attempts,
+        passing_score=payload.passing_score,
+        current_user_id=current_user.id,
+        current_user_role=current_user.role,
+    )
+    return {
+        "status": "success",
+        "data": {
+            "id": task.id,
+            "course_id": task.course_id,
+            "lesson_id": task.lesson_id,
+            "title": task.title,
+            "task_type": task.task_type,
+            "description": task.description,
+            "options": task.options,
+            "max_attempts": task.max_attempts,
+            "passing_score": float(task.passing_score) if task.passing_score else None,
+        }
+    }
+
+
+@router.patch("/{task_id}")
+async def update_task(
+    task_id: str,
+    payload: TaskUpdateInputSchema,
+    current_user: CurrentUser = Depends(require_role(["teacher", "admin", "super_admin"])),
+    assessment_repository: AssessmentRepository = Depends(get_assessment_repository),
+    course_repository: CourseRepository = Depends(get_course_repository),
+):
+    """Atualiza as informações de uma tarefa/atividade existente (BOLA-safe)."""
+    use_case = UpdateTaskUseCase(assessment_repository, course_repository)
+    task = await use_case.execute(
+        task_id=task_id,
+        task_data=payload.model_dump(exclude_unset=True),
+        current_user_id=current_user.id,
+        current_user_role=current_user.role,
+    )
+    return {
+        "status": "success",
+        "data": {
+            "id": task.id,
+            "course_id": task.course_id,
+            "lesson_id": task.lesson_id,
+            "title": task.title,
+            "task_type": task.task_type,
+            "description": task.description,
+            "options": task.options,
+            "max_attempts": task.max_attempts,
+            "passing_score": float(task.passing_score) if task.passing_score else None,
+        }
+    }
+
+
+@router.delete("/{task_id}")
+async def delete_task(
+    task_id: str,
+    current_user: CurrentUser = Depends(require_role(["teacher", "admin", "super_admin"])),
+    assessment_repository: AssessmentRepository = Depends(get_assessment_repository),
+    course_repository: CourseRepository = Depends(get_course_repository),
+):
+    """Exclui logicamente uma tarefa/atividade (BOLA-safe)."""
+    use_case = DeleteTaskUseCase(assessment_repository, course_repository)
+    await use_case.execute(
+        task_id=task_id,
+        current_user_id=current_user.id,
+        current_user_role=current_user.role,
+    )
+    return {"status": "success", "message": "Tarefa excluída logicamente com sucesso."}

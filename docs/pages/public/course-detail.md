@@ -27,12 +27,17 @@ seo: true
 ## Composição aprovada
 
 1. Voltar ao catálogo.
-2. Categoria, nível, título e resumo.
-3. Estado explícito da prévia; nenhum player falso.
-4. Quantidade real de módulos e aulas.
+2. Hero editorial com categoria, título, subtítulo e resumo.
+3. Métricas reais de duração, módulos, aulas, nível e certificado.
+4. Objetivos de aprendizagem, descrição, público-alvo e requisitos.
 5. Currículo público com conteúdo protegido identificado.
 6. Painel comercial com preço mensal e recorrência.
 7. CTA derivado de autenticação e elegibilidade.
+
+O cabeçalho público mantém busca, Início e Explorar catálogo visíveis em
+desktop. No mobile, a navegação horizontal é substituída por um menu compacto.
+Ao abrir a raiz `/` com uma sessão válida, aluno e professor seguem diretamente
+para o painel correspondente ao seu papel.
 
 Instrutor, avaliações, alunos, duração, materiais, requisitos, descontos e
 trailer somente podem aparecer quando existirem no contrato retornado pela API.

@@ -4,48 +4,104 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import '../../app/config/env_config.dart';
 import '../errors/app_exceptions.dart';
+import 'auth_token_coordinator.dart';
 
 final networkClientProvider = Provider<NetworkClient>((ref) {
   final env = ref.watch(envConfigProvider);
+  final tokenCoordinator = AuthTokenCoordinator(
+    readAccessToken: () {
+      try {
+        return supabase
+            .Supabase
+            .instance
+            .client
+            .auth
+            .currentSession
+            ?.accessToken;
+      } catch (_) {
+        return null;
+      }
+    },
+    isAccessTokenExpired: () {
+      try {
+        return supabase
+                .Supabase
+                .instance
+                .client
+                .auth
+                .currentSession
+                ?.isExpired ??
+            false;
+      } catch (_) {
+        return false;
+      }
+    },
+    refreshAccessToken: () async {
+      final authClient = supabase.Supabase.instance.client.auth;
+      try {
+        final response = await authClient.refreshSession();
+        return response.session?.accessToken;
+      } on supabase.AuthRetryableFetchException {
+        rethrow;
+      } on supabase.AuthException {
+        // A rejected refresh token cannot recover (for example after a local
+        // Supabase reset). Remove only this device's stale persisted session.
+        await authClient.signOut(scope: supabase.SignOutScope.local);
+        rethrow;
+      }
+    },
+  );
 
   // Como não queremos importar SupabaseClient diretamente aqui para desacoplamento,
   // podemos obter a sessão ativa a partir do SDK Supabase global.
   return NetworkClient(
     baseUrl: env.apiBaseUrl,
-    getSessionToken: () {
-      try {
-        final session = supabase.Supabase.instance.client.auth.currentSession;
-        return session?.accessToken;
-      } catch (_) {
-        return null;
-      }
-    },
+    tokenCoordinator: tokenCoordinator,
   );
 });
 
 class NetworkClient {
   final Dio _dio;
+  static const _maxReadAttempts = 3;
+  static const _authRetryKey = 'authRetryAttempted';
+  static const _forcedAuthTokenKey = 'forcedAuthToken';
 
   NetworkClient({
     required String baseUrl,
-    required String? Function() getSessionToken,
-  }) : _dio = Dio(
-         BaseOptions(
-           baseUrl: baseUrl,
-           connectTimeout: const Duration(seconds: 15),
-           receiveTimeout: const Duration(seconds: 15),
-           headers: {
-             'Content-Type': 'application/json',
-             'Accept': 'application/json',
-           },
-         ),
-       ) {
+    required AuthTokenCoordinator tokenCoordinator,
+    Dio? dio,
+  }) : _dio =
+           dio ??
+           Dio(
+             BaseOptions(
+               baseUrl: baseUrl,
+               connectTimeout: const Duration(seconds: 15),
+               receiveTimeout: const Duration(seconds: 15),
+               headers: {
+                 'Content-Type': 'application/json',
+                 'Accept': 'application/json',
+               },
+             ),
+           ) {
     _dio.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (options, handler) {
-          final token = getSessionToken();
-          if (token != null) {
-            options.headers['Authorization'] = 'Bearer $token';
+        onRequest: (options, handler) async {
+          try {
+            final forcedToken =
+                options.extra.remove(_forcedAuthTokenKey) as String?;
+            final token =
+                forcedToken ?? await tokenCoordinator.tokenForRequest();
+            if (token != null && token.isNotEmpty) {
+              options.headers['Authorization'] = 'Bearer $token';
+            } else {
+              options.headers.remove('Authorization');
+            }
+          } catch (error) {
+            if (kDebugMode) {
+              debugPrint(
+                '[HTTP] Session refresh before request failed: $error',
+              );
+            }
           }
           options.extra['startTime'] = DateTime.now();
           if (kDebugMode) {
@@ -68,7 +124,26 @@ class NetworkClient {
           }
           return handler.next(response);
         },
-        onError: (DioException e, handler) {
+        onError: (DioException e, handler) async {
+          if (e.response?.statusCode == 401 &&
+              e.requestOptions.extra[_authRetryKey] != true) {
+            e.requestOptions.extra[_authRetryKey] = true;
+            try {
+              final refreshedToken = await tokenCoordinator.refresh();
+              if (refreshedToken != null && refreshedToken.isNotEmpty) {
+                e.requestOptions.headers['Authorization'] =
+                    'Bearer $refreshedToken';
+                e.requestOptions.extra[_forcedAuthTokenKey] = refreshedToken;
+                final response = await _dio.fetch<dynamic>(e.requestOptions);
+                return handler.resolve(response);
+              }
+            } catch (error) {
+              if (kDebugMode) {
+                debugPrint('[HTTP] Session refresh after 401 failed: $error');
+              }
+            }
+          }
+
           final startTime = e.requestOptions.extra['startTime'] as DateTime?;
           final duration = startTime != null
               ? DateTime.now().difference(startTime).inMilliseconds
@@ -160,16 +235,45 @@ class NetworkClient {
     Options? options,
     CancelToken? cancelToken,
   }) async {
-    try {
-      return await _dio.get<T>(
-        path,
-        queryParameters: queryParameters,
-        options: options,
-        cancelToken: cancelToken,
-      );
-    } on DioException catch (e) {
-      throw e.error as Failure;
+    for (var attempt = 1; attempt <= _maxReadAttempts; attempt++) {
+      try {
+        return await _dio.get<T>(
+          path,
+          queryParameters: queryParameters,
+          options: options,
+          cancelToken: cancelToken,
+        );
+      } on DioException catch (error) {
+        if (attempt == _maxReadAttempts ||
+            !_isRetryableRead(error) ||
+            cancelToken?.isCancelled == true) {
+          throw _failureFrom(error);
+        }
+        await Future<void>.delayed(
+          Duration(milliseconds: 200 * (1 << (attempt - 1))),
+        );
+      }
     }
+    throw StateError('Unreachable retry state.');
+  }
+
+  bool _isRetryableRead(DioException error) {
+    if (error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout) {
+      return true;
+    }
+    return const {408, 429, 502, 503, 504}.contains(error.response?.statusCode);
+  }
+
+  Failure _failureFrom(DioException error) {
+    final mapped = error.error;
+    return mapped is Failure
+        ? mapped
+        : NetworkFailure(
+            message: 'Não foi possível acessar o serviço.',
+            code: 'TRANSPORT_ERROR',
+          );
   }
 
   Future<Response<T>> post<T>(
@@ -188,7 +292,7 @@ class NetworkClient {
         cancelToken: cancelToken,
       );
     } on DioException catch (e) {
-      throw e.error as Failure;
+      throw _failureFrom(e);
     }
   }
 
@@ -208,7 +312,7 @@ class NetworkClient {
         cancelToken: cancelToken,
       );
     } on DioException catch (e) {
-      throw e.error as Failure;
+      throw _failureFrom(e);
     }
   }
 
@@ -228,7 +332,7 @@ class NetworkClient {
         cancelToken: cancelToken,
       );
     } on DioException catch (e) {
-      throw e.error as Failure;
+      throw _failureFrom(e);
     }
   }
 
@@ -248,7 +352,7 @@ class NetworkClient {
         cancelToken: cancelToken,
       );
     } on DioException catch (e) {
-      throw e.error as Failure;
+      throw _failureFrom(e);
     }
   }
 }

@@ -97,6 +97,25 @@ ON CONFLICT (id) DO UPDATE SET
     deleted_at = NULL,
     updated_at = NOW();
 
+-- Rebuild immutable published snapshots so public detail and playback routes
+-- exercise the same source of truth used in production.
+DELETE FROM public.course_versions
+WHERE course_id IN (
+    '91000000-0000-0000-0000-000000000001',
+    '91000000-0000-0000-0000-000000000002'
+);
+
+SELECT public.publish_course_content(
+    '91000000-0000-0000-0000-000000000001',
+    :'teacher_id'::uuid,
+    'Fixture local'
+);
+SELECT public.publish_course_content(
+    '91000000-0000-0000-0000-000000000002',
+    :'teacher_id'::uuid,
+    'Fixture local'
+);
+
 INSERT INTO public.subscriptions (
     id, student_id, course_id, provider, provider_customer_id,
     provider_subscription_id, status, monthly_price, currency,

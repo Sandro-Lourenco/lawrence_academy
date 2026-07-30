@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart';
@@ -35,7 +37,7 @@ final offlineQueueProvider =
 class OfflineQueueNotifier extends AsyncNotifier<OfflineQueueState> {
   @override
   Future<OfflineQueueState> build() async {
-    Connectivity().onConnectivityChanged.listen((
+    final subscription = Connectivity().onConnectivityChanged.listen((
       List<ConnectivityResult> results,
     ) {
       final isOnline = !results.contains(ConnectivityResult.none);
@@ -46,6 +48,7 @@ class OfflineQueueNotifier extends AsyncNotifier<OfflineQueueState> {
         state = AsyncValue.data(state.value!.copyWith(isOnline: isOnline));
       }
     });
+    ref.onDispose(subscription.cancel);
 
     final connectivityResult = await Connectivity().checkConnectivity();
     final isOnline = !connectivityResult.contains(ConnectivityResult.none);
@@ -83,7 +86,7 @@ class OfflineQueueNotifier extends AsyncNotifier<OfflineQueueState> {
     }
 
     if (state.value?.isOnline == true) {
-      syncPendingItems();
+      unawaited(syncPendingItems());
     }
   }
 

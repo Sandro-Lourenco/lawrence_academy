@@ -46,6 +46,9 @@ class StudentLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final currentPath = GoRouterState.of(context).uri.path;
+    if (currentPath.contains('/lessons/')) {
+      return body;
+    }
     final selectedIndex = _selectedIndex(currentPath);
     final isDesktop = LawrenceBreakpoints.isDesktop(width);
     final isTablet = LawrenceBreakpoints.isTablet(width);

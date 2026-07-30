@@ -2,12 +2,40 @@ import subprocess
 import os
 import json
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, NamedTuple
 
 logger = logging.getLogger("video-worker")
 
 # Codecs permitidos (segurança e conformidade de pipeline)
 ALLOWED_VIDEO_CODECS = {"h264", "hevc", "vp9", "vp8", "mpeg4"}
+
+
+class HlsRendition(NamedTuple):
+    name: str
+    width: int
+    height: int
+    video_bitrate: str
+    maxrate: str
+    bufsize: str
+    audio_bitrate: str
+
+
+HLS_RENDITIONS = (
+    HlsRendition("480p", 854, 480, "800k", "850k", "1200k", "96k"),
+    HlsRendition("720p", 1280, 720, "1500k", "1600k", "2200k", "128k"),
+    HlsRendition("1080p", 1920, 1080, "3000k", "3200k", "4500k", "192k"),
+)
+
+
+def select_hls_renditions(source_width: int, source_height: int) -> tuple[HlsRendition, ...]:
+    """Avoid expensive, quality-degrading upscaling while always producing one rendition."""
+    source_long_edge = max(source_width, source_height)
+    selected = tuple(
+        rendition
+        for rendition in HLS_RENDITIONS
+        if max(rendition.width, rendition.height) <= source_long_edge
+    )
+    return selected or (HLS_RENDITIONS[0],)
 
 
 def analyze_video_file(video_path: str) -> Dict[str, Any]:
@@ -31,9 +59,7 @@ def analyze_video_file(video_path: str) -> Dict[str, Any]:
     ]
 
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, check=True, timeout=30
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=30)
         metadata = json.loads(result.stdout)
     except subprocess.SubprocessError as e:
         logger.error(f"Falha de execução do ffprobe: {e}")
@@ -55,9 +81,7 @@ def analyze_video_file(video_path: str) -> Dict[str, Any]:
         raise ValueError(f"Codec de vídeo não suportado: {codec_name}")
 
     # Extrair duração
-    duration_str = metadata.get("format", {}).get("duration") or video_stream.get(
-        "duration"
-    )
+    duration_str = metadata.get("format", {}).get("duration") or video_stream.get("duration")
     if not duration_str:
         raise ValueError("Não foi possível determinar a duração do vídeo.")
     duration = int(float(duration_str))
@@ -88,9 +112,7 @@ def analyze_video_file(video_path: str) -> Dict[str, Any]:
             pass
 
     # Bitrate
-    bitrate_str = metadata.get("format", {}).get("bit_rate") or video_stream.get(
-        "bit_rate"
-    )
+    bitrate_str = metadata.get("format", {}).get("bit_rate") or video_stream.get("bit_rate")
     bitrate = int(bitrate_str) if bitrate_str and bitrate_str.isdigit() else 0
 
     return {
@@ -133,57 +155,56 @@ def generate_poster_and_thumbnail(
 ):
     """Gera o Poster da lição (imagem completa) e a miniatura (thumbnail) de forma otimizada."""
     # Poster completo da aula (mantendo resolução de origem)
-    cmd_poster = [
+    cmd = [
         "ffmpeg",
         "-y",
         "-ss",
         str(time_offset),
         "-i",
         video_path,
-        "-vframes",
+        "-filter_complex",
+        "[0:v]split=2[poster][thumb];"
+        "[poster]scale=w='min(1920,iw)':h=-2[poster_out];"
+        "[thumb]scale=320:-2[thumb_out]",
+        "-map",
+        "[poster_out]",
+        # Each image is a separate ffmpeg output. Stream indexes are scoped to
+        # the current output, so both outputs expose video stream 0.
+        "-frames:v",
         "1",
-        "-f",
-        "image2",
         poster_path,
-    ]
-
-    # Thumbnail em escala menor (ex: largura 320px)
-    cmd_thumb = [
-        "ffmpeg",
-        "-y",
-        "-ss",
-        str(time_offset),
-        "-i",
-        video_path,
-        "-vframes",
+        "-map",
+        "[thumb_out]",
+        "-frames:v",
         "1",
-        "-vf",
-        "scale=320:-1",
-        "-f",
-        "image2",
         thumb_path,
     ]
 
     try:
-        subprocess.run(cmd_poster, check=True, capture_output=True, timeout=20)
-        subprocess.run(cmd_thumb, check=True, capture_output=True, timeout=20)
+        subprocess.run(cmd, check=True, capture_output=True, timeout=20)
     except subprocess.SubprocessError as e:
         logger.error(f"Erro ao gerar poster/thumbnail com FFmpeg: {e}")
         # Criar arquivo mock caso o vídeo seja curto demais para o offset
         if time_offset > 0:
-            generate_poster_and_thumbnail(
-                video_path, poster_path, thumb_path, time_offset=0
-            )
+            generate_poster_and_thumbnail(video_path, poster_path, thumb_path, time_offset=0)
         else:
             raise RuntimeError("Falha ao gerar poster de pré-visualização.")
 
 
-def transcode_to_hls(video_path: str, output_dir: str) -> str:
+def transcode_to_hls(
+    video_path: str,
+    output_dir: str,
+    *,
+    source_width: int,
+    source_height: int,
+    has_audio: bool,
+) -> str:
     """Converte o vídeo bruto em HLS multi-bitrate adaptativo (480p, 720p, 1080p)."""
     os.makedirs(output_dir, exist_ok=True)
 
-    for q in ["480p", "720p", "1080p"]:
-        os.makedirs(os.path.join(output_dir, q), exist_ok=True)
+    renditions = select_hls_renditions(source_width, source_height)
+    for rendition in renditions:
+        os.makedirs(os.path.join(output_dir, rendition.name), exist_ok=True)
 
     cmd = [
         "ffmpeg",
@@ -191,74 +212,78 @@ def transcode_to_hls(video_path: str, output_dir: str) -> str:
         "-i",
         video_path,
         "-filter_complex",
-        "[0:v]split=3[v1][v2][v3];[v1]scale=w=854:h=480[v1out];[v2]scale=w=1280:h=720[v2out];[v3]scale=w=1920:h=1080[v3out]",
-        "-map",
-        "[v1out]",
-        "-map",
-        "0:a?",
-        "-c:v:0",
-        "libx264",
-        "-b:v:0",
-        "800k",
-        "-maxrate:v:0",
-        "850k",
-        "-bufsize:v:0",
-        "1200k",
-        "-c:a:0",
-        "aac",
-        "-b:a:0",
-        "96k",
-        "-map",
-        "[v2out]",
-        "-map",
-        "0:a?",
-        "-c:v:1",
-        "libx264",
-        "-b:v:1",
-        "1500k",
-        "-maxrate:v:1",
-        "1600k",
-        "-bufsize:v:1",
-        "2200k",
-        "-c:a:1",
-        "aac",
-        "-b:a:1",
-        "128k",
-        "-map",
-        "[v3out]",
-        "-map",
-        "0:a?",
-        "-c:v:2",
-        "libx264",
-        "-b:v:2",
-        "3000k",
-        "-maxrate:v:2",
-        "3200k",
-        "-bufsize:v:2",
-        "4500k",
-        "-c:a:2",
-        "aac",
-        "-b:a:2",
-        "192k",
-        "-f",
-        "hls",
-        "-hls_time",
-        "6",
-        "-hls_playlist_type",
-        "vod",
-        "-hls_segment_filename",
-        os.path.join(output_dir, "%v", "segment_%03d.ts").replace(os.sep, "/"),
-        "-master_pl_name",
-        "master.m3u8",
-        os.path.join(output_dir, "%v", "index.m3u8").replace(os.sep, "/"),
+        _build_filter_complex(renditions),
     ]
+    for index, rendition in enumerate(renditions):
+        cmd.extend(
+            [
+                "-map",
+                f"[v{index}out]",
+                f"-c:v:{index}",
+                "libx264",
+                f"-b:v:{index}",
+                rendition.video_bitrate,
+                f"-maxrate:v:{index}",
+                rendition.maxrate,
+                f"-bufsize:v:{index}",
+                rendition.bufsize,
+            ]
+        )
+        if has_audio:
+            cmd.extend(
+                [
+                    "-map",
+                    "0:a:0",
+                    f"-c:a:{index}",
+                    "aac",
+                    f"-b:a:{index}",
+                    rendition.audio_bitrate,
+                ]
+            )
+    cmd.extend(
+        [
+            "-preset",
+            os.getenv("VIDEO_FFMPEG_PRESET", "veryfast"),
+            "-sc_threshold",
+            "0",
+            "-f",
+            "hls",
+            "-hls_time",
+            "6",
+            "-hls_playlist_type",
+            "vod",
+            "-var_stream_map",
+            " ".join(
+                f"v:{index},a:{index},name:{rendition.name}"
+                if has_audio
+                else f"v:{index},name:{rendition.name}"
+                for index, rendition in enumerate(renditions)
+            ),
+            "-hls_segment_filename",
+            os.path.join(output_dir, "%v", "segment_%03d.ts").replace(os.sep, "/"),
+            "-master_pl_name",
+            "master.m3u8",
+            os.path.join(output_dir, "%v", "index.m3u8").replace(os.sep, "/"),
+        ]
+    )
 
     try:
-        subprocess.run(
-            cmd, check=True, capture_output=True, timeout=600
-        )  # Limite máximo de 10 min
+        subprocess.run(cmd, check=True, capture_output=True, timeout=600)  # Limite máximo de 10 min
     except subprocess.SubprocessError as e:
         logger.error(f"Erro ao transcodificar HLS com FFmpeg: {e}")
         raise RuntimeError("Falha na transcodificação do formato HLS.")
 
     return os.path.join(output_dir, "master.m3u8")
+
+
+def _build_filter_complex(renditions: tuple[HlsRendition, ...]) -> str:
+    inputs = "".join(f"[v{index}]" for index in range(len(renditions)))
+    filters = [f"[0:v]split={len(renditions)}{inputs}"]
+    for index, rendition in enumerate(renditions):
+        filters.append(
+            f"[v{index}]scale=w={rendition.width}:h={rendition.height}:"
+            "force_original_aspect_ratio=decrease,"
+            f"pad={rendition.width}:{rendition.height}:(ow-iw)/2:(oh-ih)/2"
+            f"[v{index}out]"
+        )
+    return ";".join(filters)

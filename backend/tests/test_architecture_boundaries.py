@@ -28,14 +28,10 @@ def test_migrated_v1_routes_do_not_import_infrastructure() -> None:
         tree = ast.parse(route_file.read_text(encoding="utf-8"), route_file.as_posix())
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.module:
-                if ".infrastructure." in node.module or node.module.startswith(
-                    "src.core.database"
-                ):
+                if ".infrastructure." in node.module or node.module.startswith("src.core.database"):
                     violations.append(f"{route_file.name}:{node.lineno} {node.module}")
 
-    assert not violations, "Routes must depend on interfaces/providers: " + ", ".join(
-        violations
-    )
+    assert not violations, "Routes must depend on interfaces/providers: " + ", ".join(violations)
 
 
 def test_openapi_operation_ids_are_unique() -> None:
@@ -47,9 +43,7 @@ def test_openapi_operation_ids_are_unique() -> None:
     ]
     operation_ids = [operation["operationId"] for operation in operations]
     duplicates = [
-        operation_id
-        for operation_id, count in Counter(operation_ids).items()
-        if count > 1
+        operation_id for operation_id, count in Counter(operation_ids).items() if count > 1
     ]
 
     assert not duplicates, f"Duplicate OpenAPI operation IDs: {duplicates}"
@@ -62,15 +56,13 @@ def test_registered_method_and_path_pairs_are_unique() -> None:
         if isinstance(route, APIRoute)
         for method in route.methods
     ]
-    duplicates = [
-        pair for pair, count in Counter(registered_pairs).items() if count > 1
-    ]
+    duplicates = [pair for pair, count in Counter(registered_pairs).items() if count > 1]
 
     assert not duplicates, f"Duplicate HTTP operations registered: {duplicates}"
 
 
 def test_non_v1_business_routes_are_explicitly_deprecated() -> None:
-    operational_paths = {"/", "/health"}
+    operational_paths = {"/", "/health", "/live", "/ready"}
     violations = [
         route.path
         for route in app.routes

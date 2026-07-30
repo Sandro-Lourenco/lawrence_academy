@@ -103,9 +103,7 @@ class FakeCheckoutGateway:
         self.owner_id = owner_id
         self.missing = missing
 
-    async def get_status(
-        self, checkout_id: str, expected_owner_id: str
-    ) -> CheckoutStatus:
+    async def get_status(self, checkout_id: str, expected_owner_id: str) -> CheckoutStatus:
         if self.missing:
             raise NotFoundError("Checkout não encontrado.")
         return CheckoutStatus(
@@ -155,9 +153,7 @@ def configure_dependencies(
     if repository is not None:
         app.dependency_overrides[get_subscription_repository] = lambda: repository
     if subscription_gateway is not None:
-        app.dependency_overrides[get_subscription_gateway] = (
-            lambda: subscription_gateway
-        )
+        app.dependency_overrides[get_subscription_gateway] = lambda: subscription_gateway
     if checkout_gateway is not None:
         app.dependency_overrides[get_checkout_gateway] = lambda: checkout_gateway
     if course_repository is not None:
@@ -170,9 +166,7 @@ def test_free_course_is_immediately_accessible_without_checkout() -> None:
         course_repository=FakeCourseRepository(Decimal("0.00")),
     )
     try:
-        response = client.get(
-            "/api/v1/payments/checkout/eligibility?course_id=course-1"
-        )
+        response = client.get("/api/v1/payments/checkout/eligibility?course_id=course-1")
     finally:
         app.dependency_overrides.clear()
 
@@ -193,9 +187,7 @@ def test_paid_published_course_is_eligible_for_checkout() -> None:
         course_repository=FakeCourseRepository(Decimal("59.90")),
     )
     try:
-        response = client.get(
-            "/api/v1/payments/checkout/eligibility?course_id=course-1"
-        )
+        response = client.get("/api/v1/payments/checkout/eligibility?course_id=course-1")
     finally:
         app.dependency_overrides.clear()
 
@@ -240,10 +232,67 @@ def test_checkout_uses_server_course_price_instead_of_client_price() -> None:
     assert response.status_code == 200
     call = create_session.call_args.kwargs
     assert call["line_items"][0]["price_data"]["unit_amount"] == 5990
-    assert call["line_items"][0]["price_data"]["recurring"] == {
-        "interval": "month"
-    }
+    assert call["line_items"][0]["price_data"]["recurring"] == {"interval": "month"}
     assert call["idempotency_key"] == "checkout-attempt-1"
+
+
+def test_fake_checkout_replaces_session_placeholder_without_malformed_query() -> None:
+    repository = FakeSubscriptionRepository(None)
+    configure_dependencies(
+        repository=repository,
+        course_repository=FakeCourseRepository(Decimal("59.90")),
+    )
+    try:
+        with (
+            patch(
+                "src.modules.payments.interface.api.routes.settings.app_env",
+                "test",
+            ),
+            patch(
+                "src.modules.payments.interface.api.routes.settings.payment_provider",
+                "fake",
+            ),
+        ):
+            response = client.post(
+                "/api/v1/payments/checkout",
+                headers={"Idempotency-Key": "fake-checkout-1"},
+                json={
+                    "course_id": "course-1",
+                    "success_url": ("lawrence://payment/pending?session_id={CHECKOUT_SESSION_ID}"),
+                    "cancel_url": "lawrence://payment/cancel",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    checkout_url = response.json()["data"]["checkout_url"]
+    assert checkout_url.endswith("session_id=fake_session")
+    assert checkout_url.count("?") == 1
+    assert repository.subscription is not None
+    assert repository.subscription.status == "active"
+    assert repository.subscription.provider == "fake"
+    assert repository.subscription.monthly_price == Decimal("59.90")
+
+
+def test_checkout_requires_idempotency_key() -> None:
+    configure_dependencies(
+        repository=FakeSubscriptionRepository(None),
+        course_repository=FakeCourseRepository(Decimal("59.90")),
+    )
+    try:
+        response = client.post(
+            "/api/v1/payments/checkout",
+            json={
+                "course_id": "course-1",
+                "success_url": ("lawrence://payment/pending?session_id={CHECKOUT_SESSION_ID}"),
+                "cancel_url": "lawrence://payment/cancel",
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
 
 
 def test_cancel_subscription_returns_updated_state() -> None:
@@ -251,9 +300,7 @@ def test_cancel_subscription_returns_updated_state() -> None:
     gateway = FakeSubscriptionGateway()
     configure_dependencies(repository, gateway)
     try:
-        response = client.patch(
-            "/api/v1/subscriptions/subscription-1/cancel"
-        )
+        response = client.patch("/api/v1/subscriptions/subscription-1/cancel")
     finally:
         app.dependency_overrides.clear()
 
@@ -273,15 +320,11 @@ def test_cancel_subscription_not_found() -> None:
 
 
 def test_cancel_subscription_rejects_other_owner() -> None:
-    repository = FakeSubscriptionRepository(
-        make_subscription(student_id="student-2")
-    )
+    repository = FakeSubscriptionRepository(make_subscription(student_id="student-2"))
     gateway = FakeSubscriptionGateway()
     configure_dependencies(repository, gateway)
     try:
-        response = client.patch(
-            "/api/v1/subscriptions/subscription-1/cancel"
-        )
+        response = client.patch("/api/v1/subscriptions/subscription-1/cancel")
     finally:
         app.dependency_overrides.clear()
     assert response.status_code == 403
@@ -295,9 +338,7 @@ def test_cancel_subscription_rejects_duplicate() -> None:
     gateway = FakeSubscriptionGateway()
     configure_dependencies(repository, gateway)
     try:
-        response = client.patch(
-            "/api/v1/subscriptions/subscription-1/cancel"
-        )
+        response = client.patch("/api/v1/subscriptions/subscription-1/cancel")
     finally:
         app.dependency_overrides.clear()
     assert response.status_code == 409
@@ -327,9 +368,7 @@ def test_checkout_status_contract_covers_canonical_states(
 
 
 def test_checkout_status_rejects_other_owner() -> None:
-    configure_dependencies(
-        checkout_gateway=FakeCheckoutGateway(owner_id="student-2")
-    )
+    configure_dependencies(checkout_gateway=FakeCheckoutGateway(owner_id="student-2"))
     try:
         response = client.get("/api/v1/payments/checkout/status/checkout-1")
     finally:

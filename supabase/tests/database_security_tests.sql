@@ -260,15 +260,20 @@ VALUES ('22222222-2222-2222-2222-222222222222', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaa
 
 -- 5.2. Aluno tenta inserir progresso de aula com course_id incorreto / divergente da lesson (Bloqueado via trigger!)
 DO $$
+DECLARE
+    v_insert_blocked boolean := false;
 BEGIN
     BEGIN
         INSERT INTO public.lesson_progress (student_id, course_id, lesson_id, watched_seconds, completed)
         VALUES ('22222222-2222-2222-2222-222222222222', 'a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 120, false);
-        
-        RAISE EXCEPTION 'TEST 5.2 FAILED: Allowed inserting progress with mismatched course_id.';
     EXCEPTION WHEN OTHERS THEN
+        v_insert_blocked := true;
         RAISE NOTICE 'TEST 5.2 PASSED: Mismatched course_id in progress was successfully blocked by trigger: %', SQLERRM;
     END;
+
+    IF NOT v_insert_blocked THEN
+        RAISE EXCEPTION 'TEST 5.2 FAILED: Allowed inserting progress with mismatched course_id.';
+    END IF;
 END $$;
 
 
@@ -280,15 +285,20 @@ VALUES ('stripe', 'evt_test_123', 'invoice.paid', 'hash_test_123');
 
 -- 6.2. Inserir o mesmo evento novamente (Bloqueado por constraint unique!)
 DO $$
+DECLARE
+    v_duplicate_blocked boolean := false;
 BEGIN
     BEGIN
         INSERT INTO public.payment_events (provider, provider_event_id, event_type, payload_hash)
         VALUES ('stripe', 'evt_test_123', 'invoice.paid', 'hash_test_123');
-        
-        RAISE EXCEPTION 'TEST 6.2 FAILED: Allowed duplicate payment event.';
     EXCEPTION WHEN OTHERS THEN
+        v_duplicate_blocked := true;
         RAISE NOTICE 'TEST 6.2 PASSED: Duplicate payment event was successfully blocked by unique constraint.';
     END;
+
+    IF NOT v_duplicate_blocked THEN
+        RAISE EXCEPTION 'TEST 6.2 FAILED: Allowed duplicate payment event.';
+    END IF;
 END $$;
 
 -- Finalizar transação e dar rollback para manter banco limpo

@@ -18,6 +18,7 @@ class PaymentPendingPage extends ConsumerStatefulWidget {
 class _PaymentPendingPageState extends ConsumerState<PaymentPendingPage> {
   Timer? _pollingTimer;
   int _attempts = 0;
+  bool _isChecking = false;
   static const int _maxAttempts = 15; // 15 attempts * 2s = 30s max polling
 
   @override
@@ -41,7 +42,9 @@ class _PaymentPendingPageState extends ConsumerState<PaymentPendingPage> {
   }
 
   Future<void> _checkStatus() async {
-    _attempts++;
+    if (_isChecking || !mounted) return;
+    _isChecking = true;
+    setState(() => _attempts++);
 
     try {
       final status = await ref
@@ -67,10 +70,16 @@ class _PaymentPendingPageState extends ConsumerState<PaymentPendingPage> {
         );
       }
       // if 'pending' or 'open', keep polling
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
-      _pollingTimer?.cancel();
-      _showErrorAndRedirect('Erro ao verificar status: $e');
+      if (_attempts >= _maxAttempts) {
+        _pollingTimer?.cancel();
+        _showErrorAndRedirect(
+          'Não foi possível confirmar o pagamento agora. Verifique suas assinaturas em instantes.',
+        );
+      }
+    } finally {
+      _isChecking = false;
     }
   }
 

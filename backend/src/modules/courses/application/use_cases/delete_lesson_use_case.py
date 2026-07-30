@@ -22,8 +22,6 @@ class DeleteLessonUseCase:
         if current_user_role != "super_admin":
             instructor_id = await self.repository.get_instructor_id(course_id)
             if instructor_id != current_user_id:
-                raise AuthorizationError(
-                    "Acesso negado. Você não é o instrutor deste curso."
-                )
+                raise AuthorizationError("Acesso negado. Você não é o instrutor deste curso.")
 
         return await self.repository.delete_lesson(lesson_id)

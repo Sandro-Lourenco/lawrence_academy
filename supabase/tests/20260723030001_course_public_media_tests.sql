@@ -1,0 +1,13 @@
+BEGIN;
+SELECT plan(9);
+SELECT has_column('courses','cover_image_path');
+SELECT has_column('courses','cover_alt_text');
+SELECT has_column('courses','cover_focal_x');
+SELECT has_column('courses','cover_status');
+SELECT has_column('courses','trailer_status');
+SELECT has_column('video_processing_jobs','asset_kind');
+SELECT col_is_null('video_processing_jobs','lesson_id');
+SELECT isnt_empty($$SELECT 1 FROM storage.buckets WHERE id='course-images' AND public=false$$);
+SELECT isnt_empty($$SELECT 1 FROM pg_constraint WHERE conname='video_processing_jobs_asset_kind_check'$$);
+SELECT * FROM finish();
+ROLLBACK;

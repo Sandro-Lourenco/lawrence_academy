@@ -1,11 +1,11 @@
 {
-    "name": "lawrence",
-    "short_name": "lawrence",
+    "name": "Lawrence Academy",
+    "short_name": "Lawrence",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0B0B0C",
+    "theme_color": "#0B0B0C",
+    "description": "Formação premium em costura, modelagem, moda e estilo.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

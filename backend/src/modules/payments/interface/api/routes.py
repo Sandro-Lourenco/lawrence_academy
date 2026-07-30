@@ -1,5 +1,5 @@
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Header, Request, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -17,6 +17,7 @@ from src.modules.payments.application.use_cases.get_checkout_status_use_case imp
     GetCheckoutStatusUseCase,
 )
 from src.modules.subscriptions.domain.gateways import CheckoutGateway
+from src.modules.subscriptions.domain.entities import Subscription
 from src.modules.subscriptions.domain.repositories import SubscriptionRepository
 from src.modules.subscriptions.interface.api.dependencies import (
     get_checkout_gateway,
@@ -27,6 +28,7 @@ from src.modules.courses.interface.api.dependencies import get_course_repository
 from src.shared.config import settings
 from src.infra.stripe.client import get_stripe_client
 from fastapi import HTTPException
+from starlette.concurrency import run_in_threadpool
 
 import logging
 
@@ -114,7 +116,11 @@ async def check_checkout_eligibility(
 @router.post("/checkout", status_code=status.HTTP_200_OK)
 async def create_checkout_session(
     payload: CheckoutRequestSchema,
-    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    idempotency_key: str = Header(
+        alias="Idempotency-Key",
+        min_length=8,
+        max_length=255,
+    ),
     current_user: CurrentUser = Depends(get_current_user),
     repository: SubscriptionRepository = Depends(get_subscription_repository),
     course_repository: CourseRepository = Depends(get_course_repository),
@@ -123,13 +129,9 @@ async def create_checkout_session(
     use_case = ValidateCheckoutEligibilityUseCase(repository, course_repository)
 
     # Validar elegibilidade (levanta ConflictError se assinatura bloqueante existir)
-    result = await use_case.execute(
-        student_id=current_user.id, course_id=payload.course_id
-    )
+    result = await use_case.execute(student_id=current_user.id, course_id=payload.course_id)
     if not result.can_purchase:
-        raise ConflictError(
-            result.message or "Não é possível comprar este curso no momento."
-        )
+        raise ConflictError(result.message or "Não é possível comprar este curso no momento.")
 
     course = await course_repository.get_by_id(payload.course_id)
     if course is None or course.status != "published":
@@ -138,16 +140,39 @@ async def create_checkout_session(
         raise ConflictError("Cursos gratuitos não precisam de checkout.")
 
     if settings.app_env == "test" or settings.payment_provider == "fake":
+        now = datetime.now(timezone.utc)
+        fake_subscription_id = "fake_" + hashlib.sha256(
+            f"{current_user.id}:{payload.course_id}:{idempotency_key}".encode()
+        ).hexdigest()
+        await repository.save(
+            Subscription(
+                student_id=current_user.id,
+                course_id=payload.course_id,
+                provider="fake",
+                provider_customer_id=f"fake_customer_{current_user.id}",
+                provider_subscription_id=fake_subscription_id,
+                status="active",
+                monthly_price=course.monthly_price,
+                currency="BRL",
+                current_period_start=now,
+                current_period_end=now + timedelta(days=30),
+            )
+        )
+        checkout_url = payload.success_url.replace(
+            "{CHECKOUT_SESSION_ID}",
+            "fake_session",
+        )
         return {
             "status": "success",
             "data": {
-                "checkout_url": f"{payload.success_url}?session_id=fake_session",
+                "checkout_url": checkout_url,
                 "session_id": "fake_session",
             },
         }
 
     try:
-        session = stripe.checkout.Session.create(
+        session = await run_in_threadpool(
+            stripe.checkout.Session.create,
             payment_method_types=["card"],
             line_items=[
                 {
@@ -185,9 +210,7 @@ async def create_checkout_session(
     except ConflictError:
         raise
     except Exception:
-        logger.exception(
-            "Falha ao criar checkout Stripe para o curso %s", payload.course_id
-        )
+        logger.exception("Falha ao criar checkout Stripe para o curso %s", payload.course_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Não foi possível iniciar o pagamento. Tente novamente.",
@@ -205,9 +228,7 @@ async def get_checkout_status(
     gateway: CheckoutGateway = Depends(get_checkout_gateway),
 ) -> CheckoutStatusResponseSchema:
     """Consulta o estado canonico de um checkout pertencente ao usuario."""
-    checkout = await GetCheckoutStatusUseCase(gateway).execute(
-        checkout_id, current_user.id
-    )
+    checkout = await GetCheckoutStatusUseCase(gateway).execute(checkout_id, current_user.id)
     return CheckoutStatusResponseSchema(
         status=checkout.status,
         payment_status=checkout.payment_status,
@@ -257,9 +278,7 @@ async def handle_stripe_webhook(
 
     try:
         await StripeWebhookProcessor.process_event(event)
-        StripeWebhookProcessor.mark_event_processed(
-            provider="stripe", event_id=event_id
-        )
+        StripeWebhookProcessor.mark_event_processed(provider="stripe", event_id=event_id)
         return {"status": "success", "event_processed": event_id}
     except Exception as proc_err:
         try:
@@ -277,9 +296,7 @@ async def handle_stripe_webhook(
         )
 
 
-@legacy_router.post(
-    "/webhooks/stripe", status_code=status.HTTP_200_OK, deprecated=True
-)
+@legacy_router.post("/webhooks/stripe", status_code=status.HTTP_200_OK, deprecated=True)
 async def handle_stripe_webhook_legacy(
     request: Request,
     stripe_signature: str = Header(None, alias="stripe-signature"),

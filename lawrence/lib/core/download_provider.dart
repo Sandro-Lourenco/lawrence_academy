@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -123,7 +124,7 @@ class DownloadNotifier extends StateNotifier<Map<String, DownloadTask>> {
         lessonId: state[lessonId]!.copyWith(status: DownloadStatus.completed),
       };
     } catch (e) {
-      if (CancelToken.isCancel(e as DioException)) {
+      if (e is DioException && CancelToken.isCancel(e)) {
         state = {
           ...state,
           lessonId: state[lessonId]!.copyWith(status: DownloadStatus.paused),
@@ -221,8 +222,7 @@ class DownloadNotifier extends StateNotifier<Map<String, DownloadTask>> {
       }
 
       // Extrair o lessonId a partir do path (../downloads/<lessonId>/segment_X.enc)
-      final parts = file.path.split('/');
-      final lessonId = parts[parts.length - 2];
+      final lessonId = path.basename(path.dirname(file.path));
 
       final keyBytes = await _getOrGenerateLessonKey(lessonId);
 

@@ -77,5 +77,17 @@ void main() {
 
     expect(result.single.id, '2');
   });
+
+  test('preserva o tipo de conteúdo na URL sem inventar resultados de livros', () {
+    const filters = CatalogFilters(contentType: 'books');
+
+    expect(filters.toQueryParameters(), {'content': 'books'});
+    expect(
+      CatalogFilters.fromQueryParameters(
+        filters.toQueryParameters(),
+      ).contentType,
+      'books',
+    );
+  });
 }
 

@@ -100,11 +100,9 @@ class CertificateDetailPage extends StatelessWidget {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () {
-                            // TODO: Baixar PDF
-                          },
+                          onPressed: null,
                           icon: const Icon(Icons.download_rounded),
-                          label: const Text('Baixar PDF'),
+                          label: const Text('PDF em breve'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: LawrenceTheme.primary,
                             side: const BorderSide(
@@ -120,11 +118,9 @@ class CertificateDetailPage extends StatelessWidget {
                       const SizedBox(width: 16),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () {
-                            // TODO: Compartilhar
-                          },
+                          onPressed: null,
                           icon: const Icon(Icons.share_rounded),
-                          label: const Text('Compartilhar'),
+                          label: const Text('Compartilhar em breve'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: LawrenceTheme.primary,
                             foregroundColor: Colors.white,

@@ -1,8 +1,16 @@
-from fastapi import APIRouter, Depends, status
+from pathlib import PurePosixPath
+import re
+from urllib.parse import quote
+
+import jwt
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
+from fastapi.responses import RedirectResponse
 from typing import Annotated, List, Literal, Optional
+from datetime import datetime
 from decimal import Decimal
 from pydantic import BaseModel, Field
 from src.core.security.security import get_current_user, require_role, CurrentUser
+from src.core.security.jwt_playback_service import JwtPlaybackService
 from src.modules.courses.domain.repositories import CourseRepository
 from src.modules.courses.interface.api.dependencies import get_course_repository
 from src.modules.courses.application.use_cases.list_courses_use_case import (
@@ -48,6 +56,16 @@ class LessonCreateInputSchema(BaseModel):
     status: str
 
 
+class LessonBlockResponseSchema(BaseModel):
+    id: str
+    lesson_id: str
+    course_id: str
+    block_type: str
+    content: dict
+    order_index: int = 0
+    status: str
+
+
 class LessonResponseSchema(BaseModel):
     id: str
     module_id: str
@@ -56,9 +74,13 @@ class LessonResponseSchema(BaseModel):
     description: Optional[str] = None
     order_index: int
     duration_seconds: int
+    estimated_duration_minutes: Optional[int] = None
+    is_required: bool = True
     hls_storage_path: Optional[str] = None
+    video_job_status: Optional[str] = None
     material_pdf_url: Optional[str] = None
     status: str
+    blocks: List[LessonBlockResponseSchema] = Field(default_factory=list)
 
 
 class ModuleResponseSchema(BaseModel):
@@ -66,6 +88,8 @@ class ModuleResponseSchema(BaseModel):
     course_id: str
     title: str
     order_index: int
+    description: Optional[str] = None
+    status: str = "draft"
     lessons: List[LessonResponseSchema]
 
 
@@ -88,8 +112,22 @@ class CourseCreateInputSchema(BaseModel):
     expected_outcomes: List[PlanningItem] = Field(default_factory=list, max_length=20)
     thumbnail_url: Optional[str] = None
     trailer_hls_path: Optional[str] = None
-    monthly_price: Decimal
-    status: Optional[str] = "draft"
+    cover_image_path: Optional[str] = None
+    cover_alt_text: Optional[str] = None
+    cover_focal_x: float = 0.5
+    cover_focal_y: float = 0.5
+    trailer_status: str = "empty"
+    monthly_price: Decimal = Field(ge=0, le=1000000)
+    promotional_monthly_price: Optional[Decimal] = Field(default=None, ge=0)
+    promotion_starts_at: Optional[datetime] = None
+    promotion_ends_at: Optional[datetime] = None
+    certificate_enabled: bool = True
+    reviews_enabled: bool = True
+    comments_enabled: bool = True
+    visibility: Literal["public", "private", "unlisted"] = "public"
+    availability: Literal["immediate", "scheduled"] = "immediate"
+    scheduled_publish_at: Optional[datetime] = None
+    status: Literal["draft"] = "draft"
 
 
 class CourseResponseSchema(BaseModel):
@@ -113,18 +151,36 @@ class CourseResponseSchema(BaseModel):
     expected_outcomes: List[str] = Field(default_factory=list)
     thumbnail_url: Optional[str] = None
     trailer_hls_path: Optional[str] = None
+    cover_image_path: Optional[str] = None
+    cover_alt_text: Optional[str] = None
+    cover_focal_x: float = 0.5
+    cover_focal_y: float = 0.5
+    trailer_status: str = "empty"
+    cover_status: str = "empty"
     monthly_price: Decimal
+    promotional_monthly_price: Optional[Decimal] = None
+    promotion_starts_at: Optional[datetime] = None
+    promotion_ends_at: Optional[datetime] = None
+    certificate_enabled: bool = True
+    reviews_enabled: bool = True
+    comments_enabled: bool = True
+    visibility: str = "public"
+    availability: str = "immediate"
+    scheduled_publish_at: Optional[datetime] = None
+    is_featured: bool = False
     status: str
+    authoring_revision: int = 0
     modules: List[ModuleResponseSchema] = []
 
 
 @router.get("", response_model=List[CourseResponseSchema])
 async def list_courses(
+    limit: int = Query(default=50, ge=1, le=50),
     repo: CourseRepository = Depends(get_course_repository),
 ):
-    """Retorna todos os cursos publicados ativos (BOLA-safe)."""
+    """Retorna uma página limitada de cursos publicados ativos."""
     use_case = ListCoursesUseCase(repo)
-    courses = await use_case.execute()
+    courses = await use_case.execute(limit=limit)
     return courses
 
 
@@ -166,6 +222,7 @@ async def create_course(
 async def update_course(
     course_id: str,
     payload: CourseCreateInputSchema,
+    expected_authoring_revision: int = Header(alias="If-Match-Authoring-Revision", ge=0),
     current_user: CurrentUser = Depends(require_role(["teacher", "admin"])),
     repo: CourseRepository = Depends(get_course_repository),
 ):
@@ -176,6 +233,7 @@ async def update_course(
         course_data=payload.model_dump(),
         current_user_id=current_user.id,
         current_user_role=current_user.role,
+        expected_authoring_revision=expected_authoring_revision,
     )
     return course
 
@@ -205,7 +263,12 @@ async def get_lesson(
 ):
     """Retorna os detalhes de uma aula específica (BOLA-safe)."""
     use_case = GetLessonUseCase(repo)
-    lesson = await use_case.execute(course_id, lesson_id)
+    lesson = await use_case.execute(
+        current_user.id,
+        current_user.role,
+        course_id,
+        lesson_id,
+    )
     return lesson
 
 
@@ -213,15 +276,98 @@ async def get_lesson(
 async def get_lesson_stream(
     course_id: str,
     lesson_id: str,
+    request: Request,
     current_user: CurrentUser = Depends(get_current_user),
     repo: CourseRepository = Depends(get_course_repository),
 ):
-    """Gera link assinado seguro HLS para reprodução do vídeo da aula (BOLA-safe com controle de acesso)."""
+    """Returns an authenticated HLS proxy URL; child manifests keep the JWT header."""
     use_case = GetLessonStreamUseCase(repo)
-    signed_url = await use_case.execute(
+    master_path = await use_case.authorize_and_get_path(
         user_id=current_user.id,
         role=current_user.role,
         course_id=course_id,
         lesson_id=lesson_id,
     )
-    return {"signedUrl": signed_url}
+    token = JwtPlaybackService().generate(
+        user_id=current_user.id,
+        course_id=course_id,
+        lesson_id=lesson_id,
+        master_path=master_path,
+    )
+    playback_url = request.url_for(
+        "get_lesson_hls_asset",
+        course_id=course_id,
+        lesson_id=lesson_id,
+        asset_path="master.m3u8",
+    )
+    return {"signedUrl": f"{playback_url}?token={quote(token, safe='')}"}
+
+
+@router.get(
+    "/{course_id}/lessons/{lesson_id}/hls/{asset_path:path}",
+    name="get_lesson_hls_asset",
+)
+async def get_lesson_hls_asset(
+    course_id: str,
+    lesson_id: str,
+    asset_path: str,
+    token: str = Query(min_length=20),
+    repo: CourseRepository = Depends(get_course_repository),
+) -> Response:
+    try:
+        playback = JwtPlaybackService().validate(
+            token,
+            course_id=course_id,
+            lesson_id=lesson_id,
+        )
+    except jwt.PyJWTError as exc:
+        raise HTTPException(status_code=401, detail="Sessão de vídeo inválida.") from exc
+
+    requested = PurePosixPath(asset_path)
+    if (
+        requested.is_absolute()
+        or ".." in requested.parts
+        or requested.suffix.lower() not in {".m3u8", ".ts", ".vtt", ".key", ".bin"}
+    ):
+        raise HTTPException(status_code=404, detail="Mídia não encontrada.")
+
+    master_path = playback.get("master_path")
+    if not isinstance(master_path, str) or not master_path:
+        raise HTTPException(status_code=404, detail="Mídia não encontrada.")
+    storage_path = str(PurePosixPath(master_path).parent / requested)
+    if requested.suffix.lower() != ".m3u8":
+        signed_url = await repo.generate_signed_url(storage_path)
+        return RedirectResponse(
+            signed_url,
+            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+            headers={"Cache-Control": "private, max-age=60"},
+        )
+
+    content = await repo.download_hls_asset(storage_path)
+    media_type = {
+        ".m3u8": "application/vnd.apple.mpegurl",
+        ".ts": "video/mp2t",
+        ".vtt": "text/vtt",
+    }[requested.suffix.lower()]
+    if requested.suffix.lower() == ".m3u8":
+        text = content.decode("utf-8")
+        text = "\n".join(
+            line if not line or line.startswith("#") else _append_playback_token(line, token)
+            for line in text.splitlines()
+        )
+        text = re.sub(
+            r'URI="([^"]+)"',
+            lambda match: f'URI="{_append_playback_token(match.group(1), token)}"',
+            text,
+        )
+        content = text.encode("utf-8")
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Cache-Control": "private, max-age=60"},
+    )
+
+
+def _append_playback_token(uri: str, token: str) -> str:
+    separator = "&" if "?" in uri else "?"
+    return f"{uri}{separator}token={quote(token, safe='')}"

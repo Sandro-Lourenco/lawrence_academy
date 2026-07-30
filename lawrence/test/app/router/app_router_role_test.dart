@@ -18,8 +18,11 @@ void main() {
   });
 
   group('authenticated public navigation', () {
+    test('opens the role dashboard from the public home', () {
+      expect(shouldRedirectAuthenticatedFromPublicEntry('/'), isTrue);
+    });
+
     test('keeps the authenticated session in catalog routes', () {
-      expect(shouldRedirectAuthenticatedFromPublicEntry('/'), isFalse);
       expect(shouldRedirectAuthenticatedFromPublicEntry('/courses'), isFalse);
       expect(
         shouldRedirectAuthenticatedFromPublicEntry('/courses/modelagem'),
@@ -35,5 +38,43 @@ void main() {
         isTrue,
       );
     });
+  });
+
+  group('safePostAuthRedirect', () {
+    test('preserva o curso que motivou o login', () {
+      expect(
+        safePostAuthRedirect(
+          Uri.parse('/login?redirect=%2Fcourses%2Fmodelagem'),
+        ),
+        '/courses/modelagem',
+      );
+    });
+
+    test('rejeita redirecionamentos externos e loops de autenticação', () {
+      expect(
+        safePostAuthRedirect(Uri.parse('/login?redirect=https%3A%2F%2Fevil.test')),
+        isNull,
+      );
+      expect(
+        safePostAuthRedirect(Uri.parse('/login?redirect=%2F%2Fevil.test')),
+        isNull,
+      );
+      expect(
+        safePostAuthRedirect(Uri.parse('/login?redirect=%2Fregister')),
+        isNull,
+      );
+    });
+  });
+
+  test('loginLocationFor preserva uma rota protegida completa', () {
+    final loginUri = Uri.parse(
+      loginLocationFor(Uri.parse('/checkout/course-1?coupon=welcome')),
+    );
+
+    expect(loginUri.path, '/login');
+    expect(
+      loginUri.queryParameters['redirect'],
+      '/checkout/course-1?coupon=welcome',
+    );
   });
 }

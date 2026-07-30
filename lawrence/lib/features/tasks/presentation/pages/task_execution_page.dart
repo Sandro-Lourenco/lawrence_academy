@@ -55,8 +55,15 @@ class _TaskExecutionPageState extends ConsumerState<TaskExecutionPage> {
   @override
   Widget build(BuildContext context) {
     // final state = ref.watch(provider);
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldPop = await _onWillPop();
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop(result);
+        }
+      },
       child: Scaffold(
         appBar: AppBar(title: const Text('Atividades')),
         body: const Center(

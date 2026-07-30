@@ -32,6 +32,7 @@ void main() {
 
       // Note: Comparing ImageFilter directly is hard, but we verify it's there.
       expect(filter, isNotNull);
+      expect(find.byType(RepaintBoundary), findsWidgets);
     });
 
     testWidgets('should apply correct border radius', (
@@ -54,6 +55,53 @@ void main() {
 
       final ClipRRect clipRRect = tester.widget(clipRRectFinder);
       expect(clipRRect.borderRadius, BorderRadius.circular(radius));
+    });
+
+    testWidgets('uses the opaque fallback when blur is disabled', (
+      WidgetTester tester,
+    ) async {
+      const fallback = Color(0xFF123456);
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: LiquidGlassContainer(
+              enableBlur: false,
+              fallbackColor: fallback,
+              child: Text('Fallback content'),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Fallback content'), findsOneWidget);
+      expect(find.byType(BackdropFilter), findsNothing);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is DecoratedBox &&
+              widget.decoration is BoxDecoration &&
+              (widget.decoration as BoxDecoration).color == fallback,
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('honors reduced effects without hiding the content', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(disableAnimations: true),
+            child: Scaffold(
+              body: LiquidGlassContainer(child: Text('Reduced effects')),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Reduced effects'), findsOneWidget);
+      expect(find.byType(BackdropFilter), findsNothing);
     });
   });
 }

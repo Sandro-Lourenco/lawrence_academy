@@ -106,7 +106,8 @@ class PlanningPhaseForm extends StatelessWidget {
                   decoration: const InputDecoration(
                     labelText: 'Nome do curso',
                     hintText: 'Ex.: Modelagem feminina do básico ao vestido',
-                    helperText: 'Use um nome claro que descreva o tema principal.',
+                    helperText:
+                        'Use um nome claro que descreva o tema principal.',
                   ),
                   onChanged: (_) => onChanged(),
                   validator: (value) => value == null || value.trim().isEmpty
@@ -120,8 +121,10 @@ class PlanningPhaseForm extends StatelessWidget {
                   maxLength: 160,
                   decoration: const InputDecoration(
                     labelText: 'Subtítulo',
-                    hintText: 'Da tomada de medidas à construção dos primeiros moldes',
-                    helperText: 'Complemente o nome sem repetir a mesma informação.',
+                    hintText:
+                        'Da tomada de medidas à construção dos primeiros moldes',
+                    helperText:
+                        'Complemente o nome sem repetir a mesma informação.',
                   ),
                   onChanged: (_) => onChanged(),
                 ),
@@ -156,7 +159,8 @@ class PlanningPhaseForm extends StatelessWidget {
                     helperText: 'Este texto aparece em cards e listagens.',
                   ),
                   onChanged: (_) => onChanged(),
-                  validator: (value) => value == null || value.trim().length < 10
+                  validator: (value) =>
+                      value == null || value.trim().length < 10
                       ? 'Escreva ao menos 10 caracteres.'
                       : null,
                 ),
@@ -168,7 +172,8 @@ class PlanningPhaseForm extends StatelessWidget {
                   maxLength: 5000,
                   decoration: const InputDecoration(
                     labelText: 'Descrição completa',
-                    hintText: 'Apresente o método, a sequência e a transformação proposta.',
+                    hintText:
+                        'Apresente o método, a sequência e a transformação proposta.',
                     helperText: 'Não repita apenas a descrição curta.',
                     alignLabelWithHint: true,
                   ),
@@ -223,7 +228,8 @@ class PlanningPhaseForm extends StatelessWidget {
                   maxLines: 6,
                   decoration: const InputDecoration(
                     labelText: 'Pré-requisitos do curso',
-                    hintText: 'Conhecimentos básicos de costura\nSaber usar fita métrica',
+                    hintText:
+                        'Conhecimentos básicos de costura\nSaber usar fita métrica',
                     alignLabelWithHint: true,
                   ),
                   onChanged: (_) => onChanged(),
@@ -493,7 +499,7 @@ class _CourseTypeSelector extends StatelessWidget {
           )
         else
           Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               for (var index = 0; index < cards.length; index++) ...[
                 Expanded(child: cards[index]),
@@ -577,97 +583,11 @@ class _CourseTypeCard extends StatelessWidget {
             const SizedBox(height: LawrenceSpacing.xs),
             Text(
               example,
-              style: const TextStyle(
-                color: LawrenceColors.info,
-                fontSize: 13,
-              ),
+              style: const TextStyle(color: LawrenceColors.info, fontSize: 13),
             ),
           ],
         ),
       ),
-    ),
-  );
-}
-
-class _CourseTypeSummary extends StatelessWidget {
-  const _CourseTypeSummary();
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    selected: true,
-    label: 'Tipo selecionado: Curso completo',
-    child: Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(LawrenceSpacing.md),
-      decoration: BoxDecoration(
-        color: LawrenceColors.infoSurface,
-        border: Border.all(color: LawrenceColors.actionPrimary, width: 2),
-        borderRadius: BorderRadius.circular(LawrenceRadii.card),
-      ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.school_outlined, color: LawrenceColors.actionPrimary),
-          SizedBox(width: LawrenceSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Curso completo',
-                  style: TextStyle(
-                    color: LawrenceColors.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                SizedBox(height: LawrenceSpacing.xxs),
-                Text(
-                  'Formação extensa organizada em módulos, aulas, materiais e atividades.',
-                  style: TextStyle(color: LawrenceColors.textSecondary),
-                ),
-                SizedBox(height: LawrenceSpacing.xs),
-                Text(
-                  'Os demais formatos dependem de definição do produto.',
-                  style: TextStyle(
-                    color: LawrenceColors.info,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(Icons.check_circle, color: LawrenceColors.actionPrimary),
-        ],
-      ),
-    ),
-  );
-}
-
-class _ContractNotice extends StatelessWidget {
-  const _ContractNotice();
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(LawrenceSpacing.md),
-    decoration: BoxDecoration(
-      color: LawrenceColors.warningSurface,
-      borderRadius: BorderRadius.circular(LawrenceRadii.control),
-    ),
-    child: const Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.info_outline, color: LawrenceColors.warning),
-        SizedBox(width: LawrenceSpacing.sm),
-        Expanded(
-          child: Text(
-            'Objetivos de aprendizagem, público-alvo, materiais e competências serão adicionados quando o contrato dessa estrutura for aprovado.',
-            style: TextStyle(color: LawrenceColors.textPrimary, height: 1.4),
-          ),
-        ),
-      ],
     ),
   );
 }

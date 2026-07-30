@@ -1,203 +1,154 @@
-import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+
+import '../../../../design_system/tokens/lawrence_theme.dart';
 import '../../domain/entities/live_event.dart';
 import 'live_status_badge.dart';
-import 'live_countdown.dart';
-import '../../../../../design_system/tokens/lawrence_theme.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 class LiveCard extends StatelessWidget {
   final LiveEvent live;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
-  const LiveCard({super.key, required this.live, required this.onTap});
+  const LiveCard({super.key, required this.live, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isScheduled = live.status.toLowerCase() == 'scheduled';
-    final isLive = live.status.toLowerCase() == 'live';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 24),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
-        boxShadow: [
-          BoxShadow(
-            color: LawrenceTheme.primary.withValues(alpha: 0.05),
-            blurRadius: 15,
-            spreadRadius: 2,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: InkWell(
-            onTap: onTap,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Banner Area
-                Container(
-                  height: 140,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: LawrenceTheme.primary.withValues(alpha: 0.05),
-                  ),
-                  child: Stack(
-                    children: [
-                      if (live.bannerUrl != null && live.bannerUrl!.isNotEmpty)
-                        Positioned.fill(
-                          child: CachedNetworkImage(
-                            imageUrl: live.bannerUrl!,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              color: LawrenceTheme.primary.withValues(
-                                alpha: 0.05,
-                              ),
-                              child: const Center(
-                                child: CircularProgressIndicator(
-                                  color: LawrenceTheme.primary,
-                                ),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) {
-                              return _buildFallbackBanner();
-                            },
-                          ),
-                        )
-                      else
-                        Positioned.fill(child: _buildFallbackBanner()),
-                      // Top badges
-                      Positioned(
-                        top: 16,
-                        left: 16,
-                        right: 16,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            LiveStatusBadge(status: live.status),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                '${live.durationMinutes} min',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Countdown overlay for scheduled
-                      if (isScheduled)
-                        Positioned(
-                          bottom: 16,
-                          left: 16,
-                          child: LiveCountdown(scheduledFor: live.scheduledFor),
-                        ),
-                    ],
-                  ),
+    return Semantics(
+      button: onTap != null,
+      label:
+          '${live.title}, ${_dateLabel(live.scheduledFor)}, com ${live.instructor}',
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(LawrenceRadii.control),
+          side: const BorderSide(color: LawrenceColors.borderMist),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (live.bannerUrl?.isNotEmpty == true)
+                      CachedNetworkImage(
+                        imageUrl: live.bannerUrl!,
+                        fit: BoxFit.cover,
+                        memCacheWidth: 800,
+                        placeholder: (_, _) => const _EventVisual(),
+                        errorWidget: (_, _, _) => const _EventVisual(),
+                      )
+                    else
+                      const _EventVisual(),
+                    Positioned(
+                      left: LawrenceSpacing.md,
+                      top: LawrenceSpacing.md,
+                      child: LiveStatusBadge(status: live.status),
+                    ),
+                  ],
                 ),
-                // Info Area
-                Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        live.tag.toUpperCase(),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: LawrenceTheme.accent,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.2,
-                          fontFamily: 'Outfit',
+              ),
+              Padding(
+                padding: const EdgeInsets.all(LawrenceSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      live.tag.toUpperCase(),
+                      style: const TextStyle(
+                        color: LawrenceColors.actionPrimary,
+                        fontSize: 12,
+                        letterSpacing: .8,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: LawrenceSpacing.xs),
+                    Text(
+                      live.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: LawrenceSpacing.sm),
+                    Text(
+                      '${_dateLabel(live.scheduledFor)} · ${live.durationMinutes} min',
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: LawrenceSpacing.xs),
+                    Text(
+                      live.instructor,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: LawrenceSpacing.md),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton.icon(
+                        onPressed: onTap,
+                        icon: const Icon(Icons.open_in_new_rounded),
+                        label: Text(
+                          live.status.toLowerCase() == 'ended'
+                              ? 'Assistir gravação'
+                              : 'Ver no YouTube',
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        live.title,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          color: LawrenceTheme.surfaceTile1,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Outfit',
-                          height: 1.2,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 14,
-                            backgroundColor: LawrenceTheme.primary.withValues(
-                              alpha: 0.1,
-                            ),
-                            child: const Icon(
-                              Icons.person,
-                              size: 16,
-                              color: LawrenceTheme.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              live.instructor,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: LawrenceTheme.textSecondary,
-                                fontWeight: FontWeight.w600,
-                                fontFamily: 'Outfit',
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (isLive || isScheduled)
-                            Icon(
-                              Icons.arrow_forward_ios,
-                              size: 16,
-                              color: isLive
-                                  ? LawrenceTheme.primary
-                                  : LawrenceTheme.textSecondary,
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildFallbackBanner() {
-    return Container(
-      color: LawrenceTheme.primary.withValues(alpha: 0.05),
-      child: Center(
-        child: Icon(
-          Icons.sensors,
-          size: 48,
-          color: LawrenceTheme.primary.withValues(alpha: 0.2),
-        ),
+  static String _dateLabel(DateTime value) {
+    final local = value.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$day/$month, $hour:$minute';
+  }
+}
+
+class _EventVisual extends StatelessWidget {
+  const _EventVisual();
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: LawrenceColors.brandNavy,
+      child: Stack(
+        children: [
+          Positioned(
+            right: -28,
+            top: -44,
+            child: Icon(
+              Icons.play_circle_fill_rounded,
+              size: 190,
+              color: LawrenceColors.actionPrimary.withValues(alpha: .35),
+            ),
+          ),
+          const Positioned(
+            left: LawrenceSpacing.lg,
+            bottom: LawrenceSpacing.lg,
+            child: Text(
+              'LAWRENCE\nEVENTOS',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                height: 1.05,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

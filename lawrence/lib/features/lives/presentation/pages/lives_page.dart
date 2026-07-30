@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../../../design_system/tokens/lawrence_theme.dart';
 import '../../../../design_system/widgets/state_widgets.dart';
+import '../../../../design_system/widgets/student_page_scaffold.dart';
+import '../../domain/entities/live_event.dart';
 import '../providers/lives_provider.dart';
 import '../widgets/live_card.dart';
 
@@ -10,108 +15,163 @@ class LivesPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final livesAsync = ref.watch(livesProvider);
-
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
+    final events = ref.watch(livesProvider);
+    return StudentPageScaffold(
+      title: 'Eventos',
+      subtitle:
+          'Descubra lives, workshops e encontros da Lawrence no YouTube.',
+      maxContentWidth: 1440,
+      onRefresh: () async {
+        ref.invalidate(livesProvider);
+        await ref.read(livesProvider.future);
+      },
+      body: events.when(
+        loading: () => const _EventsSkeleton(),
+        error: (_, _) => SizedBox(
+          height: 420,
+          child: AppErrorState(
+            title: 'Agenda indisponível',
+            message:
+                'Não foi possível atualizar os eventos. Tente novamente em instantes.',
+            onRetry: () => ref.invalidate(livesProvider),
+          ),
         ),
-        slivers: [
-          SliverAppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            floating: true,
-            title: Text(
-              'Mentoria & Lives',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-                color: LawrenceTheme.surfaceTile1,
-                fontFamily: 'Outfit',
+        data: (items) => items.isEmpty
+            ? _EmptyEvents(onRetry: () => ref.invalidate(livesProvider))
+            : _EventsGrid(
+                events: items,
+                onOpen: (event) => _openEvent(context, event),
               ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 8.0,
-              ),
-              child: Text(
-                'Acompanhe as mentorias exclusivas e tire suas dúvidas em tempo real.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: LawrenceTheme.textSecondary,
-                  fontFamily: 'Outfit',
-                ),
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          livesAsync.when(
-            data: (lives) {
-              if (lives.isEmpty) {
-                return SliverFillRemaining(
-                  child: AppEmptyState(
-                    title: 'Nenhuma live agendada',
-                    description:
-                        'Fique de olho! Em breve novas mentorias e workshops ao vivo serão anunciados.',
-                    icon: Icons.event_available,
-                    actionLabel: 'Atualizar',
-                    onActionPressed: () => ref.refresh(livesProvider),
-                  ),
-                );
-              }
-
-              return SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final live = lives[index];
-                    return LiveCard(
-                      live: live,
-                      onTap: () {
-                        if (live.status.toLowerCase() != 'ended') {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                live.status.toLowerCase() == 'live'
-                                    ? 'Conectando à sala de mentoria...'
-                                    : 'Sala de mentoria abrirá 10 minutos antes da transmissão.',
-                              ),
-                              backgroundColor: LawrenceTheme.primary,
-                            ),
-                          );
-                          // TODO: Navegar para Player ou Sala
-                        }
-                      },
-                    );
-                  }, childCount: lives.length),
-                ),
-              );
-            },
-            loading: () => const SliverFillRemaining(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0),
-                child: AppSkeletonState(
-                  width: double.infinity,
-                  height: 250,
-                  borderRadius: 20,
-                ),
-              ),
-            ),
-            error: (err, stack) => SliverFillRemaining(
-              child: AppErrorState(
-                title: 'Erro ao carregar',
-                message: 'Não foi possível carregar a programação de lives.',
-                onRetry: () => ref.refresh(livesProvider),
-              ),
-            ),
-          ),
-        ],
       ),
+    );
+  }
+
+  Future<void> _openEvent(BuildContext context, LiveEvent event) async {
+    final uri = event.safeYoutubeUri;
+    if (uri == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'O link seguro deste evento ainda não está disponível.',
+          ),
+        ),
+      );
+      return;
+    }
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível abrir o YouTube neste dispositivo.'),
+        ),
+      );
+    }
+  }
+}
+
+class _EventsGrid extends StatelessWidget {
+  final List<LiveEvent> events;
+  final ValueChanged<LiveEvent> onOpen;
+
+  const _EventsGrid({required this.events, required this.onOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1120
+            ? 3
+            : constraints.maxWidth >= 700
+                ? 2
+                : 1;
+        final width =
+            (constraints.maxWidth - (columns - 1) * LawrenceSpacing.md) /
+                columns;
+        return Wrap(
+          spacing: LawrenceSpacing.md,
+          runSpacing: LawrenceSpacing.md,
+          children: [
+            for (final event in events)
+              SizedBox(
+                width: width,
+                child: LiveCard(
+                  live: event,
+                  onTap: () => onOpen(event),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _EmptyEvents extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _EmptyEvents({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(LawrenceSpacing.xl),
+          decoration: BoxDecoration(
+            color: LawrenceColors.brandNavy,
+            borderRadius: BorderRadius.circular(LawrenceRadii.control),
+          ),
+          child: const Wrap(
+            spacing: LawrenceSpacing.lg,
+            runSpacing: LawrenceSpacing.md,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Icon(Icons.live_tv_outlined, color: Colors.white, size: 58),
+              Text(
+                'A agenda conecta você às transmissões oficiais da Lawrence.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: LawrenceSpacing.lg),
+        AppEmptyState(
+          title: 'Nenhum evento agendado',
+          description:
+              'Quando uma nova transmissão for publicada, ela aparecerá aqui com data, horário e link oficial do YouTube.',
+          icon: Icons.event_available_outlined,
+          actionLabel: 'Explorar cursos enquanto isso',
+          onActionPressed: () => context.go('/dashboard/courses'),
+        ),
+        const SizedBox(height: LawrenceSpacing.sm),
+        TextButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('Atualizar agenda'),
+        ),
+      ],
+    );
+  }
+}
+
+class _EventsSkeleton extends StatelessWidget {
+  const _EventsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Wrap(
+      spacing: LawrenceSpacing.md,
+      runSpacing: LawrenceSpacing.md,
+      children: [
+        AppSkeletonState(width: 340, height: 360, borderRadius: 8),
+        AppSkeletonState(width: 340, height: 360, borderRadius: 8),
+        AppSkeletonState(width: 340, height: 360, borderRadius: 8),
+      ],
     );
   }
 }

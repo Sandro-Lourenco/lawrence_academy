@@ -14,7 +14,5 @@ class GetTeacherCourseUseCase:
         if not course:
             raise NotFoundError("Curso nÃ£o encontrado.")
         if role != "super_admin" and course.instructor_id != user_id:
-            raise AuthorizationError(
-                "Acesso negado. VocÃª nÃ£o Ã© o instrutor deste curso."
-            )
+            raise AuthorizationError("Acesso negado. VocÃª nÃ£o Ã© o instrutor deste curso.")
         return course

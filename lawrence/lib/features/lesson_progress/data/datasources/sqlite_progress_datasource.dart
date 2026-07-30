@@ -1,7 +1,8 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'progress_local_datasource.dart';
 
-class SQLiteProgressDataSource {
+class SQLiteProgressDataSource implements ProgressLocalDataSource {
   Database? _database;
 
   Future<Database> get database async {
@@ -60,6 +61,7 @@ class SQLiteProgressDataSource {
 
   // --- Operações de Progresso ---
 
+  @override
   Future<Map<String, dynamic>?> getProgress(
     String courseId,
     String lessonId,
@@ -76,6 +78,7 @@ class SQLiteProgressDataSource {
     return null;
   }
 
+  @override
   Future<List<Map<String, dynamic>>> getCourseProgress(String courseId) async {
     final db = await database;
     return await db.query(
@@ -85,6 +88,7 @@ class SQLiteProgressDataSource {
     );
   }
 
+  @override
   Future<void> saveProgress(Map<String, dynamic> progress) async {
     final db = await database;
     await db.insert(
@@ -96,6 +100,7 @@ class SQLiteProgressDataSource {
 
   // --- Operações de Fila de Sincronização ---
 
+  @override
   Future<void> enqueueSyncItem(Map<String, dynamic> item) async {
     final db = await database;
     await db.insert(
@@ -105,6 +110,7 @@ class SQLiteProgressDataSource {
     );
   }
 
+  @override
   Future<List<Map<String, dynamic>>> getPendingSyncItems() async {
     final db = await database;
     return await db.query(
@@ -115,6 +121,7 @@ class SQLiteProgressDataSource {
     );
   }
 
+  @override
   Future<void> updateSyncItemStatus(
     int id, {
     required String status,
@@ -137,6 +144,7 @@ class SQLiteProgressDataSource {
     );
   }
 
+  @override
   Future<void> deleteSyncItem(int id) async {
     final db = await database;
     await db.delete('sync_queue', where: 'id = ?', whereArgs: [id]);

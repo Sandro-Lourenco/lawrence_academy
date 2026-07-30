@@ -45,9 +45,7 @@ def _get_domain_imports(module_path: str) -> list[str]:
     mod = importlib.import_module(module_path)
     src = inspect.getsource(mod)
     return [
-        line.strip()
-        for line in src.splitlines()
-        if line.strip().startswith(("import ", "from "))
+        line.strip() for line in src.splitlines() if line.strip().startswith(("import ", "from "))
     ]
 
 
@@ -263,13 +261,11 @@ def test_stream_blocked_for_subscription_to_different_course():
     mock_repo.get_lesson_stream_path = AsyncMock(
         return_value="lessons-hls/course-Y/lesson-1/playlist.m3u8"
     )
-    mock_repo.generate_signed_url = AsyncMock(
-        return_value="https://signed.url/playlist.m3u8"
-    )
+    mock_repo.generate_signed_url = AsyncMock(return_value="https://signed.url/playlist.m3u8")
 
     # Simular que o aluno NÃO tem assinatura ativa no curso Y
     mock_repo.has_active_subscription = AsyncMock(return_value=False)
-    mock_repo.get_by_id = AsyncMock(
+    mock_repo.get_published_by_id = AsyncMock(
         return_value=MagicMock(status="published", monthly_price=Decimal("89.90"))
     )
 
@@ -358,8 +354,8 @@ def test_webhook_uses_raw_body_bytes_not_decoded(mock_supabase, mock_construct):
         return {"id": "evt_123", "type": "unknown.event", "data": {"object": {}}}
 
     mock_construct.side_effect = capture_construct
-    mock_supabase.table.return_value.insert.return_value.execute.return_value = (
-        MagicMock(data=[{"id": "1"}])
+    mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
+        data=[{"id": "1"}]
     )
     mock_supabase.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
         data=[]

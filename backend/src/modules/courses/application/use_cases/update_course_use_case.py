@@ -1,5 +1,6 @@
 from decimal import Decimal
 from src.modules.courses.domain.entities import Course
+from src.modules.courses.domain.offer_rules import validate_course_offer
 from src.modules.courses.domain.repositories import CourseRepository
 from src.core.errors.errors import AuthorizationError, NotFoundError
 
@@ -16,6 +17,7 @@ class UpdateCourseUseCase:
         course_data: dict,
         current_user_id: str,
         current_user_role: str,
+        expected_authoring_revision: int,
     ) -> Course:
         # Professores só podem atualizar os próprios cursos
         if current_user_role == "teacher":
@@ -56,6 +58,31 @@ class UpdateCourseUseCase:
             thumbnail_url=course_data.get("thumbnail_url", existing.thumbnail_url),
             trailer_hls_path=course_data.get("trailer_hls_path", existing.trailer_hls_path),
             monthly_price=Decimal(str(course_data.get("monthly_price", existing.monthly_price))),
+            promotional_monthly_price=(
+                Decimal(str(course_data["promotional_monthly_price"]))
+                if "promotional_monthly_price" in course_data
+                and course_data["promotional_monthly_price"] is not None
+                else existing.promotional_monthly_price
+            ),
+            promotion_starts_at=course_data.get(
+                "promotion_starts_at", existing.promotion_starts_at
+            ),
+            promotion_ends_at=course_data.get("promotion_ends_at", existing.promotion_ends_at),
+            certificate_enabled=course_data.get(
+                "certificate_enabled", existing.certificate_enabled
+            ),
+            reviews_enabled=course_data.get("reviews_enabled", existing.reviews_enabled),
+            comments_enabled=course_data.get("comments_enabled", existing.comments_enabled),
+            visibility=course_data.get("visibility", existing.visibility),
+            availability=course_data.get("availability", existing.availability),
+            scheduled_publish_at=course_data.get(
+                "scheduled_publish_at", existing.scheduled_publish_at
+            ),
+            is_featured=existing.is_featured,
             status=course_data.get("status", existing.status),
+            authoring_revision=existing.authoring_revision,
         )
-        return await self.repository.update(course_id, updated)
+        validate_course_offer(updated)
+        return await self.repository.update(
+            course_id, updated, expected_authoring_revision
+        )

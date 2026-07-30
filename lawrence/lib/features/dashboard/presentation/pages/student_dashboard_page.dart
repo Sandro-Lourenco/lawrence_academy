@@ -8,6 +8,7 @@ import '../../../../design_system/widgets/state_widgets.dart';
 import '../../../../design_system/widgets/student_page_scaffold.dart';
 import '../controllers/dashboard_controller.dart';
 import '../widgets/continue_watching_section.dart';
+import '../widgets/events_banner.dart';
 import '../widgets/learning_overview_section.dart';
 import '../widgets/my_courses_section.dart';
 
@@ -72,10 +73,14 @@ class StudentDashboardPage extends ConsumerWidget {
               ContinueWatchingSection(
                 course: state.resume!.course,
                 progress: state.resume!.progressPercentage,
-                nextLessonId: state.resume!.nextLessonId,
+                lessonTitle: state.resume!.lessonTitle,
+                view: state.resume!.view,
+                destination: state.resume!.destination,
               ),
               const SizedBox(height: LawrenceSpacing.xl),
             ],
+            const EventsBanner(),
+            const SizedBox(height: LawrenceSpacing.xl),
             MyCoursesSection(
               courses: state.courses,
               progressList: state.progressList,

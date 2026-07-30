@@ -3,19 +3,48 @@ import asyncio
 import traceback
 import shutil
 import hashlib
+import tempfile
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
 from . import supabase_client
 from .supabase_client import JobLoggerAdapter, logging
 from . import transcoder
-from . import transcriber
-from . import summarizer
 
-TEMP_DIR = "temp"
+TEMP_DIR = os.getenv(
+    "VIDEO_WORKER_TEMP_DIR",
+    os.path.join(tempfile.gettempdir(), "lawrence-video-worker"),
+)
+HEARTBEAT_FILE = Path(
+    os.getenv(
+        "VIDEO_WORKER_HEARTBEAT_FILE",
+        "/tmp/lawrence-video-worker/heartbeat",
+    )
+)
+HEARTBEAT_INTERVAL_SECONDS = 10
+JOB_POLL_INTERVAL_SECONDS = float(os.getenv("VIDEO_JOB_POLL_INTERVAL_SECONDS", "1"))
+UPLOAD_CONCURRENCY = max(1, int(os.getenv("VIDEO_UPLOAD_CONCURRENCY", "4")))
+AI_ENRICHMENT_ENABLED = os.getenv("VIDEO_AI_ENRICHMENT_ENABLED", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+}
 
 # Configuração global de logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("video-worker")
+# (basicConfig já feito no supabase_client)
+logger = JobLoggerAdapter(logging.getLogger("video-worker-main"), {"job_id": "system"})
+
+
+def _write_heartbeat() -> None:
+    HEARTBEAT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    HEARTBEAT_FILE.touch()
+
+
+async def _heartbeat_loop() -> None:
+    while True:
+        _write_heartbeat()
+        await asyncio.sleep(HEARTBEAT_INTERVAL_SECONDS)
 
 
 def calculate_file_checksum(file_path: str) -> str:
@@ -30,6 +59,8 @@ def calculate_file_checksum(file_path: str) -> str:
 async def process_job(job: dict) -> None:
     job_id = job["id"]
     lesson_id = job["lesson_id"]
+    asset_kind = job.get("asset_kind", "lesson_video")
+    course_id = job["course_id"]
     raw_path = job["raw_video_path"]
     expected_size = job.get("expected_size_bytes")
     retry_count = job.get("retry_count", 0)
@@ -37,9 +68,7 @@ async def process_job(job: dict) -> None:
 
     # Inicializar logger com correlation ID do job
     job_logger = JobLoggerAdapter(logger, {"job_id": job_id})
-    job_logger.info(
-        f"Iniciando processamento da lição {lesson_id} - Vídeo bruto: {raw_path}"
-    )
+    job_logger.info(f"Iniciando processamento da lição {lesson_id} - Vídeo bruto: {raw_path}")
 
     # Criar pasta temporária local de trabalho isolada
     job_temp_dir = os.path.join(TEMP_DIR, job_id)
@@ -54,11 +83,15 @@ async def process_job(job: dict) -> None:
     try:
         # 1. Atualizar para validating
         supabase_client.update_job_status(job_id, "validating")
+        supabase_client.mark_asset_processing(
+            asset_kind=asset_kind,
+            course_id=course_id,
+            job_id=job_id,
+        )
 
         # 2. Download do vídeo bruto do Storage
         job_logger.info("Baixando vídeo do Storage...")
-        file_bytes = supabase_client.download_raw_video(raw_path, local_raw_path)
-        real_size = len(file_bytes)
+        real_size = supabase_client.download_raw_video(raw_path, local_raw_path)
 
         # Comparação expected_size vs real_size
         if expected_size and real_size != expected_size:
@@ -74,7 +107,13 @@ async def process_job(job: dict) -> None:
         # 4. Transcodificar para HLS Multi-bitrate (transcoding -> generating_hls)
         supabase_client.update_job_status(job_id, "transcoding")
         job_logger.info("Transcodificando para HLS...")
-        transcoder.transcode_to_hls(local_raw_path, local_hls_dir)
+        transcoder.transcode_to_hls(
+            local_raw_path,
+            local_hls_dir,
+            source_width=tech_meta["width"],
+            source_height=tech_meta["height"],
+            has_audio=tech_meta.get("audio_codec") is not None,
+        )
 
         # 5. Gerar Poster e Thumbnail (generating_thumbnail)
         supabase_client.update_job_status(job_id, "generating_thumbnail")
@@ -83,53 +122,74 @@ async def process_job(job: dict) -> None:
             local_raw_path, local_poster_path, local_thumb_path
         )
 
-        # 6. Extrair áudio e executar Speech-to-Text (Whisper)
-        job_logger.info("Extraindo áudio para transcrição...")
-        transcoder.extract_audio(local_raw_path, local_audio_path)
+        # 6. Enriquecimento de IA é opcional e não bloqueia o MVP.
+        if AI_ENRICHMENT_ENABLED and asset_kind == "lesson_video":
+            from . import transcriber, summarizer
 
-        job_logger.info("Executando Speech-to-Text (Whisper)...")
-        segments = transcriber.transcribe_audio_file(local_audio_path)
+            job_logger.info("Extraindo áudio para transcrição...")
+            transcoder.extract_audio(local_raw_path, local_audio_path)
 
-        # 7. Gerar resumo de IA (Gemini Pro)
-        job_logger.info("Gerando resumo de IA (Gemini)...")
-        ai_summary = summarizer.summarize_transcription(segments)
+            job_logger.info("Executando Speech-to-Text (Whisper)...")
+            segments = transcriber.transcribe_audio_file(local_audio_path)
+
+            # 7. Gerar resumo de IA (Gemini Pro)
+            job_logger.info("Gerando resumo de IA (Gemini)...")
+            ai_summary = summarizer.summarize_transcription(segments)
+        else:
+            ai_summary = None
 
         # 8. Upload dos HLS, Poster e Thumbnail para lessons-hls (outputs versionados)
         job_logger.info("Realizando upload seguro dos arquivos de saída...")
 
         # Cada tentativa de processamento recebe um local versionado único usando o job_id
-        storage_dest_prefix = f"lessons/{lesson_id}/{job_id}"
+        storage_dest_prefix = (
+            f"course-trailers/{course_id}/{job_id}"
+            if asset_kind == "course_trailer"
+            else f"lessons/{lesson_id}/{job_id}"
+        )
 
         # Upload dos fragmentos HLS
+        upload_items: list[tuple[str, str, str]] = []
         for root, _, files in os.walk(local_hls_dir):
             for file in files:
                 local_file = os.path.join(root, file)
                 rel_path = os.path.relpath(local_file, local_hls_dir)
-                storage_dest = (
-                    f"{storage_dest_prefix}/hls/{rel_path.replace(os.sep, '/')}"
-                )
-                supabase_client.upload_processed_file(
-                    local_file, storage_dest, supabase_client.get_mime_type(local_file)
+                storage_dest = f"{storage_dest_prefix}/hls/{rel_path.replace(os.sep, '/')}"
+                upload_items.append(
+                    (local_file, storage_dest, supabase_client.get_mime_type(local_file))
                 )
 
         # Upload do poster e thumbnail
-        supabase_client.upload_processed_file(
-            local_poster_path, f"{storage_dest_prefix}/poster.jpg", "image/jpeg"
+        upload_items.append((local_poster_path, f"{storage_dest_prefix}/poster.jpg", "image/jpeg"))
+        upload_items.append(
+            (local_thumb_path, f"{storage_dest_prefix}/thumbnail.jpg", "image/jpeg")
         )
-        supabase_client.upload_processed_file(
-            local_thumb_path, f"{storage_dest_prefix}/thumbnail.jpg", "image/jpeg"
-        )
+        with ThreadPoolExecutor(max_workers=UPLOAD_CONCURRENCY) as executor:
+            list(
+                executor.map(
+                    lambda item: supabase_client.upload_processed_file(*item),
+                    upload_items,
+                )
+            )
 
         # 9. Ativação atômica da versão candidata
         #    A lição permanece inalterada até esse momento final.
         master_manifest_path = f"{storage_dest_prefix}/hls/master.m3u8"
         job_logger.info(f"Ativando nova versão do vídeo para a lição {lesson_id}...")
-        supabase_client.activate_lesson_video(
-            lesson_id=lesson_id,
-            hls_storage_path=master_manifest_path,
-            duration=tech_meta["duration"],
-            ai_summary=ai_summary,
-        )
+        if asset_kind == "course_trailer":
+            supabase_client.activate_course_trailer(
+                course_id=course_id,
+                job_id=job_id,
+                hls_storage_path=master_manifest_path,
+            )
+        else:
+            supabase_client.activate_lesson_video(
+                lesson_id=lesson_id,
+                job_id=job_id,
+                hls_storage_path=master_manifest_path,
+                duration=tech_meta["duration"],
+                ai_summary=ai_summary,
+            )
 
         # 10. Concluir job com sucesso absoluto
         supabase_client.update_job_status(
@@ -153,14 +213,23 @@ async def process_job(job: dict) -> None:
             supabase_client.update_job_status(
                 job_id=job_id, status=status, error_message=error_msg[:1000]
             )
-            job_logger.warn(f"Job movido para {status} definitivamente.")
+            try:
+                supabase_client.mark_asset_failed(
+                    asset_kind=asset_kind,
+                    course_id=course_id,
+                    job_id=job_id,
+                )
+            except Exception as status_error:
+                job_logger.error(
+                    "Job terminou, mas não foi possível refletir a falha no agregado: "
+                    f"{status_error}"
+                )
+            job_logger.warning(f"Job movido para {status} definitivamente.")
         else:
             # Retry com Exponential Backoff (10s, 20s, 40s...)
             new_retry_count = retry_count + 1
             backoff_sec = 10 * (2**new_retry_count)
-            next_retry = (
-                datetime.now(timezone.utc) + timedelta(seconds=backoff_sec)
-            ).isoformat()
+            next_retry = (datetime.now(timezone.utc) + timedelta(seconds=backoff_sec)).isoformat()
 
             supabase_client.update_job_status(
                 job_id=job_id,
@@ -169,9 +238,7 @@ async def process_job(job: dict) -> None:
                 retry_count=new_retry_count,
                 next_retry_at=next_retry,
             )
-            job_logger.info(
-                f"Agendando nova tentativa #{new_retry_count} para {next_retry}"
-            )
+            job_logger.info(f"Agendando nova tentativa #{new_retry_count} para {next_retry}")
 
     finally:
         # Limpeza segura dos arquivos temporários locais
@@ -184,14 +251,23 @@ async def process_job(job: dict) -> None:
 
 async def process_jobs_loop():
     """Loop em background desacoplado que consome a fila do banco de dados."""
+    supabase_client.validate_worker_configuration()
+    asyncio.create_task(_heartbeat_loop())
     logger.info("Iniciando loop do processador de vídeos...")
     while True:
         try:
             job = supabase_client.get_next_job()
             if job:
-                await process_job(job)
+                # The pipeline uses blocking Storage/ffmpeg calls. Keep them
+                # outside the event loop so the worker heartbeat remains fresh
+                # while a long video is transcoded.
+                await asyncio.to_thread(asyncio.run, process_job(job))
             else:
-                await asyncio.sleep(5)
+                await asyncio.sleep(JOB_POLL_INTERVAL_SECONDS)
         except Exception as e:
             logger.error(f"Erro no loop do processador: {e}")
             await asyncio.sleep(10)
+
+
+if __name__ == "__main__":
+    asyncio.run(process_jobs_loop())

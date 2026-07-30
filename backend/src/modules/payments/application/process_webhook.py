@@ -4,6 +4,39 @@ from datetime import datetime, timezone
 from src.shared import database
 
 
+def _stripe_subscription_price(subscription: typing.Any) -> tuple[float, str]:
+    """Extract the recurring price from current and legacy Stripe payloads."""
+    items = getattr(subscription, "items", None)
+    items_data = getattr(items, "data", None)
+    if items_data is None and isinstance(items, dict):
+        items_data = items.get("data")
+
+    price = None
+    if items_data:
+        first_item = items_data[0]
+        price = getattr(first_item, "price", None)
+        if price is None and isinstance(first_item, dict):
+            price = first_item.get("price")
+
+    if price is None:
+        price = getattr(subscription, "plan", None)
+
+    amount = getattr(price, "unit_amount", None)
+    if amount is None:
+        amount = getattr(price, "amount", None)
+    if amount is None and isinstance(price, dict):
+        amount = price.get("unit_amount", price.get("amount"))
+
+    currency = getattr(price, "currency", None)
+    if currency is None and isinstance(price, dict):
+        currency = price.get("currency")
+
+    if amount is None or not currency:
+        raise ValueError("Stripe subscription is missing recurring price data")
+
+    return float(amount) / 100.0, str(currency).upper()
+
+
 class StripeWebhookProcessor:
     """Serviço de aplicação para processar eventos do Stripe Webhook de forma idempotente."""
 
@@ -31,10 +64,7 @@ class StripeWebhookProcessor:
             )
             return True if lock_res.data else False
         except Exception as db_err:
-            if (
-                "duplicate key" in str(db_err).lower()
-                or "unique constraint" in str(db_err).lower()
-            ):
+            if "duplicate key" in str(db_err).lower() or "unique constraint" in str(db_err).lower():
                 existing = (
                     database.db.table("payment_events")
                     .select("status")
@@ -43,15 +73,13 @@ class StripeWebhookProcessor:
                     .execute()
                 )
                 if existing.data:
-                    current_status = typing.cast(
-                        dict[str, typing.Any], existing.data[0]
-                    ).get("status")
+                    current_status = typing.cast(dict[str, typing.Any], existing.data[0]).get(
+                        "status"
+                    )
                     if current_status == "failed" or current_status == "received":
                         update_res = (
                             database.db.table("payment_events")
-                            .update(
-                                {"status": "processing", "payload_hash": payload_hash}
-                            )
+                            .update({"status": "processing", "payload_hash": payload_hash})
                             .eq("provider", provider)
                             .eq("provider_event_id", event_id)
                             .execute()
@@ -94,9 +122,7 @@ class StripeWebhookProcessor:
     @staticmethod
     async def _process_payment_succeeded(event: dict) -> None:
         """Trata o pagamento realizado com sucesso (renovação de assinatura e referral)."""
-        invoice = typing.cast(
-            dict[str, typing.Any], event.get("data", {}).get("object", {})
-        )
+        invoice = typing.cast(dict[str, typing.Any], event.get("data", {}).get("object", {}))
         stripe_sub_id = invoice.get("subscription")
         stripe_cust_id = invoice.get("customer")
         customer_email = invoice.get("customer_email")
@@ -105,9 +131,7 @@ class StripeWebhookProcessor:
             return
 
         # Obter detalhes da assinatura diretamente da API do Stripe
-        stripe_sub = typing.cast(
-            typing.Any, stripe.Subscription.retrieve(stripe_sub_id)
-        )
+        stripe_sub = typing.cast(typing.Any, stripe.Subscription.retrieve(stripe_sub_id))
         user_id = stripe_sub.metadata.get("user_id")
         course_id = stripe_sub.metadata.get("course_id")
 
@@ -128,23 +152,17 @@ class StripeWebhookProcessor:
                 f"Não foi possível mapear o user_id para o cliente Stripe {stripe_cust_id}"
             )
 
-        # Fallback para course_id: buscar o primeiro curso disponível para evitar falha
+        # A assinatura é vinculada ao curso exclusivamente pelos metadados confiáveis
+        # criados pelo backend no checkout. Nunca inferir outro curso.
         if not course_id:
-            course_res = database.db.table("courses").select("id").limit(1).execute()
-            if course_res.data:
-                course_id = typing.cast(dict[str, typing.Any], course_res.data[0])["id"]
-            else:
-                raise ValueError(
-                    "Não foi possível mapear o course_id para a assinatura"
-                )
+            raise ValueError("Stripe subscription is missing required course_id metadata")
 
         current_period_start = stripe_sub.current_period_start
         current_period_end = stripe_sub.current_period_end
 
-        dt_start = datetime.fromtimestamp(
-            current_period_start, tz=timezone.utc
-        ).isoformat()
+        dt_start = datetime.fromtimestamp(current_period_start, tz=timezone.utc).isoformat()
         dt_end = datetime.fromtimestamp(current_period_end, tz=timezone.utc).isoformat()
+        monthly_price, currency = _stripe_subscription_price(stripe_sub)
 
         # Salvar ou atualizar na tabela public.subscriptions
         sub_data = {
@@ -154,12 +172,8 @@ class StripeWebhookProcessor:
             "provider_customer_id": stripe_cust_id,
             "provider_subscription_id": stripe_sub_id,
             "status": "active",
-            "monthly_price": float(stripe_sub.plan.amount) / 100.0
-            if stripe_sub.plan
-            else 89.90,
-            "currency": stripe_sub.plan.currency.upper()
-            if (stripe_sub.plan and stripe_sub.plan.currency)
-            else "BRL",
+            "monthly_price": monthly_price,
+            "currency": currency,
             "current_period_start": dt_start,
             "current_period_end": dt_end,
             "updated_at": datetime.now(timezone.utc).isoformat(),
@@ -194,9 +208,7 @@ class StripeWebhookProcessor:
                 user_prof.data
                 and typing.cast(dict[str, typing.Any], user_prof.data[0])["referred_by"]
             ):
-                referred_by = typing.cast(dict[str, typing.Any], user_prof.data[0])[
-                    "referred_by"
-                ]
+                referred_by = typing.cast(dict[str, typing.Any], user_prof.data[0])["referred_by"]
 
                 # Buscar a assinatura ativa do indicador para obter seu customer_id no Stripe
                 ind_sub = (
@@ -210,11 +222,11 @@ class StripeWebhookProcessor:
                 )
 
                 if ind_sub.data:
-                    ind_cust_id = typing.cast(
-                        dict[str, typing.Any], ind_sub.data[0]
-                    ).get("provider_customer_id") or typing.cast(
-                        dict[str, typing.Any], ind_sub.data[0]
-                    ).get("stripe_customer_id")
+                    ind_cust_id = typing.cast(dict[str, typing.Any], ind_sub.data[0]).get(
+                        "provider_customer_id"
+                    ) or typing.cast(dict[str, typing.Any], ind_sub.data[0]).get(
+                        "stripe_customer_id"
+                    )
 
                     # Injetar crédito fixo de R$ 20.00 (2000 centavos) na conta do indicador no Stripe
                     print(
@@ -241,9 +253,7 @@ class StripeWebhookProcessor:
     @staticmethod
     async def _process_payment_failed(event: dict) -> None:
         """Trata a falha de pagamento (muda status para past_due e notifica o aluno)."""
-        invoice = typing.cast(
-            dict[str, typing.Any], event.get("data", {}).get("object", {})
-        )
+        invoice = typing.cast(dict[str, typing.Any], event.get("data", {}).get("object", {}))
         stripe_sub_id = invoice.get("subscription")
 
         if not stripe_sub_id:
@@ -278,9 +288,7 @@ class StripeWebhookProcessor:
     @staticmethod
     async def _process_subscription_deleted(event: dict) -> None:
         """Trata o cancelamento definitivo de uma assinatura."""
-        subscription = typing.cast(
-            dict[str, typing.Any], event.get("data", {}).get("object", {})
-        )
+        subscription = typing.cast(dict[str, typing.Any], event.get("data", {}).get("object", {}))
         stripe_sub_id = subscription.get("id")
 
         sub_res = (

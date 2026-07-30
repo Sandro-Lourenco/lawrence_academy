@@ -9,6 +9,6 @@ class ListCoursesUseCase:
     def __init__(self, repository: CourseRepository):
         self.repository = repository
 
-    async def execute(self) -> List[Course]:
-        courses = await self.repository.list_all()
-        return [course for course in courses if course.status == "published"]
+    async def execute(self, *, limit: int = 50) -> List[Course]:
+        safe_limit = max(1, min(limit, 50))
+        return await self.repository.list_published_versions(limit=safe_limit)

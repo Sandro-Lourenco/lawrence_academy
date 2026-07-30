@@ -9,7 +9,7 @@ from src.modules.courses.application.use_cases.delete_lesson_use_case import (
 from src.modules.courses.application.use_cases.update_lesson_use_case import (
     UpdateLessonUseCase,
 )
-from src.modules.courses.domain.entities import Lesson
+from src.modules.courses.domain.entities import Lesson, Module
 
 
 class LessonRepositoryFake:
@@ -34,11 +34,16 @@ class LessonRepositoryFake:
     async def get_instructor_id(self, course_id: str):
         return self.instructor_id if course_id == "course-1" else None
 
+    async def get_module_by_id_and_course_id(self, module_id: str, course_id: str):
+        if module_id == "module-2" and course_id == "course-1":
+            return Module(id=module_id, course_id=course_id, title="Módulo 2")
+        return None
+
     async def update_lesson(self, lesson_id: str, lesson_data: dict):
         self.updated_data = lesson_data
         return Lesson(
             id=lesson_id,
-            module_id=self.lesson.module_id,
+            module_id=lesson_data.get("module_id", self.lesson.module_id),
             course_id=self.lesson.course_id,
             title=lesson_data.get("title", self.lesson.title),
             description=lesson_data.get("description", self.lesson.description),
@@ -52,7 +57,7 @@ class LessonRepositoryFake:
         return True
 
 
-def test_teacher_updates_only_selected_lesson():
+def test_teacher_moves_only_selected_lesson_to_valid_course_module():
     repository = LessonRepositoryFake()
     result = asyncio.run(
         UpdateLessonUseCase(repository).execute(
@@ -61,7 +66,7 @@ def test_teacher_updates_only_selected_lesson():
             lesson_data={
                 "title": "Aula 01 atualizada",
                 "order_index": 2,
-                "module_id": "attempted-module-change",
+                "module_id": "module-2",
             },
             current_user_id="teacher-owner",
             current_user_role="teacher",
@@ -69,9 +74,11 @@ def test_teacher_updates_only_selected_lesson():
     )
 
     assert result.title == "Aula 01 atualizada"
+    assert result.module_id == "module-2"
     assert repository.updated_data == {
         "title": "Aula 01 atualizada",
         "order_index": 2,
+        "module_id": "module-2",
     }
 
 

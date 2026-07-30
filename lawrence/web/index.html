@@ -5,76 +5,42 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Lawrence Academy — formação premium em costura, modelagem, moda e estilo.">
 
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="lawrence">
+  <meta name="apple-mobile-web-app-title" content="Lawrence Academy">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>lawrence</title>
+  <title>Lawrence Academy | Costura, modelagem, moda e estilo</title>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
 <script>
-  // Configurar o MutationObserver para segurança da marca d'água no Web Player
-  window.addEventListener('load', function() {
-    const observer = new MutationObserver(function(mutations) {
-      const watermark = document.querySelector('[flt-text*="aluno@lawrence.academy"]') ||
-                        document.querySelector('[key*="secure-watermark"]') ||
-                        document.getElementById('secure-watermark-widget');
-
-      if (watermark) {
-        const style = window.getComputedStyle(watermark);
-        if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) {
-          triggerDefense();
-        }
-      } else {
-        // Se o elemento sumiu do DOM
-        triggerDefense();
+  (async function startLawrenceAcademy() {
+    try {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((registration) => registration.unregister()));
       }
-    });
 
-    // Começa a observar todo o body do aplicativo Flutter
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['style', 'class']
-    });
-
-    function triggerDefense() {
-      console.warn("Security Alert: Watermark tampering detected on Web Player!");
-      if (window.flutter_inject_tampering_detected) {
-        window.flutter_inject_tampering_detected();
-      } else {
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.reload();
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        const legacyFlutterCaches = cacheNames.filter((name) =>
+          name === 'flutter-app-cache' || name === 'flutter-temp-cache'
+        );
+        await Promise.all(legacyFlutterCaches.map((name) => caches.delete(name)));
       }
+    } catch (error) {
+      console.warn('Não foi possível limpar o cache legado do Flutter.', error);
+    } finally {
+      const bootstrap = document.createElement('script');
+      bootstrap.src = 'flutter_bootstrap.js';
+      document.body.appendChild(bootstrap);
     }
-  });
+  })();
 </script>
-
-<script>
-  window._flutter = {
-    config: {
-      onEntrypointLoaded: function(engineInitializer) {
-        engineInitializer.initializeEngine({
-          // INÍCIO DA MODIFICAÇÃO: Força o renderizador CanvasKit
-          renderer: "canvaskit",
-          useColorEmoji: true,
-          // FIM DA MODIFICAÇÃO
-        }).then(function(appRunner) {
-          appRunner.runApp();
-        });
-      }
-    }
-  };
-</script>
-
-<script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

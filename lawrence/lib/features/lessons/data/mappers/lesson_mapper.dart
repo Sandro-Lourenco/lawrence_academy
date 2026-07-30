@@ -14,6 +14,7 @@ class LessonMapper {
       hlsStoragePath: model.hlsStoragePath,
       materialPdfUrl: model.materialPdfUrl,
       status: model.status,
+      blocks: model.blocks,
     );
   }
 
@@ -29,6 +30,7 @@ class LessonMapper {
       hlsStoragePath: entity.hlsStoragePath,
       materialPdfUrl: entity.materialPdfUrl,
       status: entity.status,
+      blocks: entity.blocks,
     );
   }
 }

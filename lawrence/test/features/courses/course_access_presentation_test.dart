@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lawrence/core/errors/app_exceptions.dart';
 import 'package:lawrence/features/courses/presentation/pages/course_detail_page.dart';
 import 'package:lawrence/features/subscriptions/domain/entities/checkout_eligibility_result.dart';
 
@@ -73,6 +74,35 @@ void main() {
     );
 
     expect(result.action, CourseAccessAction.unavailable);
+  });
+
+  test('sessão expirada pede novo login em vez de erro genérico', () {
+    final result = resolveCourseAccessErrorPresentation(
+      const AuthFailure(code: 'HTTP_401'),
+    );
+
+    expect(result.action, CourseAccessErrorAction.signInAgain);
+    expect(result.actionLabel, 'Entrar novamente');
+    expect(result.message, contains('sessão'));
+  });
+
+  test('falha de rede mantém opção segura de tentar novamente', () {
+    final result = resolveCourseAccessErrorPresentation(
+      const NetworkFailure(code: 'CONNECTION_ERROR'),
+    );
+
+    expect(result.action, CourseAccessErrorAction.retry);
+    expect(result.actionLabel, 'Tentar novamente');
+    expect(result.message, contains('conexão'));
+  });
+
+  test('falha inesperada não é confundida com sessão expirada', () {
+    final result = resolveCourseAccessErrorPresentation(
+      const ServerFailure(code: 'HTTP_503'),
+    );
+
+    expect(result.action, CourseAccessErrorAction.retry);
+    expect(result.message, contains('temporariamente indisponível'));
   });
 }
 

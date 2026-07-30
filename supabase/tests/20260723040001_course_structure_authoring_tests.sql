@@ -1,0 +1,12 @@
+BEGIN;
+SELECT plan(8);
+SELECT has_column('modules','description');
+SELECT has_column('modules','status');
+SELECT has_column('modules','updated_at');
+SELECT has_column('lessons','estimated_duration_minutes');
+SELECT has_column('lessons','is_required');
+SELECT isnt_empty($$SELECT 1 FROM pg_constraint WHERE conname='modules_status_check'$$);
+SELECT isnt_empty($$SELECT 1 FROM pg_indexes WHERE indexname='idx_modules_course_order_active'$$);
+SELECT isnt_empty($$SELECT 1 FROM pg_indexes WHERE indexname='idx_lessons_module_order_active'$$);
+SELECT * FROM finish();
+ROLLBACK;

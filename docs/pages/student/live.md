@@ -1,7 +1,7 @@
 ---
 id: PAGE-STUDENT-020
-name: Live Classes
-route: /dashboard/live
+name: Events
+route: /dashboard/events
 layout: StudentDashboardLayout
 platforms:
   - Web
@@ -15,7 +15,7 @@ design-system: Lawrence Design System
 navigation: Sidebar + Bottom Navigation
 state-management: Riverpod
 architecture: Clean Architecture + DDD
-real-time: Supabase Realtime
+real-time: false
 
 streaming:
   protocol: HLS
@@ -26,7 +26,15 @@ streaming:
   questions: true
 ---
 
-# Live Classes
+# Events
+
+## Implementação canônica (2026-07)
+
+A página lista somente eventos provenientes de um contrato real. Até a API de
+agenda ser publicada, mostra um estado vazio explícito, sem cards ou datas
+fictícias. Links externos precisam usar HTTPS e os hosts oficiais
+`youtube.com`, `www.youtube.com`, `m.youtube.com` ou `youtu.be`. O alias legado
+`/dashboard/lives` redireciona para a rota canônica.
 
 ## Objetivo
 

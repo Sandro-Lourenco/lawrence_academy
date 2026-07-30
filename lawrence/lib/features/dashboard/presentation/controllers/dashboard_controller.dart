@@ -2,20 +2,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/providers/learning_repositories.dart';
 import '../../../../app/providers/service_repositories.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../courses/domain/entities/course.dart';
 import '../../../courses/presentation/controllers/catalog_controller.dart';
 import '../../../lesson_progress/domain/entities/lesson_progress_entity.dart';
+import '../../domain/entities/learning_resume_target.dart';
 
 class DashboardResume {
   final Course course;
   final double progressPercentage;
-  final String? nextLessonId;
+  final String lessonId;
+  final String lessonTitle;
+  final LearningResumeView view;
 
   const DashboardResume({
     required this.course,
     required this.progressPercentage,
-    required this.nextLessonId,
+    required this.lessonId,
+    required this.lessonTitle,
+    required this.view,
   });
+
+  String get destination {
+    final base = '/dashboard/courses/${course.id}/lessons/$lessonId';
+    return view == LearningResumeView.watch
+        ? base
+        : '$base?view=${view.queryValue}';
+  }
 }
 
 class DashboardState {
@@ -37,65 +50,97 @@ class DashboardState {
 DashboardResume? buildDashboardResume(
   List<Course> courses,
   List<LessonProgressEntity> progress,
+  [Map<String, LearningResumeTarget> savedTargets = const {}]
 ) {
   if (courses.isEmpty) return null;
 
   DashboardResume? bestResume;
+  DateTime? bestActivityAt;
   for (final course in courses) {
+    final lessons = [for (final module in course.modules) ...module.lessons];
+    if (lessons.isEmpty) continue;
     final courseProgress = progress
         .where((item) => item.courseId == course.id)
         .toList(growable: false);
-    final percentage = courseProgress.isEmpty
-        ? 0.0
-        : courseProgress.fold<double>(
-                0,
-                (total, item) => total + item.progressPercentage,
-              ) /
-              courseProgress.length;
+    final progressByLesson = {
+      for (final item in courseProgress) item.lessonId: item,
+    };
+    final percentage = lessons.fold<double>(0, (total, lesson) {
+          final item = progressByLesson[lesson.id];
+          return total +
+              (item?.completed == true
+                  ? 100
+                  : (item?.progressPercentage ?? 0).clamp(0, 100));
+        }) /
+        lessons.length;
 
-    String? nextLessonId;
-    for (final module in course.modules) {
-      for (final lesson in module.lessons) {
-        LessonProgressEntity? lessonProgress;
-        for (final item in courseProgress) {
-          if (item.lessonId == lesson.id) {
-            lessonProgress = item;
-            break;
-          }
-        }
-        if (lessonProgress == null || !lessonProgress.completed) {
-          nextLessonId = lesson.id;
-          break;
-        }
-      }
-      if (nextLessonId != null) break;
-    }
+    final saved = savedTargets[course.id];
+    final savedLesson = saved == null
+        ? null
+        : _firstWhereOrNull(lessons, (lesson) => lesson.id == saved.lessonId);
+    final viewedProgress = courseProgress
+        .where((item) => item.progressPercentage > 0 && !item.completed)
+        .toList()
+      ..sort(
+        (a, b) => (b.lastSyncedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+            .compareTo(a.lastSyncedAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
+      );
+    final viewedLesson = viewedProgress.isEmpty
+        ? null
+        : _firstWhereOrNull(
+            lessons,
+            (lesson) => lesson.id == viewedProgress.first.lessonId,
+          );
+    final firstIncomplete = _firstWhereOrNull(
+      lessons,
+      (lesson) => progressByLesson[lesson.id]?.completed != true,
+    );
+    final targetLesson =
+        savedLesson ?? viewedLesson ?? firstIncomplete ?? lessons.last;
+    final activityAt =
+        saved?.updatedAt ??
+        (viewedProgress.isEmpty ? null : viewedProgress.first.lastSyncedAt);
 
     final candidate = DashboardResume(
       course: course,
       progressPercentage: percentage.clamp(0.0, 100.0).toDouble(),
-      nextLessonId: nextLessonId,
+      lessonId: targetLesson.id,
+      lessonTitle: targetLesson.title,
+      view: savedLesson == null ? LearningResumeView.watch : saved!.view,
     );
-    final isInProgress = percentage > 0 && percentage < 100;
-    final currentIsInProgress = bestResume != null &&
-        bestResume.progressPercentage > 0 &&
-        bestResume.progressPercentage < 100;
+    final candidateStarted = percentage > 0 || savedLesson != null;
+    final bestStarted =
+        bestResume != null &&
+        (bestResume.progressPercentage > 0 ||
+            savedTargets.containsKey(bestResume.course.id));
 
     if (bestResume == null ||
-        (isInProgress && !currentIsInProgress) ||
-        (isInProgress &&
-            currentIsInProgress &&
-            percentage > bestResume.progressPercentage)) {
+        (candidateStarted && !bestStarted) ||
+        (candidateStarted &&
+            bestStarted &&
+            activityAt != null &&
+            (bestActivityAt == null || activityAt.isAfter(bestActivityAt)))) {
       bestResume = candidate;
+      bestActivityAt = activityAt;
     }
   }
 
   return bestResume;
 }
 
+T? _firstWhereOrNull<T>(Iterable<T> values, bool Function(T) test) {
+  for (final value in values) {
+    if (test(value)) return value;
+  }
+  return null;
+}
+
 class DashboardNotifier extends AutoDisposeAsyncNotifier<DashboardState> {
   @override
   Future<DashboardState> build() async {
+    final studentId = ref.watch(
+      authNotifierProvider.select((state) => state.user?.id),
+    );
     var name = 'Estudante';
     try {
       final profile = await ref.watch(getMyProfileUseCaseProvider).execute();
@@ -145,12 +190,31 @@ class DashboardNotifier extends AutoDisposeAsyncNotifier<DashboardState> {
     final accessibleProgress = progress
         .where((item) => accessibleCourseIds.contains(item.courseId))
         .toList(growable: false);
+    final savedTargets = <String, LearningResumeTarget>{};
+    if (studentId != null) {
+      final resumeRepository = ref.watch(learningResumeRepositoryProvider);
+      final targets = await Future.wait(
+        courses.map(
+          (course) => resumeRepository.getForCourse(
+            studentId: studentId,
+            courseId: course.id,
+          ),
+        ),
+      );
+      for (final target in targets.whereType<LearningResumeTarget>()) {
+        savedTargets[target.courseId] = target;
+      }
+    }
 
     return DashboardState(
       studentName: name,
       courses: courses,
       progressList: accessibleProgress,
-      resume: buildDashboardResume(courses, accessibleProgress),
+      resume: buildDashboardResume(
+        courses,
+        accessibleProgress,
+        savedTargets,
+      ),
       isUsingCachedAccess: isUsingCachedAccess,
     );
   }

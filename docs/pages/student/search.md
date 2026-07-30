@@ -18,14 +18,21 @@ architecture: Clean Architecture + DDD
 real-time: Supabase Realtime
 
 search:
-  global: true
+  global: false
   instant: true
-  semantic: true
-  full_text: true
+  semantic: false
+  full_text: false
   voice_search: future
 ---
 
 # Search
+
+## Implementação canônica (2026-07)
+
+A busca atual opera sobre o catálogo de cursos publicados retornado por
+`GET /api/v1/courses`. Ela usa debounce de 280 ms e persiste na URL `q`,
+`content`, `category`, `level` e `access`. Busca global, semântica, histórico,
+professores, materiais e eventos continuam futuras e não são simuladas.
 
 ## Objetivo
 

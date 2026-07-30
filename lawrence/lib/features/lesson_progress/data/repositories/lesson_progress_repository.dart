@@ -5,11 +5,11 @@ import '../../../../core/network/network_client.dart';
 import '../../domain/entities/lesson_progress_entity.dart';
 import '../../domain/entities/sync_queue_item.dart';
 import '../../domain/repositories/lesson_progress_repository_interface.dart';
-import '../datasources/sqlite_progress_datasource.dart';
+import '../datasources/progress_local_datasource.dart';
 import '../mappers/lesson_progress_mapper.dart';
 
 class LessonProgressRepository implements ILessonProgressRepository {
-  final SQLiteProgressDataSource _localDataSource;
+  final ProgressLocalDataSource _localDataSource;
   final NetworkClient _networkClient;
   final Future<String> Function() _getInstallationId;
 
@@ -197,6 +197,7 @@ class LessonProgressRepository implements ILessonProgressRepository {
       for (final item in readyItems) {
         await _markItemForRetry(item, error.toString());
       }
+      rethrow;
     }
   }
 

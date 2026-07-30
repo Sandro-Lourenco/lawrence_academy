@@ -10,20 +10,36 @@ class ModuleLessonsSection extends StatelessWidget {
     required this.isBusy,
     required this.onAddLesson,
     required this.onEditLesson,
+    required this.onEditLessonContent,
     required this.onReplaceVideo,
     required this.onDeleteLesson,
     required this.onEditModule,
     required this.onDeleteModule,
+    required this.onMoveModuleUp,
+    required this.onMoveModuleDown,
+    required this.canMoveModuleUp,
+    required this.canMoveModuleDown,
+    required this.onMoveLessonUp,
+    required this.onMoveLessonDown,
+    required this.onMoveLessonToModule,
   });
 
   final Module module;
   final bool isBusy;
   final VoidCallback onAddLesson;
   final ValueChanged<Lesson> onEditLesson;
+  final ValueChanged<Lesson> onEditLessonContent;
   final ValueChanged<Lesson> onReplaceVideo;
   final ValueChanged<Lesson> onDeleteLesson;
   final VoidCallback onEditModule;
   final VoidCallback onDeleteModule;
+  final VoidCallback onMoveModuleUp;
+  final VoidCallback onMoveModuleDown;
+  final bool canMoveModuleUp;
+  final bool canMoveModuleDown;
+  final ValueChanged<Lesson> onMoveLessonUp;
+  final ValueChanged<Lesson> onMoveLessonDown;
+  final ValueChanged<Lesson> onMoveLessonToModule;
 
   @override
   Widget build(BuildContext context) {
@@ -69,21 +85,50 @@ class ModuleLessonsSection extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            subtitle: Text(
-              lessons.isEmpty
-                  ? 'Nenhuma aula criada'
-                  : '${lessons.length} ${lessons.length == 1 ? 'aula' : 'aulas'}',
-              style: const TextStyle(color: LawrenceColors.textSecondary),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (module.description.isNotEmpty)
+                  Text(
+                    module.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                Text(
+                  lessons.isEmpty
+                      ? 'Nenhuma aula criada'
+                      : '${lessons.length} ${lessons.length == 1 ? 'aula' : 'aulas'} • ${module.status == 'ready' ? 'Pronto para revisão' : 'Em construção'}',
+                  style: const TextStyle(color: LawrenceColors.textSecondary),
+                ),
+              ],
             ),
             trailing: PopupMenuButton<String>(
               tooltip: 'Ações do módulo ${module.title}',
               onSelected: (value) {
                 if (value == 'edit') onEditModule();
+                if (value == 'up') onMoveModuleUp();
+                if (value == 'down') onMoveModuleDown();
                 if (value == 'delete') onDeleteModule();
               },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'edit', child: Text('Editar módulo')),
-                PopupMenuItem(value: 'delete', child: Text('Arquivar módulo')),
+              itemBuilder: (_) => [
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: Text('Editar módulo'),
+                ),
+                PopupMenuItem(
+                  value: 'up',
+                  enabled: canMoveModuleUp,
+                  child: const Text('Mover módulo para cima'),
+                ),
+                PopupMenuItem(
+                  value: 'down',
+                  enabled: canMoveModuleDown,
+                  child: const Text('Mover módulo para baixo'),
+                ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Arquivar módulo'),
+                ),
               ],
             ),
             children: [
@@ -96,8 +141,14 @@ class ModuleLessonsSection extends StatelessWidget {
                     displayNumber: index + 1,
                     enabled: !isBusy,
                     onEdit: () => onEditLesson(lessons[index]),
+                    onEditContent: () => onEditLessonContent(lessons[index]),
                     onReplaceVideo: () => onReplaceVideo(lessons[index]),
                     onDelete: () => onDeleteLesson(lessons[index]),
+                    onMoveUp: () => onMoveLessonUp(lessons[index]),
+                    onMoveDown: () => onMoveLessonDown(lessons[index]),
+                    canMoveUp: index > 0,
+                    canMoveDown: index < lessons.length - 1,
+                    onMoveToModule: () => onMoveLessonToModule(lessons[index]),
                   ),
                 const SizedBox(height: 12),
                 Align(
@@ -123,20 +174,32 @@ class _LessonRow extends StatelessWidget {
     required this.displayNumber,
     required this.enabled,
     required this.onEdit,
+    required this.onEditContent,
     required this.onReplaceVideo,
     required this.onDelete,
+    required this.onMoveUp,
+    required this.onMoveDown,
+    required this.canMoveUp,
+    required this.canMoveDown,
+    required this.onMoveToModule,
   });
 
   final Lesson lesson;
   final int displayNumber;
   final bool enabled;
   final VoidCallback onEdit;
+  final VoidCallback onEditContent;
   final VoidCallback onReplaceVideo;
   final VoidCallback onDelete;
+  final VoidCallback onMoveUp;
+  final VoidCallback onMoveDown;
+  final bool canMoveUp;
+  final bool canMoveDown;
+  final VoidCallback onMoveToModule;
 
   @override
   Widget build(BuildContext context) {
-    final hasVideo = lesson.hlsStoragePath != null;
+    final videoStatus = _LessonVideoStatus.fromLesson(lesson);
     return Semantics(
       container: true,
       label: 'Aula $displayNumber, ${lesson.title}, status ${lesson.status}',
@@ -144,8 +207,20 @@ class _LessonRow extends StatelessWidget {
         margin: const EdgeInsets.only(top: 8),
         padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
         decoration: BoxDecoration(
-          color: LawrenceColors.canvasParchment,
+          color: LawrenceColors.canvas,
           borderRadius: BorderRadius.circular(LawrenceTheme.radiusMd),
+          border: Border.all(
+            color: videoStatus.isFailed
+                ? LawrenceColors.danger.withValues(alpha: .45)
+                : LawrenceColors.borderMist,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A10264F),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -186,13 +261,23 @@ class _LessonRow extends StatelessWidget {
                     runSpacing: 4,
                     children: [
                       _StatusLabel(
-                        icon: hasVideo
-                            ? Icons.check_circle_outline
-                            : Icons.schedule_outlined,
-                        label: hasVideo ? 'Vídeo pronto' : 'Vídeo pendente',
-                        color: hasVideo
-                            ? LawrenceColors.success
-                            : LawrenceColors.warning,
+                        icon: videoStatus.icon,
+                        label: videoStatus.label,
+                        color: videoStatus.color,
+                      ),
+                      if (lesson.estimatedDurationMinutes != null)
+                        _StatusLabel(
+                          icon: Icons.timer_outlined,
+                          label:
+                              '${lesson.estimatedDurationMinutes} min estimados',
+                          color: LawrenceColors.textSecondary,
+                        ),
+                      _StatusLabel(
+                        icon: lesson.isRequired
+                            ? Icons.assignment_turned_in_outlined
+                            : Icons.low_priority,
+                        label: lesson.isRequired ? 'Obrigatória' : 'Opcional',
+                        color: LawrenceColors.textSecondary,
                       ),
                       _StatusLabel(
                         icon: lesson.status == 'published'
@@ -205,6 +290,20 @@ class _LessonRow extends StatelessWidget {
                       ),
                     ],
                   ),
+                  if (videoStatus.isFailed) ...[
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: enabled ? onReplaceVideo : null,
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Enviar vídeo novamente'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: LawrenceColors.danger,
+                        side: const BorderSide(color: LawrenceColors.danger),
+                        minimumSize: const Size(0, 40),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -213,10 +312,22 @@ class _LessonRow extends StatelessWidget {
               tooltip: 'Ações da aula ${lesson.title}',
               onSelected: (value) {
                 if (value == 'edit') onEdit();
+                if (value == 'content') onEditContent();
                 if (value == 'video') onReplaceVideo();
+                if (value == 'up') onMoveUp();
+                if (value == 'down') onMoveDown();
+                if (value == 'module') onMoveToModule();
                 if (value == 'delete') onDelete();
               },
-              itemBuilder: (_) => const [
+              itemBuilder: (_) => [
+                const PopupMenuItem(
+                  value: 'content',
+                  child: ListTile(
+                    leading: Icon(Icons.view_agenda_outlined),
+                    title: Text('Editar conteúdo'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
                 PopupMenuItem(
                   value: 'edit',
                   child: ListTile(
@@ -226,10 +337,36 @@ class _LessonRow extends StatelessWidget {
                   ),
                 ),
                 PopupMenuItem(
+                  value: 'up',
+                  enabled: canMoveUp,
+                  child: const ListTile(
+                    leading: Icon(Icons.arrow_upward),
+                    title: Text('Mover para cima'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'down',
+                  enabled: canMoveDown,
+                  child: const ListTile(
+                    leading: Icon(Icons.arrow_downward),
+                    title: Text('Mover para baixo'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'module',
+                  child: ListTile(
+                    leading: Icon(Icons.drive_file_move_outline),
+                    title: Text('Mover para outro módulo'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                const PopupMenuItem(
                   value: 'video',
                   child: ListTile(
                     leading: Icon(Icons.video_file_outlined),
-                    title: Text('Trocar vídeo'),
+                    title: Text('Trocar ou reenviar vídeo'),
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
@@ -253,6 +390,62 @@ class _LessonRow extends StatelessWidget {
   }
 }
 
+class _LessonVideoStatus {
+  const _LessonVideoStatus(
+    this.label,
+    this.icon,
+    this.color, {
+    this.isFailed = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool isFailed;
+
+  factory _LessonVideoStatus.fromLesson(Lesson lesson) {
+    if (lesson.hlsStoragePath?.isNotEmpty == true) {
+      return const _LessonVideoStatus(
+        'Vídeo pronto',
+        Icons.check_circle_outline,
+        LawrenceColors.success,
+      );
+    }
+    return switch (lesson.videoJobStatus) {
+      'upload_pending' => const _LessonVideoStatus(
+        'Aguardando envio',
+        Icons.cloud_upload_outlined,
+        LawrenceColors.warning,
+      ),
+      'uploaded' || 'processing_pending' => const _LessonVideoStatus(
+        'Na fila de processamento',
+        Icons.schedule_outlined,
+        LawrenceColors.warning,
+      ),
+      'processing' ||
+      'validating' ||
+      'transcoding' ||
+      'generating_hls' ||
+      'generating_thumbnail' => const _LessonVideoStatus(
+        'Processando vídeo',
+        Icons.autorenew,
+        LawrenceColors.primary,
+      ),
+      'failed' || 'dead_letter' => const _LessonVideoStatus(
+        'Falha — envie novamente',
+        Icons.error_outline,
+        LawrenceColors.danger,
+        isFailed: true,
+      ),
+      _ => const _LessonVideoStatus(
+        'Sem vídeo',
+        Icons.videocam_off_outlined,
+        LawrenceColors.textSecondary,
+      ),
+    };
+  }
+}
+
 class _StatusLabel extends StatelessWidget {
   const _StatusLabel({
     required this.icon,
@@ -266,13 +459,27 @@ class _StatusLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 15, color: color),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(color: color, fontSize: 12)),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .09),
+        borderRadius: BorderRadius.circular(LawrenceRadii.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

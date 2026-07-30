@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../design_system/tokens/lawrence_theme.dart';
 import '../../../../design_system/widgets/liquid_glass_card.dart';
@@ -119,7 +120,11 @@ class ActivitiesPage extends ConsumerWidget {
 
     return LiquidGlassCard(
       onTap: () {
-        // Navegar para detalhes futuramente
+        if (activity.type == ActivityType.project) {
+          context.go('/dashboard/projects/${activity.id}');
+        } else {
+          context.go('/dashboard/activities/${activity.id}');
+        }
       },
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

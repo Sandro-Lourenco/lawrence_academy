@@ -32,7 +32,7 @@ def test_get_all_courses(mock_db, mock_get_user):
     mock_user = MagicMock()
     mock_user.id = "user_id_123"
     mock_user.email = "student@gmail.com"
-    mock_user.app_metadata = {"role": "student"}
+    mock_user.app_metadata = {"role": "super_admin"}
     mock_auth_res = MagicMock()
     mock_auth_res.user = mock_user
     mock_get_user.return_value = mock_auth_res
@@ -41,18 +41,23 @@ def test_get_all_courses(mock_db, mock_get_user):
     mock_db_res = MagicMock()
     mock_db_res.data = [
         {
-            "id": "course_uuid_1",
-            "instructor_id": "inst_123",
-            "title": "Introdução à Costura",
-            "slug": "introducao-costura",
-            "category": "costura",
-            "level": "iniciante",
-            "summary": "Resumo do curso",
-            "monthly_price": 49.90,
-            "status": "published",
+            "snapshot": {
+                "id": "course_uuid_1",
+                "instructor_id": "inst_123",
+                "title": "Introdução à Costura",
+                "slug": "introducao-costura",
+                "category": "costura",
+                "level": "iniciante",
+                "summary": "Resumo do curso",
+                "monthly_price": 49.90,
+                "status": "published",
+            }
         }
     ]
-    mock_db.table.return_value.select.return_value.is_.return_value.execute.return_value = mock_db_res
+    live_courses_res = MagicMock()
+    live_courses_res.data = [{"id": "course_uuid_1"}]
+    mock_db.table.return_value.select.return_value.eq.return_value.is_.return_value.execute.return_value = live_courses_res
+    mock_db.table.return_value.select.return_value.eq.return_value.in_.return_value.order.return_value.execute.return_value = mock_db_res
 
     response = client.get("/courses", headers={"Authorization": "Bearer token"})
     assert response.status_code == 200
@@ -69,7 +74,7 @@ def test_get_lesson_by_id_success(mock_db, mock_get_user):
     mock_user = MagicMock()
     mock_user.id = "user_id_123"
     mock_user.email = "student@gmail.com"
-    mock_user.app_metadata = {"role": "student"}
+    mock_user.app_metadata = {"role": "super_admin"}
     mock_auth_res = MagicMock()
     mock_auth_res.user = mock_user
     mock_get_user.return_value = mock_auth_res
@@ -103,7 +108,7 @@ def test_get_lesson_by_id_not_found(mock_db, mock_get_user):
     mock_user = MagicMock()
     mock_user.id = "user_id_123"
     mock_user.email = "student@gmail.com"
-    mock_user.app_metadata = {"role": "student"}
+    mock_user.app_metadata = {"role": "super_admin"}
     mock_auth_res = MagicMock()
     mock_auth_res.user = mock_user
     mock_get_user.return_value = mock_auth_res
@@ -170,7 +175,9 @@ def test_update_student_profile_success(mock_db, mock_get_user):
             "role": "student",
         }
     ]
-    mock_db.table.return_value.update.return_value.eq.return_value.execute.return_value = mock_db_res
+    mock_db.table.return_value.update.return_value.eq.return_value.execute.return_value = (
+        mock_db_res
+    )
 
     response = client.put(
         "/students/me",

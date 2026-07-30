@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/app_error.dart';
+import '../../../../core/errors/app_exceptions.dart';
 import '../../../../design_system/tokens/lawrence_theme.dart';
 import '../../../../design_system/widgets/state_widgets.dart';
 import '../../../../design_system/widgets/status_badge.dart';
@@ -14,6 +15,47 @@ import '../../domain/entities/course.dart';
 import '../providers/course_detail_provider.dart';
 
 enum CourseAccessAction { login, subscribe, access, manageSubscription, unavailable }
+
+enum CourseAccessErrorAction { retry, signInAgain }
+
+class CourseAccessErrorPresentation {
+  final String message;
+  final String actionLabel;
+  final CourseAccessErrorAction action;
+
+  const CourseAccessErrorPresentation({
+    required this.message,
+    required this.actionLabel,
+    required this.action,
+  });
+}
+
+CourseAccessErrorPresentation resolveCourseAccessErrorPresentation(
+  Object error,
+) {
+  if (error is AuthFailure) {
+    return const CourseAccessErrorPresentation(
+      message:
+          'Sua sessão expirou ou não pôde ser validada. Entre novamente para continuar.',
+      actionLabel: 'Entrar novamente',
+      action: CourseAccessErrorAction.signInAgain,
+    );
+  }
+  if (error is NetworkFailure) {
+    return const CourseAccessErrorPresentation(
+      message:
+          'Não foi possível conectar ao serviço de acesso. Verifique sua conexão e tente novamente.',
+      actionLabel: 'Tentar novamente',
+      action: CourseAccessErrorAction.retry,
+    );
+  }
+  return const CourseAccessErrorPresentation(
+    message:
+        'O serviço de acesso está temporariamente indisponível. Tente novamente em instantes.',
+    actionLabel: 'Tentar novamente',
+    action: CourseAccessErrorAction.retry,
+  );
+}
 
 class CourseAccessPresentation {
   final CourseAccessAction action;
@@ -434,23 +476,46 @@ class _CourseAccessButton extends ConsumerWidget {
         label: 'Verificando acesso ao curso',
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (_, _) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Não foi possível verificar seu acesso.',
-            style: TextStyle(color: LawrenceColors.danger),
-          ),
-          const SizedBox(height: LawrenceSpacing.sm),
-          OutlinedButton.icon(
-            onPressed: () => ref
-                .read(checkoutEligibilityProvider(course.id).notifier)
-                .checkEligibility(),
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Tentar novamente'),
-          ),
-        ],
-      ),
+      error: (error, _) {
+        final presentation = resolveCourseAccessErrorPresentation(error);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              presentation.message,
+              style: const TextStyle(color: LawrenceColors.danger),
+            ),
+            const SizedBox(height: LawrenceSpacing.sm),
+            OutlinedButton.icon(
+              onPressed: () async {
+                if (presentation.action ==
+                    CourseAccessErrorAction.signInAgain) {
+                  await ref.read(authNotifierProvider.notifier).signOut();
+                  if (!context.mounted) return;
+                  context.go(
+                    Uri(
+                      path: '/login',
+                      queryParameters: {
+                        'redirect': '/courses/${course.slug}',
+                      },
+                    ).toString(),
+                  );
+                  return;
+                }
+                await ref
+                    .read(checkoutEligibilityProvider(course.id).notifier)
+                    .checkEligibility();
+              },
+              icon: Icon(
+                presentation.action == CourseAccessErrorAction.signInAgain
+                    ? Icons.login_rounded
+                    : Icons.refresh_rounded,
+              ),
+              label: Text(presentation.actionLabel),
+            ),
+          ],
+        );
+      },
       data: (eligibility) => _ActionButton(
         presentation: resolveCourseAccessPresentation(
           authenticated: true,
@@ -472,7 +537,12 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final VoidCallback? action = switch (presentation.action) {
-      CourseAccessAction.login => () => context.go('/login'),
+      CourseAccessAction.login => () => context.go(
+        Uri(
+          path: '/login',
+          queryParameters: {'redirect': '/courses/${course.slug}'},
+        ).toString(),
+      ),
       CourseAccessAction.subscribe => () => context.push('/checkout/${course.id}'),
       CourseAccessAction.access => () => context.go('/dashboard/courses/${course.id}'),
       CourseAccessAction.manageSubscription => () => context.go('/dashboard/subscriptions'),

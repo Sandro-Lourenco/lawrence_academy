@@ -4,6 +4,7 @@ DO $$
 DECLARE
     missing_columns TEXT[];
     rls_enabled BOOLEAN;
+    course_policy_check TEXT;
 BEGIN
     SELECT ARRAY_AGG(required.column_name)
     INTO missing_columns
@@ -48,6 +49,17 @@ BEGIN
           AND contype = 'c'
     ) THEN
         RAISE EXCEPTION 'Course type constraint is missing';
+    END IF;
+
+    SELECT with_check
+    INTO course_policy_check
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'courses'
+      AND policyname = 'Gerenciamento de cursos por instrutor ou admin';
+
+    IF course_policy_check IS NULL THEN
+        RAISE EXCEPTION 'Course management policy has no WITH CHECK clause';
     END IF;
 END;
 $$;

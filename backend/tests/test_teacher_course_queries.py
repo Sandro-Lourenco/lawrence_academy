@@ -65,3 +65,38 @@ async def test_super_admin_can_read_any_teacher_course():
     )
 
     assert result == course
+
+
+def test_supabase_course_repository_mapping_with_null_and_missing_values():
+    from src.modules.courses.infrastructure.repositories.supabase_course_repository import SupabaseCourseRepository
+    from unittest.mock import MagicMock
+
+    repo = SupabaseCourseRepository(MagicMock())
+
+    data = {
+        "id": "course-123",
+        "instructor_id": "teacher-123",
+        "title": "Robust Course Test",
+        "slug": "robust-course-test",
+        "cover_focal_x": None,
+        "cover_focal_y": None,
+        "monthly_price": None,
+        "promotional_monthly_price": None,
+        "certificate_enabled": None,
+        "reviews_enabled": None,
+        "comments_enabled": None,
+        "modules": None,
+    }
+
+    course = repo._map_course(data)
+    assert course.id == "course-123"
+    assert course.summary == ""
+    assert course.course_type == "complete"
+    assert course.cover_focal_x == 0.5
+    assert course.cover_focal_y == 0.5
+    assert course.monthly_price == Decimal("0.00")
+    assert course.promotional_monthly_price is None
+    assert course.certificate_enabled is True
+    assert course.reviews_enabled is True
+    assert course.comments_enabled is True
+    assert course.modules == []

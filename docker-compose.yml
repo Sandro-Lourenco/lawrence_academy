@@ -1,0 +1,49 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lawrence-backend
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    env_file:
+      - .env
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  video-worker:
+    build:
+      context: ./backend
+      dockerfile: src/workers/video_worker/Dockerfile
+    container_name: lawrence-video-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    stop_grace_period: 30s
+
+  frontend:
+    build:
+      context: ./lawrence
+      dockerfile: Dockerfile
+      args:
+        # You can pass build-time variables (dart-defines) if needed
+        # Example:
+        - DART_DEFINES=--dart-define=ENV=dev --dart-define=API_BASE_URL=http://localhost:8000
+    container_name: lawrence-frontend
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    depends_on:
+      backend:
+        # Static UI must remain available to render its offline/error states
+        # even while the API or Supabase readiness probe is degraded.
+        condition: service_started

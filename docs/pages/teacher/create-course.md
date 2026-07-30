@@ -211,6 +211,23 @@ Objetivos e demais listas pedagógicas aceitam no máximo 20 itens, com um item
 por linha na interface. A carga horária informada pelo professor é estimativa;
 a duração processada dos vídeos permanece como fonte da duração real.
 
+### Fase 2 — Apresentação e oferta
+
+Contrato de oferta confirmado:
+
+- curso gratuito (`monthly_price = 0`) ou assinatura mensal individual;
+- preço promocional opcional, sempre menor que o valor mensal;
+- início e fim obrigatórios quando houver promoção;
+- certificado, avaliações e comentários;
+- visibilidade `public`, `unlisted` ou `private`;
+- disponibilidade imediata ou agendada;
+- `is_featured` é exclusivamente administrativo e nunca é aceito pela API do
+  professor.
+
+Preço, promoção, visibilidade e autorização são validados pelo backend. Mídia
+pública de apresentação possui contrato separado e não reutiliza o bucket de
+vídeos privados das aulas.
+
 Stepper horizontal (Desktop)
 
 Stepper vertical (Mobile)

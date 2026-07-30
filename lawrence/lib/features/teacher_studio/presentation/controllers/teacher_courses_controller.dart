@@ -19,19 +19,39 @@ class TeacherCoursesController extends AsyncNotifier<List<Course>> {
     state = await AsyncValue.guard(_fetchCourses);
   }
 
-  Future<void> archiveCourse(String courseId) async {
+  Future<void> archiveCourse(String courseId, {String? reason}) async {
     try {
       final usecases = ref.read(teacherCourseUseCasesProvider);
-      await usecases.archiveCourse(courseId);
-      // Remove from list
-      if (state.hasValue) {
-        final currentList = state.value!;
-        state = AsyncValue.data(
-          currentList.where((c) => c.id != courseId).toList(),
-        );
-      }
+      await usecases.archiveCourse(courseId, reason: reason);
+      await reload();
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
+    }
+  }
+
+  Future<bool> unpublishCourse(String courseId, {String? reason}) async {
+    try {
+      await ref
+          .read(teacherCourseUseCasesProvider)
+          .unpublishCourse(courseId, reason: reason);
+      await reload();
+      return true;
+    } catch (error, stack) {
+      state = AsyncValue.error(error, stack);
+      return false;
+    }
+  }
+
+  Future<bool> restoreCourse(String courseId, {String? reason}) async {
+    try {
+      await ref
+          .read(teacherCourseUseCasesProvider)
+          .restoreCourse(courseId, reason: reason);
+      await reload();
+      return true;
+    } catch (error, stack) {
+      state = AsyncValue.error(error, stack);
+      return false;
     }
   }
 }

@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
 
 concurrency:
   group: security-ci-${{ github.ref }}
@@ -41,6 +40,9 @@ jobs:
   codeql:
     name: CodeQL Python
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v6
       - uses: github/codeql-action/init@v4

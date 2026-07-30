@@ -8,11 +8,24 @@ O carregador recusa qualquer API diferente de `127.0.0.1:54321` ou
 
 ```powershell
 docker info
-npx --yes supabase@2.84.2 start
-npx --yes supabase@2.84.2 db reset
+npx --yes supabase@2.109.1 start
+npx --yes supabase@2.109.1 db reset
 ```
 
-## Carregar
+## Iniciar aplicação completa
+
+O comando abaixo inicia Supabase, backend, worker e frontend, compila a UI com
+as URLs locais e carrega todos os dados sintéticos:
+
+```powershell
+.\scripts\start-local.ps1 `
+  -StudentPassword '<senha-local-do-aluno>' `
+  -TeacherPassword '<senha-local-da-professora>'
+```
+
+A aplicação fica disponível em `http://localhost:8080`.
+
+## Carregar somente as fixtures
 
 Escolha senhas locais e não reutilize credenciais reais:
 
@@ -40,7 +53,10 @@ novamente com novas senhas.
 - uma assinatura ativa sintética;
 - três registros de progresso;
 - um certificado sintético.
+- um vídeo HLS curto e válido, gerado pelo FFmpeg do worker e enviado ao bucket
+  privado `lessons-hls`.
 
-Os caminhos HLS são marcadores locais. A reprodução de vídeo somente funcionará
-depois que objetos de teste forem enviados ao Storage pelo pipeline autorizado.
+No ambiente local, `PAYMENT_PROVIDER=fake` ativa a assinatura imediatamente para
+permitir validar cadastro, compra e reprodução sem credenciais reais do Stripe.
+Produção continua exigindo o provedor e os segredos reais.
 

@@ -454,6 +454,16 @@ defaults retrocompatíveis e continuam protegidas pelas policies de ownership e
 RLS da tabela `courses`. A duração estimada não substitui a duração real obtida
 do pipeline de mídia.
 
+## Course Offer — Fase 2 do Studio de Autoria
+
+`public.courses` mantém valor promocional e período, flags de certificado,
+avaliações e comentários, visibilidade, disponibilidade, agendamento e a flag
+administrativa `is_featured`. Constraints impedem promoção negativa ou maior
+que o valor mensal, períodos invertidos e agendamento sem data.
+
+`is_featured` não é aceito pela API do professor. A policy de ownership de
+`courses` continua exigindo `USING` e `WITH CHECK`.
+
 
 Dados específicos de professores.
 
@@ -783,3 +793,62 @@ Parte 5:
 - AI
 - Notifications
 - Audit Logs
+## Course lifecycle history
+
+`course_status_history` stores course, actor, previous status, target status,
+optional reason and timestamp. RLS is enabled and there are no `anon` or
+`authenticated` grants. Lifecycle mutations use the service-role-only,
+`SECURITY INVOKER` function `transition_course_status`.
+
+Supported states include `draft`, `reviewing`, `published`, `unpublished` and
+`archived`.
+## Immutable published course versions
+
+`course_versions` stores a numbered immutable JSONB snapshot of the course
+aggregate, including modules, lessons and controlled blocks. Exactly one
+version per course is marked `is_current`. The table has RLS enabled and is
+available only to the backend service role.
+
+The relational course aggregate remains the authoring source. Student reads
+resolve the current snapshot, so teacher autosave cannot change the live
+learning experience before another explicit publication.
+
+`course_version_restores` is an append-only audit log for historical restores.
+`restore_course_version_to_authoring` locks the course, verifies the expected
+`updated_at`, restores the aggregate transactionally with soft deletion, and
+does not replace the current public version. Both objects have RLS enabled and
+are restricted to the backend service role.
+
+## Idempotência da autoria e publicação
+
+As mutações de criação do Studio e a publicação exigem `Idempotency-Key`.
+O backend deriva UUIDs determinísticos por ator, agregado, operação e chave de
+intenção. Replays com o mesmo payload convergem para o mesmo recurso; reutilizar
+a chave com payload diferente é conflito.
+
+`course_authoring_idempotency_requests` é o ledger privado das criações.
+Armazena ator, escopo, hash da requisição e recurso reservado. A tabela possui
+RLS, não concede acesso a `anon`/`authenticated` e é acessada somente pelo
+backend.
+
+`course_publication_requests` registra a versão produzida por cada intenção de
+publicação. A chave é escopada por curso e ator. O RPC
+`publish_course_idempotent` bloqueia o curso, valida ownership, revisão e hash,
+e devolve a versão original em replay sem criar outro snapshot ou histórico.
+
+`courses.authoring_revision` representa a revisão do agregado autorável.
+Triggers em módulos, aulas e blocos incrementam a revisão e atualizam
+`courses.updated_at`, serializando alterações filhas com a publicação.
+
+Migration canônica:
+`20260724193053_add_course_authoring_idempotency.sql`.
+
+## Claim atômico do processamento de vídeo
+
+`claim_next_video_processing_job()` seleciona o job elegível mais antigo com
+`FOR UPDATE SKIP LOCKED` e o move para `processing` na mesma transação. Somente
+`service_role` possui `EXECUTE`; `anon` e `authenticated` não podem consumir a
+fila. Isso impede que múltiplas instâncias do worker processem o mesmo upload.
+
+Migration canônica:
+`20260728120000_claim_video_processing_jobs.sql`.

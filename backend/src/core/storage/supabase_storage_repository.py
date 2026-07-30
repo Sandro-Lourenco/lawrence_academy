@@ -13,6 +13,7 @@ from typing import Optional
 from supabase import Client
 from postgrest.exceptions import APIError
 from src.core.errors.errors import ExternalServiceError
+from src.core.storage.public_url import to_public_supabase_url
 
 logger = logging.getLogger(__name__)
 
@@ -47,18 +48,13 @@ class SupabaseStorageRepository:
         IMPORTANTE: Não logar o retorno desta função. Contém token temporário.
         """
         try:
-            res = self.client.storage.from_(
-                _BUCKET_RAW_VIDEOS
-            ).create_signed_upload_url(storage_path)
+            res = self.client.storage.from_(_BUCKET_RAW_VIDEOS).create_signed_upload_url(
+                storage_path
+            )
             # storage-py 2.x returns ``signed_url`` and keeps ``signedUrl`` as
             # a compatibility alias. Accept every known SDK spelling so an
             # SDK upgrade cannot turn a valid response into an HTTP 502.
-            signed_url = (
-                res.get("signed_url")
-                or res.get("signedUrl")
-                or res.get("signedURL")
-                or ""
-            )
+            signed_url = res.get("signed_url") or res.get("signedUrl") or res.get("signedURL") or ""
             if not signed_url:
                 raise ExternalServiceError(
                     "Supabase Storage retornou URL vazia para upload pré-assinado.",
@@ -67,7 +63,7 @@ class SupabaseStorageRepository:
                 )
             # Não logar signed_url — contém token temporário
             logger.info("Signed upload URL gerada para path: %s", storage_path)
-            return str(signed_url)
+            return to_public_supabase_url(str(signed_url))
         except ExternalServiceError:
             raise
         except Exception as exc:
@@ -102,77 +98,36 @@ class SupabaseStorageRepository:
             job_id (UUID string) do job criado ou existente.
         """
         try:
-            # Tentar inserir novo job
-            res = (
-                self.client.table("video_processing_jobs")
-                .insert(
+            response = (
+                self.client.rpc(
+                    "register_lesson_video_upload_job",
                     {
-                        "lesson_id": lesson_id,
-                        "course_id": course_id,
-                        "initiated_by": initiated_by,
-                        "idempotency_key": idempotency_key,
-                        "raw_video_path": raw_video_path,
-                        "status": "upload_pending",
-                    }
+                        "p_lesson_id": lesson_id,
+                        "p_course_id": course_id,
+                        "p_initiated_by": initiated_by,
+                        "p_idempotency_key": idempotency_key,
+                        "p_raw_video_path": raw_video_path,
+                    },
                 )
                 .execute()
             )
-
-            if res.data:
-                job_id = typing.cast(dict[str, typing.Any], res.data[0]).get("id", "")
-                logger.info(
-                    "Job de upload criado: lesson_id=%s, job_id=%s, path=%s",
-                    lesson_id,
-                    job_id,
-                    raw_video_path,
+            job_id = str(response.data or "")
+            if not job_id:
+                raise ExternalServiceError(
+                    "Falha ao registrar job e candidato de upload.",
+                    provider="supabase-db",
+                    request_id=idempotency_key,
                 )
-                return str(job_id)
-
-            # Se não retornou dados, buscar job existente pela idempotency_key
-            existing = await self.get_upload_job_by_idempotency_key(idempotency_key)
-            if existing:
-                return str(existing.get("id", ""))
-
-            raise ExternalServiceError(
-                "Falha ao registrar job de upload no banco.",
-                provider="supabase-db",
-                request_id=idempotency_key,
+            logger.info(
+                "Job e candidato de upload registrados: lesson_id=%s, job_id=%s, path=%s",
+                lesson_id,
+                job_id,
+                raw_video_path,
             )
+            return job_id
         except APIError as exc:
-            # Compatibilidade temporária para projetos Supabase criados antes da
-            # migration 20260711200000. A estrutura legada ainda consegue
-            # rastrear e processar o arquivo, embora não tenha os metadados de
-            # idempotência/curso/iniciador. Depois de aplicar a migration, o
-            # caminho completo acima volta a ser usado automaticamente.
-            if getattr(exc, "code", None) == "PGRST204":
-                try:
-                    legacy = (
-                        self.client.table("video_processing_jobs")
-                        .insert(
-                            {
-                                "lesson_id": lesson_id,
-                                "raw_video_path": raw_video_path,
-                                # O enum legado (antes da migration do pipeline)
-                                # usa ``pending`` em vez de ``upload_pending``.
-                                "status": "pending",
-                            }
-                        )
-                        .execute()
-                    )
-                    if legacy.data:
-                        return str(
-                            typing.cast(dict[str, typing.Any], legacy.data[0]).get(
-                                "id", ""
-                            )
-                        )
-                except Exception as legacy_exc:
-                    raise ExternalServiceError(
-                        "Falha ao registrar job de upload no banco.",
-                        provider="supabase-db",
-                        request_id=lesson_id,
-                    ) from legacy_exc
             raise ExternalServiceError(
-                "Falha ao registrar job de upload no banco.",
+                "Falha ao registrar job e candidato de upload.",
                 provider="supabase-db",
                 request_id=lesson_id,
             ) from exc
@@ -191,9 +146,77 @@ class SupabaseStorageRepository:
                 request_id=lesson_id,
             ) from exc
 
-    async def get_upload_job_by_idempotency_key(
-        self, idempotency_key: str
-    ) -> Optional[dict]:
+    async def generate_media_signed_upload_url(self, bucket: str, storage_path: str) -> str:
+        """Gera upload temporário somente para buckets de autoria aprovados."""
+        if bucket not in {"course-images", "lesson-assets", _BUCKET_RAW_VIDEOS}:
+            raise ValueError("Bucket de mídia não permitido.")
+        try:
+            res = self.client.storage.from_(bucket).create_signed_upload_url(storage_path)
+            signed_url = res.get("signed_url") or res.get("signedUrl") or res.get("signedURL")
+            if not signed_url:
+                raise ExternalServiceError(
+                    "Supabase Storage retornou URL vazia.",
+                    provider="supabase-storage",
+                    request_id=storage_path,
+                )
+            return to_public_supabase_url(str(signed_url))
+        except ExternalServiceError:
+            raise
+        except Exception as exc:
+            raise ExternalServiceError(
+                "Falha ao gerar URL de upload de mídia.",
+                provider="supabase-storage",
+                request_id=storage_path,
+            ) from exc
+
+    async def create_trailer_upload_job(
+        self,
+        course_id: str,
+        initiated_by: str,
+        idempotency_key: str,
+        raw_video_path: str,
+        expected_size_bytes: int,
+    ) -> str:
+        """Registra trailer sem forçar vínculo artificial com uma aula."""
+        try:
+            res = (
+                self.client.table("video_processing_jobs")
+                .insert(
+                    {
+                        "lesson_id": None,
+                        "course_id": course_id,
+                        "initiated_by": initiated_by,
+                        "idempotency_key": idempotency_key,
+                        "raw_video_path": raw_video_path,
+                        "expected_size_bytes": expected_size_bytes,
+                        "asset_kind": "course_trailer",
+                        "status": "upload_pending",
+                    }
+                )
+                .execute()
+            )
+            job_id = str(typing.cast(dict[str, typing.Any], res.data[0])["id"])
+            (
+                self.client.table("courses")
+                .update(
+                    {
+                        "trailer_upload_job_id": job_id,
+                        "trailer_status": "upload_pending",
+                    }
+                )
+                .eq("id", course_id)
+                .execute()
+            )
+            return job_id
+        except Exception as exc:
+            logger.error("ERRO FATAL AO CRIAR TRAILER JOB: %s", exc, exc_info=True)
+            raise ExternalServiceError(
+                "Falha ao registrar upload do trailer.",
+                provider="supabase-db",
+                request_id=course_id,
+            ) from exc
+
+    async def get_upload_job_by_idempotency_key(self, idempotency_key: str) -> Optional[dict]:
         """
         Busca um job existente por idempotency_key.
 
@@ -218,3 +241,26 @@ class SupabaseStorageRepository:
                 exc_info=False,
             )
             return None
+
+    async def register_cover_media(
+        self,
+        course_id: str,
+        storage_path: str,
+        alt_text: str,
+        focal_x: float,
+        focal_y: float,
+    ) -> None:
+        (
+            self.client.table("courses")
+            .update(
+                {
+                    "cover_image_path": storage_path,
+                    "cover_alt_text": alt_text or None,
+                    "cover_focal_x": focal_x,
+                    "cover_focal_y": focal_y,
+                    "cover_status": "upload_pending",
+                }
+            )
+            .eq("id", course_id)
+            .execute()
+        )

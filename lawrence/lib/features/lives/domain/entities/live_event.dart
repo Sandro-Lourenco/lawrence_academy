@@ -8,6 +8,7 @@ class LiveEvent {
   final String status; // 'live', 'scheduled', 'ended'
   final String tag;
   final String? bannerUrl;
+  final String? youtubeUrl;
 
   const LiveEvent({
     required this.id,
@@ -19,5 +20,19 @@ class LiveEvent {
     required this.status,
     required this.tag,
     this.bannerUrl,
+    this.youtubeUrl,
   });
+
+  Uri? get safeYoutubeUri {
+    final uri = Uri.tryParse(youtubeUrl ?? '');
+    if (uri == null || uri.scheme != 'https') return null;
+    final host = uri.host.toLowerCase();
+    const allowedHosts = {
+      'youtube.com',
+      'www.youtube.com',
+      'm.youtube.com',
+      'youtu.be',
+    };
+    return allowedHosts.contains(host) ? uri : null;
+  }
 }

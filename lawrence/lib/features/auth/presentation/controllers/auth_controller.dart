@@ -5,6 +5,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import '../../../../app/providers/service_repositories.dart';
 
+String signInErrorMessage(supabase.AuthException exception) {
+  switch (exception.code) {
+    case 'invalid_credentials':
+      return 'E-mail ou senha incorretos. Confira os dados e tente novamente.';
+    case 'email_not_confirmed':
+      return 'Confirme seu e-mail antes de entrar. Solicite um novo link se necessário.';
+    case 'over_request_rate_limit':
+    case 'over_email_send_rate_limit':
+      return 'Muitas tentativas de acesso. Aguarde alguns minutos e tente novamente.';
+    default:
+      return 'Não foi possível entrar agora. Tente novamente em instantes.';
+  }
+}
+
 class AuthNotifierState {
   final supabase.User? user;
   final supabase.Session? session;
@@ -31,7 +45,7 @@ class AuthNotifierState {
       user: user ?? this.user,
       session: session ?? this.session,
       isLoading: isLoading ?? this.isLoading,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: errorMessage,
       isMfaEnabled: isMfaEnabled ?? this.isMfaEnabled,
     );
   }
@@ -43,17 +57,27 @@ class AuthNotifier extends Notifier<AuthNotifierState> {
     final restoreUseCase = ref.watch(restoreSessionUseCaseProvider);
 
     // Escutar mudanças de autenticação do Supabase
-    final authSubscription = restoreUseCase.onAuthStateChange.listen((data) {
-      final session = data.session;
-      final event = data.event;
-      if (kDebugMode) debugPrint('[AuthNotifier] Auth state changed: $event');
+    final authSubscription = restoreUseCase.onAuthStateChange.listen(
+      (data) {
+        final session = data.session;
+        final event = data.event;
+        if (kDebugMode) debugPrint('[AuthNotifier] Auth state changed: $event');
 
-      state = AuthNotifierState(
-        user: session?.user,
-        session: session,
-        isMfaEnabled: _checkMfaEnabled(session),
-      );
-    });
+        state = AuthNotifierState(
+          user: session?.user,
+          session: session,
+          isMfaEnabled: _checkMfaEnabled(session),
+        );
+      },
+      onError: (Object error, StackTrace _) {
+        // Offline refresh failures are stream errors. Keep the last valid
+        // session and handle the error so it cannot escape the Dart zone.
+        if (kDebugMode) {
+          debugPrint('[AuthNotifier] Auth state stream error: $error');
+        }
+        state = state.copyWith(isLoading: false);
+      },
+    );
     ref.onDispose(authSubscription.cancel);
 
     final currentSession = restoreUseCase.execute();
@@ -81,14 +105,29 @@ class AuthNotifier extends Notifier<AuthNotifierState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final loginUseCase = ref.read(loginUseCaseProvider);
-      await loginUseCase.execute(email: email, password: password);
+      final response = await loginUseCase.execute(
+        email: email,
+        password: password,
+      );
+      final session = response.session;
+      if (session == null) {
+        throw const supabase.AuthException(
+          'A autenticação não retornou uma sessão válida.',
+        );
+      }
       if (kDebugMode) debugPrint('[AuthNotifier] Sign in completed.');
-    } on supabase.AuthException catch (_) {
+      // The auth event is asynchronous. Publish the response session now so
+      // login navigation and protected requests cannot race the event stream.
+      state = AuthNotifierState(
+        user: session.user,
+        session: session,
+        isMfaEnabled: _checkMfaEnabled(session),
+      );
+    } on supabase.AuthException catch (error) {
       if (kDebugMode) debugPrint('[AuthNotifier] Sign in rejected.');
       state = state.copyWith(
         isLoading: false,
-        errorMessage:
-            "Credenciais inválidas ou link de verificação expirado.", // OWASP obfuscation
+        errorMessage: signInErrorMessage(error),
       );
     } catch (_) {
       if (kDebugMode) debugPrint('[AuthNotifier] Sign in failed.');
@@ -107,13 +146,20 @@ class AuthNotifier extends Notifier<AuthNotifierState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final registerUseCase = ref.read(registerUseCaseProvider);
-      await registerUseCase.execute(
+      final response = await registerUseCase.execute(
         email: email,
         password: password,
         fullName: fullName,
       );
       if (kDebugMode) debugPrint('[AuthNotifier] Sign up request completed.');
-      state = state.copyWith(isLoading: false);
+      final session = response.session;
+      state = session == null
+          ? state.copyWith(isLoading: false)
+          : AuthNotifierState(
+              user: session.user,
+              session: session,
+              isMfaEnabled: _checkMfaEnabled(session),
+            );
     } on supabase.AuthException catch (e) {
       if (kDebugMode) debugPrint('[AuthNotifier] Sign up rejected.');
       state = state.copyWith(
@@ -135,6 +181,7 @@ class AuthNotifier extends Notifier<AuthNotifierState> {
       final logoutUseCase = ref.read(logoutUseCaseProvider);
       await logoutUseCase.execute();
       if (kDebugMode) debugPrint('[AuthNotifier] Sign out completed.');
+      state = AuthNotifierState();
     } catch (_) {
       if (kDebugMode) debugPrint('[AuthNotifier] Sign out failed.');
       state = state.copyWith(isLoading: false);

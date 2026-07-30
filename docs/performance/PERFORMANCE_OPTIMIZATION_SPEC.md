@@ -900,6 +900,11 @@ Criar:
 
 Player escolhe automaticamente.
 
+O worker não deve ampliar artificialmente uma fonte menor. A escada HLS inclui
+somente rendições úteis para a resolução recebida, preserva proporção e usa
+upload concorrente limitado. Transcrição e resumo por IA são enriquecimentos
+opcionais e não pertencem ao caminho crítico que disponibiliza o vídeo.
+
 
 ---
 

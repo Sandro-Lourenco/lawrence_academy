@@ -8,6 +8,7 @@ os.environ["SUPABASE_URL"] = "https://mock.supabase.co"
 os.environ["SUPABASE_SERVICE_KEY"] = "mock-service-key"
 
 from unittest.mock import MagicMock, patch
+import pytest
 from fastapi.testclient import TestClient
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -18,6 +19,7 @@ from src.modules.payments.interface.api.routes import (
     router as payments_v1_router,
     legacy_router,
 )
+from src.modules.payments.application.process_webhook import StripeWebhookProcessor
 from src.core.errors.handlers import install_error_handlers
 
 app = FastAPI()
@@ -26,6 +28,32 @@ app.include_router(legacy_router)
 install_error_handlers(app)
 
 client = TestClient(app)
+
+
+@pytest.mark.asyncio
+@patch("src.shared.database.db")
+@patch("src.modules.payments.application.process_webhook.stripe.Subscription.retrieve")
+async def test_payment_succeeded_without_course_metadata_fails_closed(
+    mock_retrieve_sub, mock_supabase
+):
+    mock_sub = MagicMock()
+    mock_sub.metadata = {"user_id": "student_uuid"}
+    mock_retrieve_sub.return_value = mock_sub
+
+    event = {
+        "type": "invoice.payment_succeeded",
+        "data": {
+            "object": {
+                "subscription": "sub_without_course",
+                "customer": "cus_1",
+            }
+        },
+    }
+
+    with pytest.raises(ValueError, match="course_id metadata"):
+        await StripeWebhookProcessor._process_payment_succeeded(event)
+
+    mock_supabase.table.assert_not_called()
 
 
 @patch("src.modules.payments.interface.api.routes.stripe.Webhook.construct_event")
@@ -176,7 +204,10 @@ def test_stripe_webhook_payment_succeeded_referral(
     mock_sub = MagicMock()
     mock_sub.current_period_start = 1717171717
     mock_sub.current_period_end = 1717271717
-    mock_sub.metadata = {"user_id": "student_uuid"}
+    mock_sub.metadata = {
+        "user_id": "student_uuid",
+        "course_id": "course_uuid",
+    }
     mock_retrieve_sub.return_value = mock_sub
 
     mock_lock_res = MagicMock()

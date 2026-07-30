@@ -20,6 +20,19 @@ void main() {
       expect(course.monthlyPrice, 50.0);
     });
 
+    test('maps the server authoring revision used by autosave CAS', () {
+      final course = Course.fromJson({
+        'id': 'course-id',
+        'instructor_id': 'teacher-id',
+        'title': 'Modelagem',
+        'slug': 'modelagem',
+        'authoring_revision': 12,
+      });
+
+      expect(course.authoringRevision, 12);
+      expect(course.toJson()['authoring_revision'], 12);
+    });
+
     test('continues accepting a numeric price', () {
       final course = Course.fromJson({
         'id': 'course-id',
@@ -30,6 +43,21 @@ void main() {
       });
 
       expect(course.monthlyPrice, 49.90);
+    });
+
+    test('maps the latest lesson video processing status', () {
+      final lesson = Lesson.fromJson({
+        'id': 'lesson-id',
+        'module_id': 'module-id',
+        'course_id': 'course-id',
+        'title': 'Aula de acabamento',
+        'status': 'draft',
+        'duration_seconds': 0,
+        'video_job_status': 'failed',
+      });
+
+      expect(lesson.videoJobStatus, 'failed');
+      expect(lesson.toJson()['video_job_status'], 'failed');
     });
 
     test('preserves planning description and requirements', () {
@@ -49,6 +77,13 @@ void main() {
         'required_materials': ['Papel kraft'],
         'competencies': ['Construção de bases'],
         'expected_outcomes': ['Criar moldes com autonomia'],
+        'promotional_monthly_price': '39.90',
+        'certificate_enabled': true,
+        'reviews_enabled': false,
+        'comments_enabled': true,
+        'visibility': 'unlisted',
+        'availability': 'immediate',
+        'is_featured': false,
       });
 
       expect(course.description, 'Formação completa em modelagem feminina.');
@@ -62,6 +97,10 @@ void main() {
       expect(course.estimatedDurationMinutes, 720);
       expect(course.learningObjectives, ['Tirar medidas com precisão']);
       expect(course.targetAudience, ['Pessoas iniciantes']);
+      expect(course.promotionalMonthlyPrice, 39.90);
+      expect(course.reviewsEnabled, false);
+      expect(course.visibility, 'unlisted');
+      expect(course.isFeatured, false);
     });
   });
 }

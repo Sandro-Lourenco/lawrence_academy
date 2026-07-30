@@ -10,7 +10,7 @@ class GetCourseUseCase:
         self.repository = repository
 
     async def execute(self, course_id: str) -> Course:
-        course = await self.repository.get_by_id(course_id)
+        course = await self.repository.get_published_by_id(course_id)
         if not course:
             raise NotFoundError("Curso não encontrado.")
         return course

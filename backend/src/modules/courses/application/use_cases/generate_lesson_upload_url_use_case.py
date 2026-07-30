@@ -179,6 +179,13 @@ class GenerateLessonUploadUrlUseCase:
             # Job existente encontrado — gerar nova URL para o mesmo path
             # (idempotência: mesma chave, mesma intenção, nova URL pré-assinada)
             existing_path = existing_job.get("raw_video_path", "")
+            job_id = await self.storage_repository.create_upload_job(
+                lesson_id=lesson_id,
+                course_id=course_id,
+                initiated_by=user_id,
+                idempotency_key=idempotency_key,
+                raw_video_path=existing_path,
+            )
             logger.info(
                 "Idempotência: job existente encontrado para key=%s, lesson_id=%s",
                 idempotency_key,
@@ -186,15 +193,13 @@ class GenerateLessonUploadUrlUseCase:
             )
             # Gerar nova URL para o mesmo path (URL pode ter expirado)
             try:
-                signed_url = await self.storage_repository.generate_signed_upload_url(
-                    existing_path
-                )
+                signed_url = await self.storage_repository.generate_signed_upload_url(existing_path)
             except ExternalServiceError:
                 raise
 
             # NÃO logar signed_url
             return {
-                "job_id": str(existing_job.get("id", "")),
+                "job_id": job_id,
                 "path": existing_path,
                 "expires_in": UPLOAD_URL_EXPIRES_IN,
                 "signed_url": signed_url,

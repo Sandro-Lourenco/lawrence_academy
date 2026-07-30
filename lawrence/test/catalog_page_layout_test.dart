@@ -60,7 +60,8 @@ void main() {
 
       // Verify it rendered successfully without errors
       expect(find.byType(CatalogPage), findsOneWidget);
-      expect(find.text('Curso de Costura 1'), findsOneWidget);
+      // O curso aparece no destaque editorial e na grade do catálogo.
+      expect(find.text('Curso de Costura 1'), findsWidgets);
     },
   );
 
@@ -99,7 +100,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CatalogPage), findsOneWidget);
-      expect(find.text('Curso de Costura 1'), findsOneWidget);
+      // O curso aparece no destaque editorial e na grade do catálogo.
+      expect(find.text('Curso de Costura 1'), findsWidgets);
     },
   );
 

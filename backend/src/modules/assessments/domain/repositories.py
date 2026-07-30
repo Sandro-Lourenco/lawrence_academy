@@ -28,3 +28,11 @@ class AssessmentRepository(Protocol):
     ) -> TaskSubmission:
         """Atribui nota e feedback à submissão discursiva pelo professor."""
         ...
+
+    async def save_task(self, task: Task) -> Task:
+        """Cria ou atualiza uma tarefa (exercício)."""
+        ...
+
+    async def delete_task(self, task_id: str) -> None:
+        """Arquiva logicamente (soft delete) uma tarefa."""
+        ...

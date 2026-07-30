@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -10,22 +11,42 @@ import 'app/app.dart';
 import 'app/config/env_config.dart';
 import 'core/offline/local_cache.dart';
 import 'core/offline/local_database.dart';
+import 'features/lesson_progress/presentation/controllers/lesson_progress_controller.dart';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    await LocalCache.init();
-    await LocalDatabase.database;
-    // The real sync operation is implemented in recovery batch B5.
-    return Future.value(true);
+    ProviderContainer? container;
+    try {
+      final env = EnvConfig.fromEnvironment();
+      await Supabase.initialize(
+        url: env.supabaseUrl,
+        anonKey: env.supabaseAnonKey,
+      );
+      container = ProviderContainer(
+        overrides: [envConfigProvider.overrideWithValue(env)],
+      );
+      await container.read(syncLessonProgressUseCaseProvider).execute();
+      return true;
+    } catch (error, stackTrace) {
+      debugPrint('[OfflineSync] Background sync failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      return false;
+    } finally {
+      container?.dispose();
+    }
   });
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (kIsWeb) {
+    usePathUrlStrategy();
+  }
 
   final env = EnvConfig.fromEnvironment();
 
+  await LocalCache.init();
   await Supabase.initialize(url: env.supabaseUrl, anonKey: env.supabaseAnonKey);
 
   runApp(
@@ -44,7 +65,6 @@ void main() async {
 
 Future<void> _initializeAndroidBackgroundServices(EnvConfig env) async {
   try {
-    await LocalCache.init();
     await LocalDatabase.database;
     await Workmanager().initialize(
       callbackDispatcher,

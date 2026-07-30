@@ -105,6 +105,37 @@ class AISummary {
 }
 
 @immutable
+class LessonBlock {
+  final String id;
+  final String lessonId;
+  final String courseId;
+  final String blockType;
+  final Map<String, dynamic> content;
+  final int orderIndex;
+  final String status;
+
+  const LessonBlock({
+    required this.id,
+    required this.lessonId,
+    required this.courseId,
+    required this.blockType,
+    required this.content,
+    this.orderIndex = 0,
+    this.status = 'draft',
+  });
+
+  factory LessonBlock.fromJson(Map<String, dynamic> json) => LessonBlock(
+    id: json['id'] as String,
+    lessonId: json['lesson_id'] as String,
+    courseId: json['course_id'] as String,
+    blockType: json['block_type'] as String,
+    content: Map<String, dynamic>.from(json['content'] as Map? ?? const {}),
+    orderIndex: json['order_index'] as int? ?? 0,
+    status: json['status'] as String? ?? 'draft',
+  );
+}
+
+@immutable
 class Lesson {
   final String id;
   final String moduleId;
@@ -114,8 +145,12 @@ class Lesson {
   final String status;
   final int orderIndex;
   final int durationSeconds;
+  final int? estimatedDurationMinutes;
+  final bool isRequired;
   final String? hlsStoragePath;
+  final String? videoJobStatus;
   final AISummary aiSummary;
+  final List<LessonBlock> blocks;
 
   const Lesson({
     required this.id,
@@ -126,8 +161,12 @@ class Lesson {
     required this.status,
     this.orderIndex = 0,
     required this.durationSeconds,
+    this.estimatedDurationMinutes,
+    this.isRequired = true,
     this.hlsStoragePath,
+    this.videoJobStatus,
     required this.aiSummary,
+    this.blocks = const [],
   });
 
   factory Lesson.fromJson(Map<String, dynamic> json) {
@@ -140,10 +179,18 @@ class Lesson {
       status: json['status'] as String? ?? 'draft',
       orderIndex: json['order_index'] as int? ?? 0,
       durationSeconds: json['duration_seconds'] as int? ?? 0,
+      estimatedDurationMinutes: json['estimated_duration_minutes'] as int?,
+      isRequired: json['is_required'] as bool? ?? true,
       hlsStoragePath: json['hls_storage_path'] as String?,
+      videoJobStatus: json['video_job_status'] as String?,
       aiSummary: AISummary.fromJson(
         json['ai_summary'] as Map<String, dynamic>?,
       ),
+      blocks:
+          ((json['blocks'] ?? json['lesson_blocks']) as List? ?? const [])
+              .map((item) => LessonBlock.fromJson(item as Map<String, dynamic>))
+              .toList()
+            ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex)),
     );
   }
 
@@ -156,7 +203,10 @@ class Lesson {
     'status': status,
     'order_index': orderIndex,
     'duration_seconds': durationSeconds,
+    'estimated_duration_minutes': estimatedDurationMinutes,
+    'is_required': isRequired,
     'hls_storage_path': hlsStoragePath,
+    'video_job_status': videoJobStatus,
     'ai_summary': aiSummary.toJson(),
   };
 }
@@ -167,6 +217,8 @@ class Module {
   final String courseId;
   final String title;
   final int orderIndex;
+  final String description;
+  final String status;
   final List<Lesson> lessons;
 
   const Module({
@@ -174,6 +226,8 @@ class Module {
     required this.courseId,
     required this.title,
     required this.orderIndex,
+    this.description = '',
+    this.status = 'draft',
     required this.lessons,
   });
 
@@ -184,6 +238,8 @@ class Module {
       courseId: json['course_id'] as String,
       title: json['title'] as String,
       orderIndex: json['order_index'] as int? ?? 0,
+      description: json['description'] as String? ?? '',
+      status: json['status'] as String? ?? 'draft',
       lessons:
           lessonsJson
               .map((l) => Lesson.fromJson(l as Map<String, dynamic>))
@@ -197,6 +253,8 @@ class Module {
     'course_id': courseId,
     'title': title,
     'order_index': orderIndex,
+    'description': description,
+    'status': status,
     'lessons': lessons.map((e) => e.toJson()).toList(),
   };
 }
@@ -223,6 +281,22 @@ class Course {
   final List<String> expectedOutcomes;
   final String status;
   final double monthlyPrice;
+  final double? promotionalMonthlyPrice;
+  final DateTime? promotionStartsAt;
+  final DateTime? promotionEndsAt;
+  final bool certificateEnabled;
+  final bool reviewsEnabled;
+  final bool commentsEnabled;
+  final String visibility;
+  final String availability;
+  final DateTime? scheduledPublishAt;
+  final bool isFeatured;
+  final String? coverImagePath;
+  final String? coverAltText;
+  final double coverFocalX;
+  final double coverFocalY;
+  final String trailerStatus;
+  final int authoringRevision;
   final List<Module> modules;
 
   const Course({
@@ -246,15 +320,29 @@ class Course {
     this.expectedOutcomes = const [],
     required this.status,
     this.monthlyPrice = 0,
+    this.promotionalMonthlyPrice,
+    this.promotionStartsAt,
+    this.promotionEndsAt,
+    this.certificateEnabled = true,
+    this.reviewsEnabled = true,
+    this.commentsEnabled = true,
+    this.visibility = 'public',
+    this.availability = 'immediate',
+    this.scheduledPublishAt,
+    this.isFeatured = false,
+    this.coverImagePath,
+    this.coverAltText,
+    this.coverFocalX = 0.5,
+    this.coverFocalY = 0.5,
+    this.trailerStatus = 'empty',
+    this.authoringRevision = 0,
     required this.modules,
   });
 
   bool get isFree => monthlyPrice <= 0;
 
-  int get lessonCount => modules.fold(
-    0,
-    (total, module) => total + module.lessons.length,
-  );
+  int get lessonCount =>
+      modules.fold(0, (total, module) => total + module.lessons.length);
 
   factory Course.fromJson(Map<String, dynamic> json) {
     final modulesJson = json['modules'] as List? ?? [];
@@ -262,6 +350,7 @@ class Course {
     final monthlyPrice = rawMonthlyPrice is num
         ? rawMonthlyPrice.toDouble()
         : double.tryParse(rawMonthlyPrice?.toString() ?? '') ?? 0;
+    final rawPromotionalPrice = json['promotional_monthly_price'];
     return Course(
       id: json['id'] as String,
       instructorId: json['instructor_id'] as String? ?? '',
@@ -287,6 +376,24 @@ class Course {
       expectedOutcomes: _stringList(json['expected_outcomes']),
       status: json['status'] as String? ?? 'draft',
       monthlyPrice: monthlyPrice,
+      promotionalMonthlyPrice: rawPromotionalPrice is num
+          ? rawPromotionalPrice.toDouble()
+          : double.tryParse(rawPromotionalPrice?.toString() ?? ''),
+      promotionStartsAt: _dateTime(json['promotion_starts_at']),
+      promotionEndsAt: _dateTime(json['promotion_ends_at']),
+      certificateEnabled: json['certificate_enabled'] as bool? ?? true,
+      reviewsEnabled: json['reviews_enabled'] as bool? ?? true,
+      commentsEnabled: json['comments_enabled'] as bool? ?? true,
+      visibility: json['visibility'] as String? ?? 'public',
+      availability: json['availability'] as String? ?? 'immediate',
+      scheduledPublishAt: _dateTime(json['scheduled_publish_at']),
+      isFeatured: json['is_featured'] as bool? ?? false,
+      coverImagePath: json['cover_image_path'] as String?,
+      coverAltText: json['cover_alt_text'] as String?,
+      coverFocalX: (json['cover_focal_x'] as num?)?.toDouble() ?? 0.5,
+      coverFocalY: (json['cover_focal_y'] as num?)?.toDouble() ?? 0.5,
+      trailerStatus: json['trailer_status'] as String? ?? 'empty',
+      authoringRevision: json['authoring_revision'] as int? ?? 0,
       modules:
           modulesJson
               .map((m) => Module.fromJson(m as Map<String, dynamic>))
@@ -316,9 +423,28 @@ class Course {
     'expected_outcomes': expectedOutcomes,
     'status': status,
     'monthly_price': monthlyPrice,
+    'promotional_monthly_price': promotionalMonthlyPrice,
+    'promotion_starts_at': promotionStartsAt?.toUtc().toIso8601String(),
+    'promotion_ends_at': promotionEndsAt?.toUtc().toIso8601String(),
+    'certificate_enabled': certificateEnabled,
+    'reviews_enabled': reviewsEnabled,
+    'comments_enabled': commentsEnabled,
+    'visibility': visibility,
+    'availability': availability,
+    'scheduled_publish_at': scheduledPublishAt?.toUtc().toIso8601String(),
+    'is_featured': isFeatured,
+    'cover_image_path': coverImagePath,
+    'cover_alt_text': coverAltText,
+    'cover_focal_x': coverFocalX,
+    'cover_focal_y': coverFocalY,
+    'trailer_status': trailerStatus,
+    'authoring_revision': authoringRevision,
     'modules': modules.map((e) => e.toJson()).toList(),
   };
 
   static List<String> _stringList(dynamic value) =>
       (value as List?)?.map((item) => item.toString()).toList() ?? const [];
+
+  static DateTime? _dateTime(dynamic value) =>
+      value == null ? null : DateTime.tryParse(value.toString());
 }

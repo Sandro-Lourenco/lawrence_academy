@@ -322,17 +322,44 @@ TEACHER
 
 Cria curso.
 
+### Idempotência obrigatória da autoria (v1)
+
+Os seguintes `POST` exigem o header `Idempotency-Key` (8–255 caracteres):
+
+- criação de curso, módulo, aula e bloco;
+- duplicação de bloco;
+- publicação de curso.
+
+Repetir a mesma chave, ator, escopo e payload retorna o recurso/versão original
+sem duplicar conteúdo. Reutilizar a chave com outro payload retorna
+`409 Conflict`; omitir o header retorna `422 Unprocessable Entity`.
+
 
 
 Request:
 
-
+```json
 {
- title,
- description,
- price_month,
- category
+  "title": "Modelagem feminina",
+  "slug": "modelagem-feminina",
+  "summary": "Aprenda modelagem do básico ao primeiro vestido.",
+  "description": "Descrição completa do curso.",
+  "course_type": "complete",
+  "subtitle": "Da tomada de medidas à construção de bases",
+  "category": "modelagem",
+  "level": "iniciante",
+  "language": "pt-BR",
+  "estimated_duration_minutes": 720,
+  "requirements": [],
+  "learning_objectives": [],
+  "target_audience": [],
+  "required_materials": [],
+  "competencies": [],
+  "expected_outcomes": [],
+  "monthly_price": 0,
+  "status": "draft"
 }
+```
 
 ### Contrato de planejamento do curso
 
@@ -351,6 +378,21 @@ O payload de criação e o `PATCH /teacher/courses/{id}` aceitam:
 Cada item pedagógico possui de 2 a 240 caracteres. `requirements` continua
 representando pré-requisitos. O backend valida enumerações, limites, JWT, role
 e ownership; o frontend não é autoridade para esses campos.
+
+### Contrato de oferta e configurações
+
+Criação e atualização aceitam:
+
+- `monthly_price`: zero para curso gratuito ou valor mensal positivo;
+- `promotional_monthly_price`: opcional e menor que `monthly_price`;
+- `promotion_starts_at` e `promotion_ends_at`: obrigatórios em conjunto;
+- `certificate_enabled`, `reviews_enabled` e `comments_enabled`;
+- `visibility`: `public | unlisted | private`;
+- `availability`: `immediate | scheduled`;
+- `scheduled_publish_at`: obrigatório quando a disponibilidade for agendada.
+
+`is_featured` é retornado para leitura, mas não pertence ao DTO de atualização
+do professor. O backend e as constraints do banco são autoridades financeiras.
 
 
 
@@ -402,7 +444,9 @@ Todas as operações validam JWT, role e ownership do curso no backend.
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
 | POST | `/api/v1/teacher/courses/{course_id}/modules/{module_id}/lessons` | Cria uma aula independente no módulo. Aceita `title`, `description` e `order_index`. |
+| PATCH | `/api/v1/teacher/courses/{course_id}` | Autosave do curso com CAS atômico. `expected_authoring_revision` é obrigatório; a resposta inclui a nova `authoring_revision`. Revisão obsoleta retorna `409 Conflict`, exigindo recarga/merge antes de repetir. |
 | PATCH | `/api/v1/teacher/courses/{course_id}/lessons/{lesson_id}` | Atualiza somente a aula selecionada. Aceita `title`, `description`, `order_index` e `status` (`draft`, `published`, `hidden`). |
+| PUT | `/api/v1/teacher/courses/{course_id}/lessons/{lesson_id}/blocks/reorder` | Reordena atomicamente todos os blocos ativos. Body: `block_ids` na ordem final e `expected_revision`; retorna `authoring_revision`. Responde conflito quando a revisão ficou obsoleta ou o conjunto está incompleto/duplicado. |
 | DELETE | `/api/v1/teacher/courses/{course_id}/lessons/{lesson_id}` | Arquiva logicamente somente a aula selecionada, preservando módulo e demais aulas. |
 
 ### Upload de Arquivos de Vídeo (Teacher)
@@ -1119,3 +1163,39 @@ Gera uma URL assinada (Pre-signed URL) de expiração de 2 horas para upload dir
   "signed_url": "https://supabase-storage-url/raw-videos/..."
 }
 ```
+## Teacher course lifecycle
+
+Authenticated roles: `teacher` (course owner) and `super_admin`.
+
+- `POST /api/v1/teacher/courses/{course_id}/unpublish`
+- `POST /api/v1/teacher/courses/{course_id}/archive`
+- `POST /api/v1/teacher/courses/{course_id}/restore`
+
+The optional body field `reason` accepts up to 500 characters. Valid
+transitions are enforced by `transition_course_status`. Restoring an archived
+course results in `unpublished`; publishing always uses the server checklist.
+## Immutable course versions
+
+- Public catalog, course details, lessons, blocks and HLS paths read only from
+  the current immutable `course_versions` snapshot.
+- Teacher authoring endpoints continue reading and updating the relational
+  authoring source.
+- `GET /api/v1/teacher/courses/{course_id}/versions` returns version metadata
+  to the owner or `super_admin`; snapshot payloads are not returned by this
+  endpoint.
+- `GET /api/v1/teacher/courses/{course_id}/versions/{version_id}` returns the
+  protected snapshot, comparison with current authoring, and the optimistic
+  concurrency timestamp to the owner or `super_admin`.
+- `POST /api/v1/teacher/courses/{course_id}/versions/{version_id}/restore`
+  restores the snapshot into authoring. It requires
+  `expected_authoring_updated_at`, accepts an optional `reason`, and returns
+  `409 Conflict` when authoring changed after comparison.
+- `POST /api/v1/teacher/courses/{course_id}/publish` creates the next numbered
+  version only after the server publication checklist succeeds. It requires
+  `Idempotency-Key`; clients should also send `expected_updated_at` and may send
+  `change_summary`. A stale authoring revision or key reused with a different
+  request returns `409 Conflict`; an exact replay returns the original version
+  without another status-history event.
+
+Restoring content never changes the current public snapshot. A later explicit
+publication is required to make restored content visible to students.

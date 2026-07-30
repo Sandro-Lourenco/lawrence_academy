@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from src.core.concurrency import run_sync_io
 from src.core.security.security import CurrentUser, get_current_user
 from src.modules.sync.application.dtos import (
     DownloadTokenRequest,
@@ -52,7 +53,10 @@ async def list_lesson_progress(
         get_lesson_progress_repository
     ),
 ):
-    return ListLessonProgressUseCase(repository).execute(current_user.id)
+    return await run_sync_io(
+        ListLessonProgressUseCase(repository).execute,
+        current_user.id,
+    )
 
 
 @router.patch(
@@ -74,7 +78,11 @@ async def update_lesson_progress(
             detail="lesson_id does not match request payload",
         )
     try:
-        return UpdateLessonProgressUseCase(repository).execute(current_user.id, request)
+        return await run_sync_io(
+            UpdateLessonProgressUseCase(repository).execute,
+            current_user.id,
+            request,
+        )
     except ProgressValidationError as error:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,

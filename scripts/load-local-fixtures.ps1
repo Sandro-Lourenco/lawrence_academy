@@ -22,11 +22,11 @@ if (-not (Test-Path -LiteralPath $fixturePath)) {
 
 $previousErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
-$statusOutput = & npx --yes supabase@2.84.2 status -o env 2>&1
+$statusOutput = & npx --yes supabase@2.109.1 status -o env 2>&1
 $statusExitCode = $LASTEXITCODE
 $ErrorActionPreference = $previousErrorActionPreference
 if ($statusExitCode -ne 0) {
-    throw "Supabase local não está disponível. Execute: npx --yes supabase@2.84.2 start"
+    throw "Supabase local não está disponível. Execute: npx --yes supabase@2.109.1 start"
 }
 
 $localEnv = @{}
@@ -54,11 +54,46 @@ $adminHeaders = @{
     'Content-Type' = 'application/json'
 }
 
+function Test-LocalUserPassword {
+    param(
+        [Parameter(Mandatory = $true)][string]$Email,
+        [Parameter(Mandatory = $true)][string]$Password
+    )
+
+    $loginHeaders = @{
+        apikey = $anonKey
+        'Content-Type' = 'application/json'
+    }
+    $loginBody = @{
+        email = $Email
+        password = $Password
+    } | ConvertTo-Json
+
+    try {
+        Invoke-RestMethod `
+            -Method Post `
+            -Uri "$apiUrl/auth/v1/token?grant_type=password" `
+            -Headers $loginHeaders `
+            -Body $loginBody | Out-Null
+        return $true
+    } catch {
+        $statusCode = [int]$_.Exception.Response.StatusCode
+        if ($statusCode -in @(400, 401)) {
+            return $false
+        }
+
+        throw
+    }
+}
+
 function Get-OrCreateLocalUser {
     param(
         [Parameter(Mandatory = $true)][string]$Email,
         [Parameter(Mandatory = $true)][string]$Password,
-        [Parameter(Mandatory = $true)][string]$FullName
+        [Parameter(Mandatory = $true)][string]$FullName,
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('student', 'teacher')]
+        [string]$Role
     )
 
     $usersResponse = Invoke-RestMethod `
@@ -68,11 +103,25 @@ function Get-OrCreateLocalUser {
 
     $existing = $usersResponse.users | Where-Object { $_.email -eq $Email } | Select-Object -First 1
     if ($existing) {
-        $updateBody = @{
-            password = $Password
-            email_confirm = $true
+        $passwordIsValid = Test-LocalUserPassword -Email $Email -Password $Password
+        $metadataIsCurrent =
+            $existing.user_metadata.full_name -eq $FullName -and
+            $existing.app_metadata.role -eq $Role
+
+        if ($passwordIsValid -and $metadataIsCurrent) {
+            return $existing
+        }
+
+        $update = @{
             user_metadata = @{ full_name = $FullName }
-        } | ConvertTo-Json -Depth 4
+            app_metadata = @{ role = $Role }
+        }
+        if (-not $passwordIsValid) {
+            # Alterar a senha invalida refresh tokens existentes. Só faça isso
+            # quando a credencial solicitada realmente estiver desatualizada.
+            $update.password = $Password
+        }
+        $updateBody = $update | ConvertTo-Json -Depth 4
 
         return Invoke-RestMethod `
             -Method Put `
@@ -86,6 +135,7 @@ function Get-OrCreateLocalUser {
         password = $Password
         email_confirm = $true
         user_metadata = @{ full_name = $FullName }
+        app_metadata = @{ role = $Role }
     } | ConvertTo-Json -Depth 4
 
     return Invoke-RestMethod `
@@ -95,31 +145,140 @@ function Get-OrCreateLocalUser {
         -Body $body
 }
 
+function Initialize-LocalHlsFixtures {
+    $workerContainer = 'lawrence-video-worker'
+    $workerRunning = docker inspect `
+        --format '{{.State.Running}}' `
+        $workerContainer 2>$null
+
+    if ($LASTEXITCODE -ne 0 -or $workerRunning -ne 'true') {
+        throw "Worker de vídeo local indisponível ($workerContainer). Inicie a stack Docker antes de carregar as fixtures."
+    }
+
+    $fixtureId = "lawrence-local-hls-$PID"
+    $containerPath = "/tmp/$fixtureId"
+    $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) $fixtureId
+    $resolvedTempBase = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
+    $resolvedTemporaryRoot = [System.IO.Path]::GetFullPath($temporaryRoot)
+
+    if (-not $resolvedTemporaryRoot.StartsWith($resolvedTempBase, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Diretório temporário inválido: $resolvedTemporaryRoot"
+    }
+
+    New-Item -ItemType Directory -Path $resolvedTemporaryRoot -Force | Out-Null
+
+    try {
+        docker exec $workerContainer mkdir -p $containerPath
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Falha ao preparar o diretório temporário do worker de vídeo.'
+        }
+
+        docker exec $workerContainer ffmpeg `
+            -hide_banner `
+            -loglevel error `
+            -f lavfi `
+            -i 'testsrc2=size=640x360:rate=24' `
+            -f lavfi `
+            -i 'anullsrc=channel_layout=stereo:sample_rate=48000' `
+            -t 2 `
+            -c:v libx264 `
+            -preset ultrafast `
+            -pix_fmt yuv420p `
+            -c:a aac `
+            -f hls `
+            -hls_time 1 `
+            -hls_playlist_type vod `
+            -hls_segment_filename "$containerPath/segment%03d.ts" `
+            "$containerPath/master.m3u8"
+
+        if ($LASTEXITCODE -ne 0) {
+            throw 'FFmpeg não conseguiu gerar a mídia HLS da fixture local.'
+        }
+
+        docker cp "${workerContainer}:${containerPath}/." $resolvedTemporaryRoot
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Falha ao copiar a mídia HLS da fixture para upload local.'
+        }
+
+        $storagePrefixes = @(
+            'local-fixtures/costura/01',
+            'local-fixtures/costura/02',
+            'local-fixtures/modelagem/01'
+        )
+        $mediaFiles = Get-ChildItem -LiteralPath $resolvedTemporaryRoot -File
+
+        foreach ($prefix in $storagePrefixes) {
+            foreach ($mediaFile in $mediaFiles) {
+                $contentType = if ($mediaFile.Extension -eq '.m3u8') {
+                    'application/vnd.apple.mpegurl'
+                } else {
+                    'video/mp2t'
+                }
+                $uploadHeaders = @{
+                    apikey = $serviceRoleKey
+                    Authorization = "Bearer $serviceRoleKey"
+                    'Content-Type' = $contentType
+                    'x-upsert' = 'true'
+                }
+
+                Invoke-WebRequest `
+                    -UseBasicParsing `
+                    -Method Post `
+                    -Uri "$apiUrl/storage/v1/object/lessons-hls/$prefix/$($mediaFile.Name)" `
+                    -Headers $uploadHeaders `
+                    -InFile $mediaFile.FullName | Out-Null
+            }
+        }
+    }
+    finally {
+        if (Test-Path -LiteralPath $resolvedTemporaryRoot) {
+            Remove-Item -LiteralPath $resolvedTemporaryRoot -Recurse -Force
+        }
+    }
+}
+
 $student = Get-OrCreateLocalUser `
     -Email $StudentEmail `
     -Password $StudentPassword `
-    -FullName 'Aluno Local'
+    -FullName 'Aluno Local' `
+    -Role 'student'
 
 $teacher = Get-OrCreateLocalUser `
     -Email $TeacherEmail `
     -Password $TeacherPassword `
-    -FullName 'Professora Local'
+    -FullName 'Professora Local' `
+    -Role 'teacher'
 
 if ($student.id -notmatch '^[0-9a-fA-F-]{36}$' -or $teacher.id -notmatch '^[0-9a-fA-F-]{36}$') {
     throw 'A Auth Admin API retornou identificadores inválidos.'
 }
 
-Get-Content -Raw -LiteralPath $fixturePath |
-    docker exec -i supabase_db_site_ariane psql `
+$databaseContainer = 'supabase_db_site_ariane'
+$containerFixturePath = "/tmp/lawrence-local-e2e-$PID.sql"
+
+docker cp $fixturePath "${databaseContainer}:${containerFixturePath}"
+if ($LASTEXITCODE -ne 0) {
+    throw 'Falha ao copiar a fixture SQL para o Postgres local.'
+}
+
+try {
+    docker exec $databaseContainer psql `
         -U postgres `
         -d postgres `
         -v ON_ERROR_STOP=1 `
         -v "student_id=$($student.id)" `
-        -v "teacher_id=$($teacher.id)"
+        -v "teacher_id=$($teacher.id)" `
+        -f $containerFixturePath
 
-if ($LASTEXITCODE -ne 0) {
-    throw 'Falha ao carregar a fixture SQL no Postgres local.'
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Falha ao carregar a fixture SQL no Postgres local.'
+    }
 }
+finally {
+    docker exec $databaseContainer rm -f $containerFixturePath | Out-Null
+}
+
+Initialize-LocalHlsFixtures
 
 $authHeaders = @{
     apikey = $anonKey
@@ -190,6 +349,7 @@ if (
 }
 
 Write-Output 'Fixtures locais carregadas e login/RLS validados.'
+Write-Output 'Mídia HLS local protegida gerada e enviada ao bucket privado.'
 Write-Output "Aluno: $StudentEmail"
 Write-Output "Professora: $TeacherEmail"
 Write-Output 'As senhas são as informadas no comando e não foram gravadas no repositório.'

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers/learning_repositories.dart';
 import '../../application/use_cases/sync_lesson_progress_use_case.dart';
+import '../../application/lesson_progress_sync_coordinator.dart';
 import '../../application/use_cases/update_lesson_progress_use_case.dart';
 import '../../application/use_cases/resolve_progress_conflict_use_case.dart';
 import '../../domain/entities/lesson_progress_entity.dart';
@@ -17,6 +18,16 @@ final syncLessonProgressUseCaseProvider = Provider<SyncLessonProgressUseCase>((
   final repo = ref.watch(lessonProgressRepositoryProvider);
   return SyncLessonProgressUseCase(repo);
 });
+
+final lessonProgressSyncCoordinatorProvider =
+    Provider.autoDispose<LessonProgressSyncCoordinator>((ref) {
+      final useCase = ref.watch(syncLessonProgressUseCaseProvider);
+      final coordinator = LessonProgressSyncCoordinator(
+        synchronizeCallback: useCase.execute,
+      )..start();
+      ref.onDispose(coordinator.dispose);
+      return coordinator;
+    });
 
 final resolveProgressConflictUseCaseProvider =
     Provider<ResolveProgressConflictUseCase>((ref) {

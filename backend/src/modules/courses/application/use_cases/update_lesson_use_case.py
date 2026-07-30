@@ -24,11 +24,25 @@ class UpdateLessonUseCase:
         if current_user_role != "super_admin":
             instructor_id = await self.repository.get_instructor_id(course_id)
             if instructor_id != current_user_id:
-                raise AuthorizationError(
-                    "Acesso negado. Você não é o instrutor deste curso."
-                )
+                raise AuthorizationError("Acesso negado. Você não é o instrutor deste curso.")
 
-        allowed = {"title", "description", "order_index", "status"}
+        target_module_id = lesson_data.get("module_id")
+        if target_module_id and target_module_id != lesson.module_id:
+            target_module = await self.repository.get_module_by_id_and_course_id(
+                target_module_id, course_id
+            )
+            if not target_module:
+                raise NotFoundError("Módulo de destino não encontrado neste curso.")
+
+        allowed = {
+            "title",
+            "description",
+            "order_index",
+            "status",
+            "estimated_duration_minutes",
+            "is_required",
+            "module_id",
+        }
         changes = {key: value for key, value in lesson_data.items() if key in allowed}
         if not changes:
             return lesson

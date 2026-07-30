@@ -9,6 +9,7 @@ class Task:
     """Entidade de Domínio Puro para tarefas (exercícios)."""
 
     id: str
+    course_id: str
     lesson_id: str
     title: str
     task_type: str

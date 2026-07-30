@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../../design_system/tokens/lawrence_theme.dart';
@@ -10,6 +11,8 @@ class LessonEditorResult {
     required this.description,
     required this.orderIndex,
     required this.status,
+    required this.estimatedDurationMinutes,
+    required this.isRequired,
     this.video,
   });
 
@@ -17,6 +20,8 @@ class LessonEditorResult {
   final String description;
   final int orderIndex;
   final String status;
+  final int? estimatedDurationMinutes;
+  final bool isRequired;
   final PlatformFile? video;
 }
 
@@ -53,6 +58,8 @@ class _LessonEditorDialogState extends State<LessonEditorDialog> {
   late final TextEditingController _description;
   late final TextEditingController _order;
   late String _status;
+  late final TextEditingController _estimatedDuration;
+  late bool _isRequired;
   PlatformFile? _video;
 
   bool get _isEditing => widget.lesson != null;
@@ -68,6 +75,10 @@ class _LessonEditorDialogState extends State<LessonEditorDialog> {
       text: (widget.lesson?.orderIndex ?? widget.defaultOrder).toString(),
     );
     _status = widget.lesson?.status == 'published' ? 'published' : 'draft';
+    _estimatedDuration = TextEditingController(
+      text: widget.lesson?.estimatedDurationMinutes?.toString() ?? '',
+    );
+    _isRequired = widget.lesson?.isRequired ?? true;
   }
 
   @override
@@ -75,6 +86,7 @@ class _LessonEditorDialogState extends State<LessonEditorDialog> {
     _title.dispose();
     _description.dispose();
     _order.dispose();
+    _estimatedDuration.dispose();
     super.dispose();
   }
 
@@ -83,6 +95,7 @@ class _LessonEditorDialogState extends State<LessonEditorDialog> {
       type: FileType.video,
       allowMultiple: false,
       allowCompression: false,
+      withData: kIsWeb,
     );
     if (result != null && mounted) {
       setState(() => _video = result.files.single);
@@ -91,7 +104,7 @@ class _LessonEditorDialogState extends State<LessonEditorDialog> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    if (_video != null && _video!.path == null) {
+    if (_video != null && _video!.path == null && _video!.bytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Não foi possível acessar o arquivo.')),
       );
@@ -104,6 +117,8 @@ class _LessonEditorDialogState extends State<LessonEditorDialog> {
         description: _description.text.trim(),
         orderIndex: int.parse(_order.text),
         status: _status,
+        estimatedDurationMinutes: int.tryParse(_estimatedDuration.text),
+        isRequired: _isRequired,
         video: _video,
       ),
     );
@@ -242,6 +257,32 @@ class _LessonEditorDialogState extends State<LessonEditorDialog> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _estimatedDuration,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Duração estimada (minutos)',
+                    helperText:
+                        'Após o vídeo ser processado, a duração real será calculada automaticamente.',
+                  ),
+                  validator: (value) {
+                    if ((value ?? '').trim().isEmpty) return null;
+                    final minutes = int.tryParse(value!);
+                    return minutes == null || minutes < 1 || minutes > 1440
+                        ? 'Informe de 1 a 1440 minutos'
+                        : null;
+                  },
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Aula obrigatória'),
+                  subtitle: const Text(
+                    'Recomendação de estrutura; impacto no certificado depende da regra de produto.',
+                  ),
+                  value: _isRequired,
+                  onChanged: (value) => setState(() => _isRequired = value),
                 ),
                 const SizedBox(height: 20),
                 Semantics(

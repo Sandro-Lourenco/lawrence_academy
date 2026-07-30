@@ -21,7 +21,10 @@ void main() {
     // Carrega o widget principal envolto no ProviderScope do Riverpod com overrides
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [routerProvider.overrideWithValue(mockRouter)],
+        overrides: [
+          routerProvider.overrideWithValue(mockRouter),
+          authNotifierProvider.overrideWith(FakeAnonymousAuthNotifier.new),
+        ],
         child: const LawrenceAcademyApp(),
       ),
     );

@@ -43,12 +43,23 @@ class _CourseCardState extends State<CourseCard> {
                 : const Duration(milliseconds: 120),
             child: Card(
               clipBehavior: Clip.antiAlias,
+              shape: const RoundedRectangleBorder(
+                side: BorderSide(color: LawrenceColors.borderMist),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Container(
-                    height: 140,
-                    color: LawrenceColors.surfaceSubtle,
+                    height: 152,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEAF0FB),
+                      border: Border(
+                        top: BorderSide(
+                          color: LawrenceColors.actionPrimary,
+                          width: 4,
+                        ),
+                      ),
+                    ),
                     alignment: Alignment.center,
                     child: ExcludeSemantics(
                       child: Icon(
@@ -85,12 +96,24 @@ class _CourseCardState extends State<CourseCard> {
                         const SizedBox(height: LawrenceSpacing.xs),
                         Text(
                           course.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             color: LawrenceColors.brandNavy,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                         const SizedBox(height: LawrenceSpacing.sm),
+                        Text(
+                          course.summary,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: LawrenceColors.textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: LawrenceSpacing.md),
                         Wrap(
                           spacing: LawrenceSpacing.md,
                           runSpacing: LawrenceSpacing.xs,
@@ -112,6 +135,32 @@ class _CourseCardState extends State<CourseCard> {
                             color: LawrenceColors.textPrimary,
                             fontWeight: FontWeight.w800,
                           ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    height: 50,
+                    color: const Color(0xFFEAF0FB),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: LawrenceSpacing.md,
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          'VER CURSO',
+                          style: TextStyle(
+                            color: LawrenceColors.actionPrimary,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: .7,
+                          ),
+                        ),
+                        SizedBox(width: LawrenceSpacing.xs),
+                        Icon(
+                          Icons.arrow_forward_rounded,
+                          color: LawrenceColors.actionPrimary,
+                          size: 18,
                         ),
                       ],
                     ),

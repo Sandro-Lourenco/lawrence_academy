@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Body, Depends, Header, status
+from datetime import datetime
+from decimal import Decimal
 from typing import Annotated, Literal, Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from src.core.security.security import require_role, CurrentUser
 from src.core.storage.repositories import StorageRepository
 from src.modules.courses.domain.repositories import CourseRepository
@@ -29,8 +31,29 @@ from src.modules.courses.application.use_cases.delete_module_use_case import (
 from src.modules.courses.application.use_cases.generate_lesson_upload_url_use_case import (
     GenerateLessonUploadUrlUseCase,
 )
+from src.modules.courses.application.use_cases.generate_course_media_upload_url_use_case import (
+    GenerateCourseMediaUploadUrlUseCase,
+)
 from src.modules.courses.application.use_cases.get_teacher_course_use_case import (
     GetTeacherCourseUseCase,
+)
+from src.modules.courses.application.use_cases.manage_lesson_block_use_case import (
+    ManageLessonBlockUseCase,
+)
+from src.modules.courses.application.use_cases.generate_lesson_asset_upload_url_use_case import (
+    GenerateLessonAssetUploadUrlUseCase,
+)
+from src.modules.courses.application.use_cases.publish_course_use_case import (
+    CoursePublicationUseCase,
+)
+from src.modules.courses.application.use_cases.manage_course_lifecycle_use_case import (
+    ManageCourseLifecycleUseCase,
+)
+from src.modules.courses.application.use_cases.list_course_versions_use_case import (
+    ListCourseVersionsUseCase,
+)
+from src.modules.courses.application.use_cases.manage_course_version_use_case import (
+    ManageCourseVersionUseCase,
 )
 from src.modules.courses.application.use_cases.list_teacher_courses_use_case import (
     ListTeacherCoursesUseCase,
@@ -55,9 +78,24 @@ from src.modules.courses.interface.api.routes import (
 router = APIRouter(prefix="/api/v1/teacher/courses", tags=["teacher", "courses"])
 
 PlanningItem = Annotated[str, Field(min_length=2, max_length=240)]
+IdempotencyKey = Annotated[
+    str,
+    Header(alias="Idempotency-Key", min_length=8, max_length=255),
+]
+
+
+class CourseVersionRestoreInputSchema(BaseModel):
+    expected_authoring_updated_at: datetime
+    reason: Optional[str] = Field(default=None, max_length=500)
+
+
+class CoursePublishInputSchema(BaseModel):
+    expected_updated_at: Optional[datetime] = None
+    change_summary: Optional[str] = Field(default=None, max_length=500)
 
 
 class CourseUpdateInputSchema(BaseModel):
+    expected_authoring_revision: int = Field(ge=0)
     title: Optional[str] = None
     slug: Optional[str] = None
     summary: Optional[str] = None
@@ -76,18 +114,31 @@ class CourseUpdateInputSchema(BaseModel):
     expected_outcomes: Optional[List[PlanningItem]] = Field(default=None, max_length=20)
     thumbnail_url: Optional[str] = None
     trailer_hls_path: Optional[str] = None
-    monthly_price: Optional[float] = None
-    status: Optional[str] = None
+    monthly_price: Optional[Decimal] = Field(default=None, ge=0, le=1000000)
+    promotional_monthly_price: Optional[Decimal] = Field(default=None, ge=0)
+    promotion_starts_at: Optional[datetime] = None
+    promotion_ends_at: Optional[datetime] = None
+    certificate_enabled: Optional[bool] = None
+    reviews_enabled: Optional[bool] = None
+    comments_enabled: Optional[bool] = None
+    visibility: Optional[Literal["public", "private", "unlisted"]] = None
+    availability: Optional[Literal["immediate", "scheduled"]] = None
+    scheduled_publish_at: Optional[datetime] = None
+    status: Optional[Literal["draft", "reviewing"]] = None
 
 
 class ModuleCreateInputSchema(BaseModel):
-    title: str
-    order_index: Optional[int] = 0
+    title: str = Field(min_length=3, max_length=160)
+    order_index: int = Field(default=0, ge=0)
+    description: Optional[str] = Field(default=None, max_length=1000)
+    status: Literal["draft", "ready"] = "draft"
 
 
 class ModuleUpdateInputSchema(BaseModel):
-    title: Optional[str] = None
-    order_index: Optional[int] = None
+    title: Optional[str] = Field(default=None, min_length=3, max_length=160)
+    order_index: Optional[int] = Field(default=None, ge=0)
+    description: Optional[str] = Field(default=None, max_length=1000)
+    status: Optional[Literal["draft", "ready"]] = None
 
 
 class LessonCreateInputSchema(BaseModel):
@@ -95,6 +146,8 @@ class LessonCreateInputSchema(BaseModel):
     description: Optional[str] = Field(default=None, max_length=5000)
     order_index: int = Field(default=0, ge=0)
     status: str = Field(default="draft", pattern="^(draft|published)$")
+    estimated_duration_minutes: Optional[int] = Field(default=None, ge=1, le=1440)
+    is_required: bool = True
 
 
 class LessonUpdateInputSchema(BaseModel):
@@ -102,6 +155,9 @@ class LessonUpdateInputSchema(BaseModel):
     description: Optional[str] = Field(default=None, max_length=5000)
     order_index: Optional[int] = Field(default=None, ge=0)
     status: Optional[str] = Field(default=None, pattern="^(draft|published|hidden)$")
+    estimated_duration_minutes: Optional[int] = Field(default=None, ge=1, le=1440)
+    is_required: Optional[bool] = None
+    module_id: Optional[str] = None
 
 
 class UploadUrlRequestSchema(BaseModel):
@@ -116,6 +172,114 @@ class UploadUrlResponseSchema(BaseModel):
     signed_url: str
     path: str
     expires_in: int  # 7200 segundos = 2 horas (padrão Supabase Storage)
+
+
+class CourseMediaUploadRequestSchema(BaseModel):
+    asset_type: Literal["cover", "trailer"]
+    filename: str = Field(min_length=1, max_length=255)
+    content_type: str
+    size_bytes: int = Field(gt=0)
+    alt_text: str = Field(default="", max_length=240)
+    focal_x: float = Field(default=0.5, ge=0, le=1)
+    focal_y: float = Field(default=0.5, ge=0, le=1)
+
+
+class CourseMediaUploadResponseSchema(BaseModel):
+    asset_type: str
+    bucket: str
+    path: str
+    signed_url: str
+    expires_in: int
+    job_id: Optional[str] = None
+
+
+BlockType = Literal[
+    "video",
+    "text",
+    "heading",
+    "pdf",
+    "image",
+    "gallery",
+    "download",
+    "audio",
+    "material",
+    "notice",
+    "tip",
+    "summary",
+    "learn_more",
+    "activity",
+]
+
+
+class BlockContentSchema(BaseModel):
+    title: Optional[str] = Field(default=None, max_length=200)
+    text: Optional[str] = Field(default=None, max_length=20000)
+    url: Optional[str] = Field(default=None, max_length=2000)
+    storage_path: Optional[str] = Field(
+        default=None,
+        max_length=1000,
+        pattern=r"^courses/[0-9a-f-]+/lessons/[0-9a-f-]+/[0-9a-f-]+\.[a-z0-9]+$",
+    )
+    filename: Optional[str] = Field(default=None, max_length=255)
+    content_type: Optional[str] = Field(default=None, max_length=120)
+    alt_text: Optional[str] = Field(default=None, max_length=240)
+    caption: Optional[str] = Field(default=None, max_length=500)
+    button_label: Optional[str] = Field(default=None, max_length=80)
+    items: List[str] = Field(default_factory=list, max_length=50)
+    references: List[str] = Field(default_factory=list, max_length=30)
+    activity_type: Optional[
+        Literal[
+            "single_choice",
+            "multiple_choice",
+            "true_false",
+            "short_answer",
+            "essay",
+            "photo_upload",
+            "pdf_upload",
+            "practical",
+            "project",
+        ]
+    ] = None
+    question: Optional[str] = Field(default=None, max_length=5000)
+
+    @field_validator("url")
+    @classmethod
+    def validate_https_url(cls, value: Optional[str]) -> Optional[str]:
+        if value in (None, ""):
+            return value
+        assert value is not None
+        if not value.startswith("https://"):
+            raise ValueError("Links e arquivos externos devem usar HTTPS.")
+        return value
+
+
+class LessonBlockInputSchema(BaseModel):
+    block_type: BlockType
+    content: BlockContentSchema
+    order_index: int = Field(default=0, ge=0)
+    status: Literal["draft", "ready"] = "draft"
+
+
+class LessonBlockPatchSchema(BaseModel):
+    block_type: Optional[BlockType] = None
+    content: Optional[BlockContentSchema] = None
+    order_index: Optional[int] = Field(default=None, ge=0)
+    status: Optional[Literal["draft", "ready"]] = None
+
+
+class LessonBlockReorderSchema(BaseModel):
+    block_ids: List[str] = Field(min_length=1, max_length=500)
+    expected_revision: int = Field(ge=0)
+
+
+class LessonAssetUploadRequestSchema(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+    content_type: str
+    size_bytes: int = Field(gt=0, le=104857600)
+
+
+class CourseLifecycleInputSchema(BaseModel):
+    reason: Optional[str] = Field(default=None, max_length=500)
 
 
 @router.get("", response_model=List[CourseResponseSchema])
@@ -146,12 +310,15 @@ async def get_teacher_course(
 @router.post("", response_model=CourseResponseSchema, status_code=status.HTTP_201_CREATED)
 async def create_course(
     payload: CourseCreateInputSchema,
+    idempotency_key: IdempotencyKey,
     current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
     repository: CourseRepository = Depends(get_course_repository),
 ):
     """Cria um novo curso no sistema (BOLA-safe). Apenas Professores e Admins."""
     use_case = CreateCourseUseCase(repository)
-    course = await use_case.execute(payload.model_dump(), current_user.id)
+    course = await use_case.execute(
+        payload.model_dump(), current_user.id, idempotency_key=idempotency_key
+    )
     return course
 
 
@@ -166,9 +333,12 @@ async def update_course(
     use_case = UpdateCourseUseCase(repository)
     course = await use_case.execute(
         course_id=course_id,
-        course_data=payload.model_dump(exclude_unset=True),
+        course_data=payload.model_dump(
+            exclude_unset=True, exclude={"expected_authoring_revision"}
+        ),
         current_user_id=current_user.id,
         current_user_role=current_user.role,
+        expected_authoring_revision=payload.expected_authoring_revision,
     )
     return course
 
@@ -197,6 +367,7 @@ async def delete_course(
 async def create_module(
     course_id: str,
     payload: ModuleCreateInputSchema,
+    idempotency_key: IdempotencyKey,
     current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
     repository: CourseRepository = Depends(get_course_repository),
 ):
@@ -207,6 +378,7 @@ async def create_module(
         module_data=payload.model_dump(),
         current_user_id=current_user.id,
         current_user_role=current_user.role,
+        idempotency_key=idempotency_key,
     )
     return module
 
@@ -258,6 +430,7 @@ async def create_lesson(
     course_id: str,
     module_id: str,
     payload: LessonCreateInputSchema,
+    idempotency_key: IdempotencyKey,
     current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
     repository: CourseRepository = Depends(get_course_repository),
 ):
@@ -268,6 +441,7 @@ async def create_lesson(
         lesson_data=payload.model_dump(),
         current_user_id=current_user.id,
         current_user_role=current_user.role,
+        idempotency_key=idempotency_key,
     )
 
 
@@ -345,3 +519,282 @@ async def generate_upload_url(
         idempotency_key=payload.idempotency_key,
     )
     return result
+
+
+@router.post("/{course_id}/media/upload", response_model=CourseMediaUploadResponseSchema)
+async def generate_course_media_upload_url(
+    course_id: str,
+    payload: CourseMediaUploadRequestSchema,
+    current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
+    course_repository: CourseRepository = Depends(get_course_repository),
+    storage_repository: StorageRepository = Depends(get_storage_repository),
+):
+    """Reserva path privado para a imagem-mestre ou o trailer público."""
+    use_case = GenerateCourseMediaUploadUrlUseCase(course_repository, storage_repository)
+    return await use_case.execute(
+        user_id=current_user.id,
+        role=current_user.role,
+        course_id=course_id,
+        **payload.model_dump(),
+    )
+
+
+@router.post("/{course_id}/lessons/{lesson_id}/blocks", status_code=status.HTTP_201_CREATED)
+async def create_lesson_block(
+    course_id: str,
+    lesson_id: str,
+    payload: LessonBlockInputSchema,
+    idempotency_key: IdempotencyKey,
+    current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
+    repository: CourseRepository = Depends(get_course_repository),
+):
+    data = payload.model_dump()
+    data["content"] = payload.content.model_dump(exclude_none=True)
+    return await ManageLessonBlockUseCase(repository).create(
+        course_id=course_id,
+        lesson_id=lesson_id,
+        data=data,
+        user_id=current_user.id,
+        role=current_user.role,
+        idempotency_key=idempotency_key,
+    )
+
+
+@router.get("/{course_id}/lessons/{lesson_id}/blocks")
+async def list_lesson_blocks(
+    course_id: str,
+    lesson_id: str,
+    current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
+    repository: CourseRepository = Depends(get_course_repository),
+):
+    use_case = ManageLessonBlockUseCase(repository)
+    return await use_case.list(
+        course_id=course_id,
+        lesson_id=lesson_id,
+        user_id=current_user.id,
+        role=current_user.role,
+    )
+
+
+@router.post("/{course_id}/lessons/{lesson_id}/assets/upload")
+async def generate_lesson_asset_upload_url(
+    course_id: str,
+    lesson_id: str,
+    payload: LessonAssetUploadRequestSchema,
+    current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
+    course_repository: CourseRepository = Depends(get_course_repository),
+    storage_repository: StorageRepository = Depends(get_storage_repository),
+):
+    return await GenerateLessonAssetUploadUrlUseCase(course_repository, storage_repository).execute(
+        course_id=course_id,
+        lesson_id=lesson_id,
+        user_id=current_user.id,
+        role=current_user.role,
+        **payload.model_dump(),
+    )
+
+
+@router.patch("/{course_id}/lessons/{lesson_id}/blocks/{block_id}")
+async def update_lesson_block(
+    course_id: str,
+    lesson_id: str,
+    block_id: str,
+    payload: LessonBlockPatchSchema,
+    current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
+    repository: CourseRepository = Depends(get_course_repository),
+):
+    data = payload.model_dump(exclude_unset=True)
+    if payload.content is not None:
+        data["content"] = payload.content.model_dump(exclude_none=True)
+    return await ManageLessonBlockUseCase(repository).update(
+        course_id=course_id,
+        lesson_id=lesson_id,
+        block_id=block_id,
+        data=data,
+        user_id=current_user.id,
+        role=current_user.role,
+    )
+
+
+@router.post(
+    "/{course_id}/lessons/{lesson_id}/blocks/{block_id}/duplicate",
+    status_code=status.HTTP_201_CREATED,
+)
+async def duplicate_lesson_block(
+    course_id: str,
+    lesson_id: str,
+    block_id: str,
+    idempotency_key: IdempotencyKey,
+    current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
+    repository: CourseRepository = Depends(get_course_repository),
+):
+    return await ManageLessonBlockUseCase(repository).duplicate(
+        course_id=course_id,
+        lesson_id=lesson_id,
+        block_id=block_id,
+        user_id=current_user.id,
+        role=current_user.role,
+        idempotency_key=idempotency_key,
+    )
+
+
+@router.put("/{course_id}/lessons/{lesson_id}/blocks/reorder")
+async def reorder_lesson_blocks(
+    course_id: str,
+    lesson_id: str,
+    payload: LessonBlockReorderSchema,
+    current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
+    repository: CourseRepository = Depends(get_course_repository),
+):
+    return await ManageLessonBlockUseCase(repository).reorder(
+        course_id=course_id,
+        lesson_id=lesson_id,
+        block_ids=payload.block_ids,
+        expected_revision=payload.expected_revision,
+        user_id=current_user.id,
+        role=current_user.role,
+    )
+
+
+@router.delete("/{course_id}/lessons/{lesson_id}/blocks/{block_id}")
+async def delete_lesson_block(
+    course_id: str,
+    lesson_id: str,
+    block_id: str,
+    current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
+    repository: CourseRepository = Depends(get_course_repository),
+):
+    await ManageLessonBlockUseCase(repository).delete(
+        course_id=course_id,
+        lesson_id=lesson_id,
+        block_id=block_id,
+        user_id=current_user.id,
+        role=current_user.role,
+    )
+    return {"status": "success"}
+
+
+@router.get("/{course_id}/publication-checklist")
+async def get_publication_checklist(
+    course_id: str,
+    current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
+    repository: CourseRepository = Depends(get_course_repository),
+):
+    return await CoursePublicationUseCase(repository).checklist(
+        course_id=course_id, user_id=current_user.id, role=current_user.role
+    )
+
+
+@router.post("/{course_id}/publish", response_model=CourseResponseSchema)
+async def publish_course(
+    course_id: str,
+    idempotency_key: IdempotencyKey,
+    payload: Optional[CoursePublishInputSchema] = Body(default=None),
+    current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
+    repository: CourseRepository = Depends(get_course_repository),
+):
+    """Publicação idempotente, autorizada e condicionada ao checklist server-side."""
+    return await CoursePublicationUseCase(repository).publish(
+        course_id=course_id,
+        user_id=current_user.id,
+        role=current_user.role,
+        idempotency_key=idempotency_key,
+        expected_updated_at=(
+            payload.expected_updated_at.isoformat()
+            if payload and payload.expected_updated_at
+            else None
+        ),
+        change_summary=payload.change_summary if payload else None,
+    )
+
+
+@router.get("/{course_id}/versions")
+async def list_course_versions(
+    course_id: str,
+    current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
+    repository: CourseRepository = Depends(get_course_repository),
+):
+    return await ListCourseVersionsUseCase(repository).execute(
+        course_id=course_id,
+        user_id=current_user.id,
+        role=current_user.role,
+    )
+
+
+@router.get("/{course_id}/versions/{version_id}")
+async def get_course_version(
+    course_id: str,
+    version_id: str,
+    current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
+    repository: CourseRepository = Depends(get_course_repository),
+):
+    return await ManageCourseVersionUseCase(repository).detail(
+        course_id=course_id,
+        version_id=version_id,
+        user_id=current_user.id,
+        role=current_user.role,
+    )
+
+
+@router.post("/{course_id}/versions/{version_id}/restore", response_model=CourseResponseSchema)
+async def restore_course_version(
+    course_id: str,
+    version_id: str,
+    payload: CourseVersionRestoreInputSchema,
+    current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
+    repository: CourseRepository = Depends(get_course_repository),
+):
+    return await ManageCourseVersionUseCase(repository).restore(
+        course_id=course_id,
+        version_id=version_id,
+        user_id=current_user.id,
+        role=current_user.role,
+        expected_updated_at=payload.expected_authoring_updated_at.isoformat(),
+        reason=payload.reason,
+    )
+
+
+async def _transition_course(
+    course_id: str,
+    target_status: str,
+    payload: CourseLifecycleInputSchema,
+    current_user: CurrentUser,
+    repository: CourseRepository,
+):
+    return await ManageCourseLifecycleUseCase(repository).execute(
+        course_id=course_id,
+        user_id=current_user.id,
+        role=current_user.role,
+        target_status=target_status,
+        reason=payload.reason,
+    )
+
+
+@router.post("/{course_id}/unpublish")
+async def unpublish_course(
+    course_id: str,
+    payload: CourseLifecycleInputSchema,
+    current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
+    repository: CourseRepository = Depends(get_course_repository),
+):
+    return await _transition_course(course_id, "unpublished", payload, current_user, repository)
+
+
+@router.post("/{course_id}/archive")
+async def archive_course(
+    course_id: str,
+    payload: CourseLifecycleInputSchema,
+    current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
+    repository: CourseRepository = Depends(get_course_repository),
+):
+    return await _transition_course(course_id, "archived", payload, current_user, repository)
+
+
+@router.post("/{course_id}/restore")
+async def restore_course(
+    course_id: str,
+    payload: CourseLifecycleInputSchema,
+    current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
+    repository: CourseRepository = Depends(get_course_repository),
+):
+    return await _transition_course(course_id, "unpublished", payload, current_user, repository)

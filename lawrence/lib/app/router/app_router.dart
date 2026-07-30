@@ -12,9 +12,11 @@ import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/certificates/presentation/pages/certificates_page.dart';
 
 import '../../features/courses/presentation/pages/catalog_page.dart';
-import '../../features/courses/presentation/pages/course_detail_page.dart';
+import '../../features/landing/presentation/pages/landing_page.dart';
+import '../../features/courses/presentation/pages/public_course_detail_page.dart';
 
 import '../../features/dashboard/presentation/pages/student_dashboard_page.dart';
+import '../../features/dashboard/domain/entities/learning_resume_target.dart';
 
 import '../../features/invoices/presentation/pages/invoices_page.dart';
 
@@ -39,6 +41,7 @@ import '../../features/referral/presentation/pages/referral_page.dart';
 import '../../features/activities/presentation/pages/activities_page.dart';
 import '../../features/activities/presentation/pages/projects_page.dart';
 import '../../features/activities/presentation/pages/project_detail_page.dart';
+import '../../features/activities/presentation/pages/activity_detail_page.dart';
 import '../../features/calendar/presentation/pages/calendar_page.dart';
 
 import '../../features/search/presentation/pages/search_page.dart';
@@ -46,22 +49,24 @@ import '../../features/favorites/presentation/pages/favorites_page.dart';
 import '../../features/teacher_studio/presentation/pages/course_wizard_page.dart';
 import '../../features/teacher_studio/presentation/pages/teacher_dashboard_page.dart';
 
-String authenticatedHomeForRole(String? role) {
-  return role == 'teacher' || role == 'super_admin'
-      ? '/teacher'
-      : '/dashboard/home';
-}
-
-bool shouldRedirectAuthenticatedFromPublicEntry(String path) =>
-    path == '/login' || path == '/register' || path == '/forgot-password';
+import 'auth_navigation.dart';
+export 'auth_navigation.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authNotifierProvider);
+  final authRefresh = ValueNotifier<int>(0);
+  ref.onDispose(authRefresh.dispose);
+  ref.listen(authNotifierProvider, (_, _) {
+    authRefresh.value++;
+  });
 
   return GoRouter(
-    initialLocation: kIsWeb ? '/' : '/login',
+    // On Web, let GoRouter honor the browser URL so deep links such as
+    // /login, /checkout and password recovery are not replaced by "/".
+    initialLocation: kIsWeb ? null : '/login',
+    refreshListenable: authRefresh,
 
     redirect: (context, state) {
+      final authState = ref.read(authNotifierProvider);
       final isLoggedIn = authState.user != null;
       final userRole = authState.user?.appMetadata['role'] as String?;
       final authenticatedHome = authenticatedHomeForRole(userRole);
@@ -97,7 +102,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         }
 
-        return authenticatedHome;
+        return safePostAuthRedirect(state.uri) ?? authenticatedHome;
       }
 
       // Toda rota iniciada por /dashboard exige autenticação.
@@ -113,7 +118,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         }
 
-        return '/login';
+        return loginLocationFor(state.uri);
       }
 
       if (isLoggedIn &&
@@ -133,6 +138,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
 
     errorBuilder: (context, state) {
+      final authState = ref.read(authNotifierProvider);
       return Scaffold(
         appBar: AppBar(title: const Text('Página não encontrada')),
         body: Center(
@@ -182,7 +188,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/',
             builder: (context, state) {
-              return const CatalogPage(embeddedInScrollView: true);
+              return const LandingPage();
             },
           ),
           GoRoute(
@@ -196,7 +202,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) {
               final slug = state.pathParameters['slug'] ?? '';
 
-              return CourseDetailPage(slug: slug);
+              return PublicCourseDetailPage(slug: slug);
             },
           ),
           GoRoute(
@@ -318,16 +324,26 @@ final routerProvider = Provider<GoRouter>((ref) {
 
               final lessonId = state.pathParameters['lessonId'] ?? '';
 
-              return SecurePlayerPage(courseId: courseId, lessonId: lessonId);
+              return SecurePlayerPage(
+                courseId: courseId,
+                lessonId: lessonId,
+                initialView: LearningResumeView.fromQuery(
+                  state.uri.queryParameters['view'],
+                ),
+              );
             },
           ),
 
-          // Lives
+          // Eventos
           GoRoute(
-            path: '/dashboard/lives',
+            path: '/dashboard/events',
             builder: (context, state) {
               return const LivesPage();
             },
+          ),
+          GoRoute(
+            path: '/dashboard/lives',
+            redirect: (context, state) => '/dashboard/events',
           ),
 
           // Assinaturas
@@ -399,6 +415,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/dashboard/activities',
             builder: (context, state) {
               return const ActivitiesPage();
+            },
+          ),
+          GoRoute(
+            path: '/dashboard/activities/:activityId',
+            builder: (context, state) {
+              final activityId = state.pathParameters['activityId'] ?? '';
+              return ActivityDetailPage(activityId: activityId);
             },
           ),
 

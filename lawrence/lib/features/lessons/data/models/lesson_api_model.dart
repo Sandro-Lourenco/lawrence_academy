@@ -9,6 +9,7 @@ class LessonApiModel {
   final String hlsStoragePath;
   final String? materialPdfUrl;
   final String status;
+  final List<Map<String, dynamic>> blocks;
 
   LessonApiModel({
     required this.id,
@@ -21,6 +22,7 @@ class LessonApiModel {
     required this.hlsStoragePath,
     this.materialPdfUrl,
     required this.status,
+    this.blocks = const [],
   });
 
   factory LessonApiModel.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,9 @@ class LessonApiModel {
       hlsStoragePath: json['hls_storage_path'] as String? ?? '',
       materialPdfUrl: json['material_pdf_url'] as String?,
       status: json['status'] as String? ?? 'draft',
+      blocks: ((json['blocks'] ?? json['lesson_blocks']) as List? ?? const [])
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList(),
     );
   }
 
@@ -50,6 +55,7 @@ class LessonApiModel {
       'hls_storage_path': hlsStoragePath,
       'material_pdf_url': materialPdfUrl,
       'status': status,
+      'blocks': blocks,
     };
   }
 }

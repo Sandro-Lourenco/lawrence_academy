@@ -5,25 +5,31 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/providers/learning_repositories.dart';
 import '../../../../design_system/tokens/lawrence_theme.dart';
 import '../../../../design_system/widgets/state_widgets.dart';
-import '../../../../design_system/widgets/student_page_scaffold.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../dashboard/domain/entities/learning_resume_target.dart';
 import '../../../lesson_progress/domain/entities/lesson_progress_entity.dart';
 import '../../../lesson_progress/presentation/controllers/lesson_progress_controller.dart';
 import '../../../lessons/domain/entities/lesson_entity.dart';
 import '../../../lessons/presentation/controllers/lessons_controller.dart';
 import '../controllers/lesson_navigation_presentation.dart';
 import '../controllers/player_controller.dart';
+import '../widgets/player_fullscreen_host.dart';
 import '../widgets/stateless_player_view.dart';
+import '../widgets/learning_workspace.dart';
 
 class SecurePlayerPage extends ConsumerStatefulWidget {
   final String courseId;
   final String lessonId;
+  final LearningResumeView initialView;
 
   const SecurePlayerPage({
     super.key,
     required this.courseId,
     required this.lessonId,
+    this.initialView = LearningResumeView.watch,
   });
 
   @override
@@ -37,15 +43,16 @@ class _SecurePlayerPageState extends ConsumerState<SecurePlayerPage>
   Duration _lastSavedPosition = Duration.zero;
   bool _saveInProgress = false;
 
-  ({String courseId, String lessonId}) get _playerKey => (
-    courseId: widget.courseId,
-    lessonId: widget.lessonId,
-  );
+  ({String courseId, String lessonId}) get _playerKey =>
+      (courseId: widget.courseId, lessonId: widget.lessonId);
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_saveResumeTarget(widget.initialView));
+    });
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       unawaited(_saveProgress());
     });
@@ -58,7 +65,24 @@ class _SecurePlayerPageState extends ConsumerState<SecurePlayerPage>
         oldWidget.courseId != widget.courseId) {
       _lastSavedPosition = Duration.zero;
       _saveInProgress = false;
+      unawaited(_saveResumeTarget(widget.initialView));
     }
+  }
+
+  Future<void> _saveResumeTarget(LearningResumeView view) async {
+    final studentId = ref.read(authNotifierProvider).user?.id;
+    if (studentId == null) return;
+    await ref
+        .read(learningResumeRepositoryProvider)
+        .save(
+          LearningResumeTarget(
+            studentId: studentId,
+            courseId: widget.courseId,
+            lessonId: widget.lessonId,
+            view: view,
+            updatedAt: DateTime.now().toUtc(),
+          ),
+        );
   }
 
   @override
@@ -110,7 +134,9 @@ class _SecurePlayerPageState extends ConsumerState<SecurePlayerPage>
   void _handleKeyEvent(KeyEvent event) {
     if (event is! KeyDownEvent) return;
     final notifier = ref.read(playerControllerProvider(_playerKey).notifier);
-    final controller = ref.read(playerControllerProvider(_playerKey)).controller;
+    final controller = ref
+        .read(playerControllerProvider(_playerKey))
+        .controller;
     if (controller == null || !controller.value.isInitialized) return;
 
     if (event.logicalKey == LogicalKeyboardKey.space) {
@@ -133,6 +159,20 @@ class _SecurePlayerPageState extends ConsumerState<SecurePlayerPage>
 
   Future<void> _openLesson(String lessonId) async {
     await _saveProgress(force: true);
+    final studentId = ref.read(authNotifierProvider).user?.id;
+    if (studentId != null) {
+      await ref
+          .read(learningResumeRepositoryProvider)
+          .save(
+            LearningResumeTarget(
+              studentId: studentId,
+              courseId: widget.courseId,
+              lessonId: lessonId,
+              view: LearningResumeView.watch,
+              updatedAt: DateTime.now().toUtc(),
+            ),
+          );
+    }
     if (!mounted) return;
     context.go('/dashboard/courses/${widget.courseId}/lessons/$lessonId');
   }
@@ -152,92 +192,83 @@ class _SecurePlayerPageState extends ConsumerState<SecurePlayerPage>
     final courseLessons = ref.watch(courseLessonsProvider(widget.courseId));
     final localProgress = ref.watch(lessonProgressProvider(_playerKey));
 
-    return KeyboardListener(
-      focusNode: _keyboardFocusNode,
-      autofocus: true,
-      onKeyEvent: _handleKeyEvent,
-      child: StudentPageScaffold(
-        title: lesson.valueOrNull?.title ?? 'Aula',
-        subtitle: 'Ambiente seguro de aprendizagem',
-        leading: IconButton(
-          tooltip: 'Voltar ao curso',
-          onPressed: () async {
+    return PlayerFullscreenHost(
+      playerBuilder: (context, isFullscreen, toggleFullscreen) =>
+          StatelessPlayerView(
+            state: player,
+            isFullscreen: isFullscreen,
+            onPlayPause: () {
+              final notifier = ref.read(
+                playerControllerProvider(_playerKey).notifier,
+              );
+              if (player.controller?.value.isPlaying ?? false) {
+                notifier.pause();
+                unawaited(_saveProgress(force: true));
+              } else {
+                notifier.play();
+              }
+            },
+            onReplay: () {
+              final notifier = ref.read(
+                playerControllerProvider(_playerKey).notifier,
+              );
+              notifier.seekTo(Duration.zero);
+              notifier.play();
+            },
+            onRetry: () =>
+                ref.read(playerControllerProvider(_playerKey).notifier).retry(),
+            onManageAccess: () => context.go('/dashboard/subscriptions'),
+            onFullscreen: toggleFullscreen,
+          ),
+      pageBuilder: (context, embeddedPlayer) => KeyboardListener(
+        focusNode: _keyboardFocusNode,
+        autofocus: true,
+        onKeyEvent: _handleKeyEvent,
+        child: LearningWorkspace(
+          title: lesson.valueOrNull?.title ?? 'Aula',
+          lesson: lesson.valueOrNull,
+          lessons: courseLessons.valueOrNull ?? const [],
+          navigation: resolveLessonNavigation(
+            courseLessons.valueOrNull ?? const [],
+            courseId: widget.courseId,
+            lessonId: widget.lessonId,
+          ),
+          progressPercentage:
+              (localProgress.valueOrNull?.progressPercentage ?? 0)
+                  .clamp(0, 100)
+                  .round(),
+          onBack: () async {
             await _saveProgress(force: true);
             if (!context.mounted) return;
             context.go('/dashboard/courses/${widget.courseId}');
           },
-          icon: const Icon(Icons.arrow_back_rounded),
-        ),
-        body: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: LawrenceColors.surfaceBlack,
-                  borderRadius: BorderRadius.circular(LawrenceRadii.featured),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(LawrenceRadii.featured),
-                  child: StatelessPlayerView(
-                    state: player,
-                    onPlayPause: () {
-                      final notifier = ref.read(
-                        playerControllerProvider(_playerKey).notifier,
-                      );
-                      if (player.controller?.value.isPlaying ?? false) {
-                        notifier.pause();
-                        unawaited(_saveProgress(force: true));
-                      } else {
-                        notifier.play();
-                      }
-                    },
-                    onReplay: () {
-                      final notifier = ref.read(
-                        playerControllerProvider(_playerKey).notifier,
-                      );
-                      notifier.seekTo(Duration.zero);
-                      notifier.play();
-                    },
-                    onRetry: () => ref
-                        .read(playerControllerProvider(_playerKey).notifier)
-                        .retry(),
-                    onManageAccess: () =>
-                        context.go('/dashboard/subscriptions'),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: LawrenceSpacing.lg),
-            _LessonDetails(
-              lesson: lesson,
-              localProgress: localProgress.valueOrNull,
-              onRetry: () => ref.invalidate(lessonDetailProvider(_playerKey)),
-            ),
-            const SizedBox(height: LawrenceSpacing.lg),
-            courseLessons.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, _) => const SizedBox.shrink(),
-              data: (items) {
-                final navigation = resolveLessonNavigation(
-                  items,
-                  courseId: widget.courseId,
-                  lessonId: widget.lessonId,
-                );
-                return _LessonNavigationBar(
-                  navigation: navigation,
-                  onOpenLesson: _openLesson,
-                );
-              },
-            ),
-          ],
+          onOpenLesson: _openLesson,
+          initialMode: switch (widget.initialView) {
+            LearningResumeView.watch => LearningWorkspaceMode.watch,
+            LearningResumeView.activities => LearningWorkspaceMode.activities,
+            LearningResumeView.learnMore => LearningWorkspaceMode.learnMore,
+          },
+          onModeChanged: (mode) => unawaited(
+            _saveResumeTarget(switch (mode) {
+              LearningWorkspaceMode.watch => LearningResumeView.watch,
+              LearningWorkspaceMode.activities => LearningResumeView.activities,
+              LearningWorkspaceMode.learnMore => LearningResumeView.learnMore,
+            }),
+          ),
+          onOpenActivities: () async {
+            await _saveProgress(force: true);
+            if (!context.mounted) return;
+            context.go('/dashboard/activities');
+          },
+          player: embeddedPlayer,
         ),
       ),
     );
   }
 }
 
+// TODO(learning-workspace): remove after the legacy lesson layout is retired.
+// ignore: unused_element
 class _LessonDetails extends StatelessWidget {
   final AsyncValue<LessonEntity> lesson;
   final LessonProgressEntity? localProgress;
@@ -260,7 +291,8 @@ class _LessonDetails extends StatelessWidget {
         height: 260,
         child: AppErrorState(
           title: 'Detalhes da aula indisponíveis',
-          message: 'O vídeo pode continuar disponível. Tente carregar novamente.',
+          message:
+              'O vídeo pode continuar disponível. Tente carregar novamente.',
           onRetry: onRetry,
         ),
       ),
@@ -311,6 +343,8 @@ class _LessonDetails extends StatelessWidget {
   }
 }
 
+// TODO(learning-workspace): remove after the legacy lesson layout is retired.
+// ignore: unused_element
 class _LessonNavigationBar extends StatelessWidget {
   final LessonNavigation navigation;
   final Future<void> Function(String lessonId) onOpenLesson;

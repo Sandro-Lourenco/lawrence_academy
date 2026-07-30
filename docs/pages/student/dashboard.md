@@ -1,7 +1,7 @@
 ---
 id: PAGE-STUDENT-001
 name: Student Dashboard
-route: /dashboard
+route: /dashboard/home
 layout: StudentDashboardLayout
 platforms:
   - Web
@@ -18,6 +18,19 @@ architecture: Clean Architecture + DDD
 ---
 
 # Student Dashboard
+
+## Implementação canônica (2026-07)
+
+- O curso em andamento é escolhido somente entre cursos com acesso confirmado.
+- A retomada guarda, por aluno e curso, a última aula e a superfície exata:
+  `watch`, `activities` ou `learn-more`.
+- O CTA navega para
+  `/dashboard/courses/:courseId/lessons/:lessonId?view=:surface`.
+- A Home oferece acesso contextual à agenda em `/dashboard/events`.
+- O estado offline usa somente progresso local e informa que o acesso não pôde
+  ser atualizado; ele não libera cursos por suposição.
+- Recomendações, notificações remotas e agenda editorial permanecem fora do
+  estado de sucesso enquanto não houver contrato real correspondente.
 
 > Implementação canônica da Fase 03: a Home prioriza `Continue Learning`,
 > seguida de `My Courses` e do resumo de progresso. Recomendações por IA,
