@@ -140,7 +140,7 @@ jobs:
         run: python -m pytest -q --junitxml=test-results.xml
       - name: Upload backend test report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-candidate-backend-tests
           path: backend/test-results.xml
