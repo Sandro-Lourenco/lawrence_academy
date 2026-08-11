@@ -21,9 +21,21 @@ class ProfileUpdateInputSchema(BaseModel):
     full_name: Optional[str] = Field(
         None, min_length=2, max_length=100, description="Nome completo"
     )
-    referred_by: Optional[str] = Field(
-        None, description="UUID do perfil indicador (opcional)"
-    )
+    referred_by: Optional[str] = Field(None, description="UUID do perfil indicador (opcional)")
+    avatar_url: Optional[str] = Field(None, description="URL do avatar")
+    bio: Optional[str] = Field(None, description="Biografia")
+    certificate_name: Optional[str] = Field(None, description="Nome nos certificados")
+    url_username: Optional[str] = Field(None, description="Usuário na URL")
+    birth_date: Optional[str] = Field(None, description="Data de nascimento")
+    occupation: Optional[str] = Field(None, description="Ocupação")
+    company: Optional[str] = Field(None, description="Empresa")
+    job_title: Optional[str] = Field(None, description="Cargo")
+    open_to_opportunities: Optional[bool] = Field(None, description="Aberto a oportunidades")
+    linkedin_url: Optional[str] = Field(None, description="URL do LinkedIn")
+    twitter_url: Optional[str] = Field(None, description="URL do Twitter")
+    github_url: Optional[str] = Field(None, description="URL do GitHub")
+    custom_url: Optional[str] = Field(None, description="Link personalizado")
+    academic_formations: Optional[list] = Field(None, description="Formações acadêmicas")
 
 
 class ProfileResponseSchema(BaseModel):
@@ -31,9 +43,23 @@ class ProfileResponseSchema(BaseModel):
 
     id: str
     email: str
+    role: str
     full_name: Optional[str] = None
     referred_by: Optional[str] = None
-    role: str
+    avatar_url: Optional[str] = None
+    bio: Optional[str] = None
+    certificate_name: Optional[str] = None
+    url_username: Optional[str] = None
+    birth_date: Optional[str] = None
+    occupation: Optional[str] = None
+    company: Optional[str] = None
+    job_title: Optional[str] = None
+    open_to_opportunities: bool = False
+    linkedin_url: Optional[str] = None
+    twitter_url: Optional[str] = None
+    github_url: Optional[str] = None
+    custom_url: Optional[str] = None
+    academic_formations: list = []
 
 
 @router.get("/me", response_model=ProfileResponseSchema)
@@ -47,9 +73,23 @@ async def get_my_profile(
     return ProfileResponseSchema(
         id=profile.id,
         email=profile.email,
+        role=profile.role,
         full_name=profile.full_name,
         referred_by=profile.referred_by,
-        role=profile.role,
+        avatar_url=profile.avatar_url,
+        bio=profile.bio,
+        certificate_name=profile.certificate_name,
+        url_username=profile.url_username,
+        birth_date=profile.birth_date,
+        occupation=profile.occupation,
+        company=profile.company,
+        job_title=profile.job_title,
+        open_to_opportunities=profile.open_to_opportunities,
+        linkedin_url=profile.linkedin_url,
+        twitter_url=profile.twitter_url,
+        github_url=profile.github_url,
+        custom_url=profile.custom_url,
+        academic_formations=profile.academic_formations or [],
     )
 
 
@@ -65,6 +105,20 @@ async def update_my_profile(
         user_id=current_user.id,
         full_name=payload.full_name,
         referred_by=payload.referred_by,
+        avatar_url=payload.avatar_url,
+        bio=payload.bio,
+        certificate_name=payload.certificate_name,
+        url_username=payload.url_username,
+        birth_date=payload.birth_date,
+        occupation=payload.occupation,
+        company=payload.company,
+        job_title=payload.job_title,
+        open_to_opportunities=payload.open_to_opportunities,
+        linkedin_url=payload.linkedin_url,
+        twitter_url=payload.twitter_url,
+        github_url=payload.github_url,
+        custom_url=payload.custom_url,
+        academic_formations=payload.academic_formations,
     )
     return {
         "status": "success",
@@ -72,9 +126,23 @@ async def update_my_profile(
             {
                 "id": profile.id,
                 "email": profile.email,
+                "role": profile.role,
                 "full_name": profile.full_name,
                 "referred_by": profile.referred_by,
-                "role": profile.role,
+                "avatar_url": profile.avatar_url,
+                "bio": profile.bio,
+                "certificate_name": profile.certificate_name,
+                "url_username": profile.url_username,
+                "birth_date": profile.birth_date,
+                "occupation": profile.occupation,
+                "company": profile.company,
+                "job_title": profile.job_title,
+                "open_to_opportunities": profile.open_to_opportunities,
+                "linkedin_url": profile.linkedin_url,
+                "twitter_url": profile.twitter_url,
+                "github_url": profile.github_url,
+                "custom_url": profile.custom_url,
+                "academic_formations": profile.academic_formations or [],
             }
         ],
     }

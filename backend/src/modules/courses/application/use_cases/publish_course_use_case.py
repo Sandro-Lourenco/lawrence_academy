@@ -120,10 +120,42 @@ class CoursePublicationUseCase:
                             "blocking",
                             f"block:{block['id']}",
                         )
-                    if block.get("block_type") == "activity" and not content.get("question"):
+                    if block.get("block_type") == "activity":
+                        if not content.get("question"):
+                            add(
+                                f"activity:{block['id']}",
+                                "Atividade sem enunciado.",
+                                "blocking",
+                                f"block:{block['id']}",
+                            )
+                        items = content.get("items") or []
+                        correct_index = content.get("correct_index")
+                        if len(items) < 2:
+                            add(
+                                f"activity-options:{block['id']}",
+                                "Atividade precisa ter ao menos duas alternativas.",
+                                "blocking",
+                                f"block:{block['id']}",
+                            )
+                        if not isinstance(correct_index, int) or not (
+                            0 <= correct_index < len(items)
+                        ):
+                            add(
+                                f"activity-answer:{block['id']}",
+                                "Selecione uma alternativa correta para a atividade.",
+                                "blocking",
+                                f"block:{block['id']}",
+                            )
+                    if block.get("block_type") == "learn_more" and not any(
+                        (
+                            str(content.get("text") or "").strip(),
+                            str(content.get("url") or "").strip(),
+                            str(content.get("storage_path") or "").strip(),
+                        )
+                    ):
                         add(
-                            f"activity:{block['id']}",
-                            "Atividade sem enunciado.",
+                            f"learn-more:{block['id']}",
+                            "Saber mais precisa de texto, link ou material enviado.",
                             "blocking",
                             f"block:{block['id']}",
                         )

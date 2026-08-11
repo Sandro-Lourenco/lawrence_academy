@@ -2,7 +2,7 @@ from fastapi import APIRouter, Body, Depends, Header, status
 from datetime import datetime
 from decimal import Decimal
 from typing import Annotated, Literal, Optional, List
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from src.core.security.security import require_role, CurrentUser
 from src.core.storage.repositories import StorageRepository
 from src.modules.courses.domain.repositories import CourseRepository
@@ -241,6 +241,21 @@ class BlockContentSchema(BaseModel):
         ]
     ] = None
     question: Optional[str] = Field(default=None, max_length=5000)
+    # Zero-based index of the option used by the automatic grader. This must
+    # be part of the API contract; undeclared Pydantic fields are discarded.
+    correct_index: Optional[int] = Field(default=None, ge=0, le=49)
+
+    @model_validator(mode="after")
+    def validate_correct_index(self):
+        if self.correct_index is not None and self.correct_index >= len(self.items):
+            raise ValueError("A alternativa correta deve existir na lista de opções.")
+        if (
+            self.activity_type in {"single_choice", "multiple_choice"}
+            and self.items
+            and self.correct_index is None
+        ):
+            raise ValueError("Selecione a alternativa correta da atividade.")
+        return self
 
     @field_validator("url")
     @classmethod

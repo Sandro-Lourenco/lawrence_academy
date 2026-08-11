@@ -1,6 +1,9 @@
 from typing import Optional, Protocol
 
-from src.modules.certificates.domain.entities import Certificate
+from src.modules.certificates.domain.entities import (
+    Certificate,
+    CertificateEligibilityEvidence,
+)
 
 
 class CertificateRepository(Protocol):
@@ -13,6 +16,10 @@ class CertificateRepository(Protocol):
     ) -> Optional[Certificate]: ...
 
     async def list_by_student(self, student_id: str) -> list[Certificate]: ...
+
+    async def get_eligibility_evidence(
+        self, student_id: str, course_id: str
+    ) -> CertificateEligibilityEvidence: ...
 
     async def create(
         self,

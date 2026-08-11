@@ -4,7 +4,7 @@ from src.modules.certificates.application.usecases import (
     GenerateCertificateUseCase,
     VerifyCertificateUseCase,
 )
-from src.modules.certificates.domain.entities import Certificate
+from src.modules.certificates.domain.entities import Certificate, CertificateEligibilityEvidence
 import uuid
 from datetime import datetime
 
@@ -25,6 +25,21 @@ class MockRepository:
                 return c
         return None
 
+    async def get_eligibility_evidence(self, student_id, course_id):
+        return CertificateEligibilityEvidence(
+            course_exists=True,
+            course_published=True,
+            certificate_enabled=True,
+            student_name="Student Test",
+            course_name="Course Test",
+            workload_minutes=600,
+            required_lesson_ids=["lesson-1"],
+            completed_lesson_ids=["lesson-1"],
+            required_task_ids=["task-1"],
+            passed_task_ids=["task-1"],
+            completion_date=datetime.now(),
+        )
+
     async def create(self, student_id, course_id, validation_code, metadata, **kwargs):
         cert = Certificate(
             id=str(uuid.uuid4()),
@@ -40,7 +55,8 @@ class MockRepository:
 
 
 @pytest.mark.asyncio
-async def test_generate_certificate_idempotency():
+async def test_generate_certificate_idempotency(monkeypatch):
+    monkeypatch.setenv("CERTIFICATE_SECRET_KEY", "test-certificate-secret-32-bytes")
     repo = MockRepository()
     usecase = GenerateCertificateUseCase(repo)
 
@@ -58,7 +74,8 @@ async def test_generate_certificate_idempotency():
 
 
 @pytest.mark.asyncio
-async def test_verify_certificate():
+async def test_verify_certificate(monkeypatch):
+    monkeypatch.setenv("CERTIFICATE_SECRET_KEY", "test-certificate-secret-32-bytes")
     repo = MockRepository()
     usecase = GenerateCertificateUseCase(repo)
     verify_usecase = VerifyCertificateUseCase(repo)

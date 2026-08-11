@@ -206,7 +206,7 @@ def test_validate_checkout_use_case_location():
     )
 
 
-def test_legacy_assessment_routes_use_same_use_cases_as_v1():
+def test_legacy_assessment_submit_fails_closed_and_review_reuses_v1_use_case():
     """
     Garantia de consistência: rotas legadas de assessments e as v1
     devem usar os mesmos UseCases (SubmitTaskUseCase, GradeSubmissionUseCase).
@@ -218,7 +218,7 @@ def test_legacy_assessment_routes_use_same_use_cases_as_v1():
     legacy_src = inspect.getsource(legacy_routes)
     v1_src = inspect.getsource(v1_routes)
 
-    assert "SubmitTaskUseCase" in legacy_src
+    assert "HTTP_410_GONE" in legacy_src
     assert "GradeSubmissionUseCase" in legacy_src
     assert "SubmitTaskUseCase" in v1_src
     assert "GradeSubmissionUseCase" in v1_src

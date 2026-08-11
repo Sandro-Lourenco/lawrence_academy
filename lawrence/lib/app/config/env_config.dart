@@ -63,22 +63,15 @@ class EnvConfig {
 
     final defaultApiBaseUrl = switch (environment) {
       AppEnvironment.dev => defaultDevApiBaseUrl,
-      AppEnvironment.stage => 'https://stage-api.lawrenceacademy.com',
-      AppEnvironment.prod => 'https://api.lawrenceacademy.com',
+      AppEnvironment.stage || AppEnvironment.prod => '',
     };
 
     final defaultSupabaseUrl = switch (environment) {
-      AppEnvironment.dev ||
-      AppEnvironment.stage => 'https://xblesfvcrnbsfhlmoffz.supabase.co',
-      AppEnvironment.prod => '',
+      AppEnvironment.dev || AppEnvironment.stage || AppEnvironment.prod => '',
     };
 
     final defaultSupabaseAnonKey = switch (environment) {
-      AppEnvironment.dev || AppEnvironment.stage =>
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.'
-            'eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhibGVzZnZjcm5ic2ZobG1vZmZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNjUwMzIsImV4cCI6MjA5ODk0MTAzMn0.'
-            'L-mzinsIY8qJVw6oVYZgdBdV0aJqJzCq15DXNAUCEo0',
-      AppEnvironment.prod => '',
+      AppEnvironment.dev || AppEnvironment.stage || AppEnvironment.prod => '',
     };
 
     final apiBaseUrl = providedApiBaseUrl.isNotEmpty
@@ -121,17 +114,29 @@ class EnvConfig {
       );
     }
 
-    if (isProduction) {
+    if (environment != AppEnvironment.dev) {
       if (uri.scheme != 'https') {
-        throw StateError('Produção exige HTTPS.');
+        throw StateError('Staging e produção exigem HTTPS.');
       }
 
       if (_isPrivateOrLocalHost(uri.host)) {
-        throw StateError('Produção não pode usar endereço local ou privado.');
+        throw StateError(
+          'Staging e produção não podem usar endereço local ou privado.',
+        );
       }
 
       if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
-        throw StateError('Configuração Supabase obrigatória em produção.');
+        throw StateError(
+          'Configuração Supabase obrigatória em staging e produção.',
+        );
+      }
+
+      final supabaseUri = Uri.tryParse(supabaseUrl);
+      if (supabaseUri == null ||
+          supabaseUri.scheme != 'https' ||
+          supabaseUri.host.isEmpty ||
+          _isPrivateOrLocalHost(supabaseUri.host)) {
+        throw StateError('SUPABASE_URL deve ser um endpoint HTTPS público.');
       }
     }
   }

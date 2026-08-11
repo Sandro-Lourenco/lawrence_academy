@@ -1,4 +1,4 @@
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status, Cookie
 from pydantic import BaseModel
 
 from src.core.concurrency import run_sync_io
@@ -14,15 +14,25 @@ class CurrentUser(BaseModel):
     mfa_enabled: bool = False
 
 
-async def get_current_user(authorization: str | None = Header(None)) -> CurrentUser:
-    """Valida o cabeçalho Authorization e retorna as informações do usuário autenticado."""
-    if not authorization or not authorization.startswith("Bearer "):
+async def get_current_user(
+    authorization: str | None = Header(None),
+    sb_access_token: str | None = Cookie(None, alias="sb-access-token"),
+    access_token: str | None = Cookie(None, alias="access_token"),
+) -> CurrentUser:
+    """Valida o cabeçalho Authorization ou cookies e retorna as informações do usuário autenticado."""
+    token = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+    elif sb_access_token:
+        token = sb_access_token
+    elif access_token:
+        token = access_token
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token de autenticação ausente ou inválido.",
         )
-
-    token = authorization.split(" ")[1]
 
     try:
         res = await run_sync_io(database.auth_db.auth.get_user, token)

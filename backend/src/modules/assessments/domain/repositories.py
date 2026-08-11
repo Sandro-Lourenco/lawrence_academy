@@ -19,6 +19,16 @@ class AssessmentRepository(Protocol):
         """Busca as submissões do usuário para uma lista de tarefas."""
         ...
 
+    async def get_tasks_by_course_ids(self, course_ids: List[str]) -> List[Task]:
+        """Recupera tarefas dos cursos que o caso de uso já autorizou."""
+        ...
+
+    async def get_submission_by_idempotency_key(
+        self, user_id: str, idempotency_key: str
+    ) -> TaskSubmission | None:
+        """Retorna a resposta original de um retry sem criar nova tentativa."""
+        ...
+
     async def save(self, submission: TaskSubmission) -> TaskSubmission:
         """Salva uma nova submissão de exercício ou tarefa."""
         ...

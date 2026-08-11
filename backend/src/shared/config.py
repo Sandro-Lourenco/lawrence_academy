@@ -41,6 +41,9 @@ class Settings(BaseModel):
     stripe_webhook_secret: str = Field(
         default_factory=lambda: os.getenv("STRIPE_WEBHOOK_SECRET", "")
     )
+    jwt_secret_key: str = Field(
+        default_factory=lambda: os.getenv("JWT_SECRET_KEY", "")
+    )
 
     app_env: str = Field(default_factory=lambda: os.getenv("APP_ENV") or "development")
     payment_provider: str = Field(
@@ -68,11 +71,14 @@ class Settings(BaseModel):
             "SUPABASE_ANON_KEY": self.supabase_anon_key,
             "STRIPE_SECRET_KEY": self.stripe_api_key,
             "STRIPE_WEBHOOK_SECRET": self.stripe_webhook_secret,
+            "JWT_SECRET_KEY": self.jwt_secret_key,
         }
         invalid = [
             name
             for name, value in required.items()
-            if not value.strip() or "placeholder" in value.lower()
+            if not value.strip()
+            or "placeholder" in value.lower()
+            or "local_only" in value.lower()
         ]
         if invalid:
             raise ValueError(
@@ -82,6 +88,8 @@ class Settings(BaseModel):
             raise ValueError("SUPABASE_URL must use HTTPS in production")
         if not self.allowed_origins or "*" in self.allowed_origins:
             raise ValueError("ALLOWED_ORIGINS must be explicit in production")
+        if len(self.jwt_secret_key) < 32:
+            raise ValueError("JWT_SECRET_KEY must contain at least 32 characters")
         return self
 
 

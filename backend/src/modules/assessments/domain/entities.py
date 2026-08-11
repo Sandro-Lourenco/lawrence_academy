@@ -37,3 +37,4 @@ class TaskSubmission:
     graded_by: Optional[str] = None
     submitted_at: Optional[datetime] = None
     graded_at: Optional[datetime] = None
+    idempotency_key: Optional[str] = None

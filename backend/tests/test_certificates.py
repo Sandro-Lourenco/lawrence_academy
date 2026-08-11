@@ -1,11 +1,13 @@
 import pytest
 from unittest.mock import Mock, AsyncMock
-import os
+import hashlib
+import hmac
+import json
 from src.modules.certificates.application.usecases import (
     GenerateCertificateUseCase,
     VerifyCertificateUseCase,
 )
-from src.modules.certificates.domain.entities import Certificate
+from src.modules.certificates.domain.entities import Certificate, CertificateEligibilityEvidence
 from src.modules.certificates.application.dtos import GenerateCertificateRequest
 from datetime import datetime
 
@@ -16,7 +18,34 @@ def mock_repo():
     repo.get_by_student_and_course = AsyncMock(return_value=None)
     repo.get_by_validation_code = AsyncMock(return_value=None)
     repo.create = AsyncMock()
+    repo.get_eligibility_evidence = AsyncMock(
+        return_value=CertificateEligibilityEvidence(
+            course_exists=True,
+            course_published=True,
+            certificate_enabled=True,
+            student_name="Student Test",
+            course_name="Course Test",
+            workload_minutes=600,
+            required_lesson_ids=["lesson-1"],
+            completed_lesson_ids=["lesson-1"],
+            required_task_ids=["task-1"],
+            passed_task_ids=["task-1"],
+            completion_date=datetime.now(),
+        )
+    )
     return repo
+
+
+@pytest.fixture(autouse=True)
+def certificate_secret(monkeypatch):
+    monkeypatch.setenv("CERTIFICATE_SECRET_KEY", "test-certificate-secret-32-bytes")
+
+
+def sign_metadata(metadata):
+    canonical = json.dumps(metadata, separators=(",", ":"), sort_keys=True).encode()
+    return hmac.new(
+        b"test-certificate-secret-32-bytes", canonical, hashlib.sha256
+    ).hexdigest()
 
 
 @pytest.mark.asyncio
@@ -48,8 +77,6 @@ async def test_generate_certificate_idempotency(mock_repo):
 @pytest.mark.asyncio
 async def test_generate_certificate_new(mock_repo):
     # Setup mock to return None (no existing cert)
-    os.environ["CERTIFICATE_SECRET_KEY"] = "test-secret"
-
     async def mock_create(**kwargs):
         return Certificate(id="new-cert-id", issued_at=datetime.now(), **kwargs)
 
@@ -72,7 +99,7 @@ async def test_verify_certificate_valid(mock_repo):
         student_id="student-1",
         course_id="course-1",
         validation_code="LWA-VALID",
-        signature="signature123",
+        signature=sign_metadata({"course_name": "Test Course"}),
         signature_algorithm="HMAC-SHA256",
         signature_version=1,
         metadata={"course_name": "Test Course"},
@@ -98,7 +125,7 @@ async def test_verify_certificate_revoked(mock_repo):
         student_id="student-1",
         course_id="course-1",
         validation_code="LWA-REVOKED",
-        signature="signature123",
+        signature=sign_metadata({"course_name": "Test Course"}),
         signature_algorithm="HMAC-SHA256",
         signature_version=1,
         metadata={"course_name": "Test Course"},

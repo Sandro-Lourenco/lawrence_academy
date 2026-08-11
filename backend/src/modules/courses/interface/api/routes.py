@@ -300,7 +300,12 @@ async def get_lesson_stream(
         lesson_id=lesson_id,
         asset_path="master.m3u8",
     )
-    return {"signedUrl": f"{playback_url}?token={quote(token, safe='')}"}
+    # Return an origin-relative URL. Reverse proxies commonly expose FastAPI
+    # through HTTPS while the application itself sees an internal HTTP hop.
+    # Serializing request.url_for() in that setup creates a mixed-content URL
+    # which browsers reject before loading the first HLS manifest. The client
+    # already knows the canonical API origin and resolves this path against it.
+    return {"signedUrl": f"{playback_url.path}?token={quote(token, safe='')}"}
 
 
 @router.get(

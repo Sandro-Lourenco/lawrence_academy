@@ -3,14 +3,18 @@ from decimal import Decimal
 from datetime import datetime, timezone
 from src.modules.assessments.domain.entities import TaskSubmission
 from src.modules.assessments.domain.repositories import AssessmentRepository
-from src.core.errors.errors import AuthorizationError
+from src.modules.courses.domain.repositories import CourseRepository
+from src.core.errors.errors import AuthorizationError, ValidationError
 
 
 class SubmitTaskUseCase:
     """Caso de Uso para realizar submissão de respostas de tarefas de forma BOLA-safe."""
 
-    def __init__(self, repository: AssessmentRepository):
+    def __init__(
+        self, repository: AssessmentRepository, course_repository: CourseRepository
+    ):
         self.repository = repository
+        self.course_repository = course_repository
 
     async def execute(
         self,
@@ -21,8 +25,28 @@ class SubmitTaskUseCase:
         is_draft: bool = False,
         idempotency_key: str = "",
     ) -> TaskSubmission:
+        if not idempotency_key.strip():
+            raise ValidationError("Informe uma chave de idempotência.")
+        existing_retry = await self.repository.get_submission_by_idempotency_key(
+            user_id, idempotency_key
+        )
+        if existing_retry:
+            return existing_retry
+
         # Busca a tarefa para obter regras (tipo, max_attempts, resposta certa)
         task = await self.repository.get_task_by_id(task_id)
+        if not await self.course_repository.has_active_subscription(
+            student_id=user_id, course_id=task.course_id
+        ):
+            raise AuthorizationError("Usuário não tem acesso a este curso.")
+
+        selected_option = selected_option.strip() if selected_option else None
+        text_answer = text_answer.strip() if text_answer else None
+        if not is_draft:
+            if task.task_type in ["multiple_choice", "true_false"] and not selected_option:
+                raise ValidationError("Selecione uma resposta antes de enviar.")
+            if task.task_type == "essay" and not text_answer:
+                raise ValidationError("Escreva uma resposta antes de enviar.")
 
         # Checa limite de tentativas
         existing_subs = await self.repository.get_user_submissions_for_tasks(
@@ -56,9 +80,9 @@ class SubmitTaskUseCase:
                 else:
                     score = Decimal("0.0")
             elif task.task_type == "essay":
-                status = "under_review"
+                status = "pending_review"
             else:
-                status = "submitted"
+                status = "pending_review"
 
         # Se existe um rascunho, atualizá-lo via upsert no repositório.
         submission_id = draft_subs[0].id if draft_subs else None
@@ -73,5 +97,6 @@ class SubmitTaskUseCase:
             status=status,
             submitted_at=datetime.now(timezone.utc) if not is_draft else None,
             graded_at=datetime.now(timezone.utc) if status == "graded" else None,
+            idempotency_key=idempotency_key,
         )
         return await self.repository.save(submission)

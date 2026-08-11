@@ -18,6 +18,7 @@ HEARTBEAT_FILE = Path(
 MAX_HEARTBEAT_AGE_SECONDS = int(
     os.getenv("VIDEO_WORKER_HEARTBEAT_MAX_AGE_SECONDS", "45")
 )
+CLOCK_SKEW_TOLERANCE_SECONDS = 5
 
 
 def is_worker_alive(now: float | None = None) -> bool:
@@ -25,7 +26,14 @@ def is_worker_alive(now: float | None = None) -> bool:
         heartbeat_age = (now or time.time()) - HEARTBEAT_FILE.stat().st_mtime
     except OSError:
         return False
-    return 0 <= heartbeat_age <= MAX_HEARTBEAT_AGE_SECONDS
+    # Filesystems and container hosts can differ by a few milliseconds. A
+    # bounded future timestamp must not make a healthy worker flap, while a
+    # materially future or stale heartbeat still fails closed.
+    return (
+        -CLOCK_SKEW_TOLERANCE_SECONDS
+        <= heartbeat_age
+        <= MAX_HEARTBEAT_AGE_SECONDS
+    )
 
 
 def can_resolve_supabase() -> bool:

@@ -6,7 +6,9 @@ from src.main import DEVELOPMENT_ORIGINS, app, resolve_cors_origins
 
 
 def test_development_cors_supports_docker_frontend_port() -> None:
-    assert "http://localhost:8080" in resolve_cors_origins(["*"], "development")
+    origins = resolve_cors_origins(["*"], "development")
+    assert "http://localhost:8080" in origins
+    assert "http://localhost:18080" in origins
 
 
 def test_explicit_cors_origins_are_preserved() -> None:

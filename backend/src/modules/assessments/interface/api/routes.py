@@ -27,6 +27,11 @@ from src.modules.assessments.application.use_cases.update_task_use_case import (
 from src.modules.assessments.application.use_cases.delete_task_use_case import (
     DeleteTaskUseCase,
 )
+from src.modules.assessments.application.use_cases.list_student_activities_use_case import (
+    ListStudentActivitiesUseCase,
+)
+from src.modules.profiles.domain.repositories import ProfileRepository
+from src.modules.profiles.interface.api.dependencies import get_profile_repository
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
 
@@ -81,6 +86,19 @@ class TaskUpdateInputSchema(BaseModel):
     passing_score: Optional[Decimal] = Field(None, ge=0.0, le=10.0, description="Nota mínima")
 
 
+@router.get("/me", status_code=status.HTTP_200_OK)
+async def list_my_activities(
+    current_user: CurrentUser = Depends(get_current_user),
+    assessment_repository: AssessmentRepository = Depends(get_assessment_repository),
+    course_repository: CourseRepository = Depends(get_course_repository),
+    profile_repository: ProfileRepository = Depends(get_profile_repository),
+):
+    use_case = ListStudentActivitiesUseCase(
+        assessment_repository, course_repository, profile_repository
+    )
+    return await use_case.execute(current_user.id)
+
+
 @router.get("/lesson/{lesson_id}", status_code=status.HTTP_200_OK)
 async def get_lesson_tasks(
     lesson_id: str,
@@ -104,9 +122,10 @@ async def submit_task(
     payload: TaskSubmissionInputSchema,
     current_user: CurrentUser = Depends(get_current_user),
     repository: AssessmentRepository = Depends(get_assessment_repository),
+    course_repository: CourseRepository = Depends(get_course_repository),
 ):
     """Submete a resposta de um aluno para um determinado exercício (BOLA-safe)."""
-    use_case = SubmitTaskUseCase(repository)
+    use_case = SubmitTaskUseCase(repository, course_repository)
     res = await use_case.execute(
         task_id=task_id,
         user_id=current_user.id,
@@ -115,12 +134,32 @@ async def submit_task(
         is_draft=payload.is_draft,
         idempotency_key=payload.idempotency_key,
     )
+    task = await repository.get_task_by_id(task_id)
+    reveals_answer = res.status == "graded" and task.task_type in [
+        "multiple_choice",
+        "true_false",
+    ]
     return {
         "id": res.id,
         "task_id": res.task_id,
         "user_id": res.user_id,
         "selected_option": res.selected_option,
+        "text_answer": res.text_answer,
+        "score": float(res.score) if res.score is not None else None,
         "status": res.status,
+        "teacher_feedback": res.teacher_feedback,
+        "submitted_at": res.submitted_at,
+        "idempotency_key": res.idempotency_key,
+        "correct_option": task.correct_option if reveals_answer else None,
+        "is_correct": (
+            bool(
+                res.selected_option
+                and task.correct_option
+                and res.selected_option.casefold() == task.correct_option.casefold()
+            )
+            if reveals_answer
+            else None
+        ),
     }
 
 

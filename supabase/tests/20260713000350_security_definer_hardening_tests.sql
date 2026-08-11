@@ -72,7 +72,7 @@ BEGIN
 END
 $$;
 
-ROLLBACK;
-
 SELECT pass('All assertions completed');
 SELECT * FROM finish();
+
+ROLLBACK;

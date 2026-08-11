@@ -1,3 +1,4 @@
+import os
 import uuid
 from typing import Any, Dict
 
@@ -7,6 +8,10 @@ from src.modules.courses.domain.repositories import CourseRepository
 
 IMAGE_MIMES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 VIDEO_MIMES = {"video/mp4", "video/quicktime", "video/x-m4v"}
+MAX_VIDEO_UPLOAD_BYTES = min(
+    int(os.getenv("MAX_VIDEO_UPLOAD_BYTES", str(50 * 1024 * 1024))),
+    2 * 1024 * 1024 * 1024,
+)
 
 
 class GenerateCourseMediaUploadUrlUseCase:
@@ -54,8 +59,10 @@ class GenerateCourseMediaUploadUrlUseCase:
                 "expires_in": 7200,
             }
         if asset_type == "trailer":
-            if content_type not in VIDEO_MIMES or size_bytes > 2 * 1024 * 1024 * 1024:
-                raise ValidationError("Trailer deve ser MP4, MOV ou M4V com até 2 GB.")
+            if content_type not in VIDEO_MIMES or size_bytes > MAX_VIDEO_UPLOAD_BYTES:
+                raise ValidationError(
+                    "Trailer deve ser MP4, MOV ou M4V com até 50 MB neste ambiente."
+                )
             path = f"course-trailers/{course_id}/{upload_id}.mp4"
             job_id = await self.storage.create_trailer_upload_job(
                 course_id, user_id, upload_id, path, size_bytes

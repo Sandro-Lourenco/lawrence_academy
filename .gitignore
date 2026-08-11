@@ -43,6 +43,7 @@ coverage/
 # Temporary files & logs
 *.log
 .temp/
+.tools/
 .playwright-cli/
 supabase/.temp/
 Thumbs.db

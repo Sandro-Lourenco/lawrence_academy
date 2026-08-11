@@ -33,7 +33,14 @@ from src.modules.certificates.interface.api.routes import (
     router as certificates_v1_router,
     legacy_router as certificates_legacy_router,
 )
+from src.modules.lives.interface.api.routes import (
+    router as live_events_v1_router,
+    teacher_router as teacher_live_events_v1_router,
+)
 from src.modules.invoices.interface.api.routes import router as invoices_v1_router
+from src.modules.course_completion.interface.api.routes import (
+    router as course_completion_v1_router,
+)
 
 
 from src.core.errors.handlers import install_error_handlers
@@ -46,9 +53,11 @@ DEVELOPMENT_ORIGINS = [
     "http://localhost",
     "http://localhost:3000",
     "http://localhost:8080",
+    "http://localhost:18080",
     "http://127.0.0.1",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:8080",
+    "http://127.0.0.1:18080",
     "http://192.168.137.149",
     "http://192.168.137.149:8000",
     "http://192.168.137.149:3000",
@@ -98,6 +107,9 @@ app.include_router(subscriptions_v1_router)
 app.include_router(sync_v1_router)
 app.include_router(certificates_v1_router)
 app.include_router(invoices_v1_router)
+app.include_router(course_completion_v1_router)
+app.include_router(live_events_v1_router)
+app.include_router(teacher_live_events_v1_router)
 
 
 @app.get("/")

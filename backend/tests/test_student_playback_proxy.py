@@ -43,6 +43,8 @@ def test_student_hls_proxy_rewrites_every_private_asset_url(monkeypatch):
 
     assert stream.status_code == 200
     playback_url = stream.json()["signedUrl"]
+    assert playback_url.startswith("/api/v1/")
+    assert not playback_url.startswith("http://")
     parsed = urlsplit(playback_url)
     manifest = client.get(f"{parsed.path}?{parsed.query}")
     assert manifest.status_code == 200
@@ -50,6 +52,28 @@ def test_student_hls_proxy_rewrites_every_private_asset_url(monkeypatch):
     assert 'URI="key.bin?token=' in manifest.text
     repository.generate_signed_url.assert_not_awaited()
     repository.download_hls_asset.assert_awaited_once_with("lessons/lesson-1/job-1/hls/master.m3u8")
+
+
+def test_playback_url_does_not_trust_internal_proxy_origin(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "test")
+    repository = AsyncMock()
+    repository.get_published_by_id.return_value = SimpleNamespace(
+        monthly_price=Decimal("0"),
+    )
+    repository.get_published_lesson_stream_path.return_value = (
+        "lessons/lesson-1/job-1/hls/master.m3u8"
+    )
+    client = _client(repository)
+
+    response = client.get(
+        "/api/v1/courses/course-1/lessons/lesson-1/stream",
+        headers={"host": "backend.internal:8000", "x-forwarded-proto": "http"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["signedUrl"].startswith(
+        "/api/v1/courses/course-1/lessons/lesson-1/hls/master.m3u8?token="
+    )
 
 
 def test_student_hls_proxy_rejects_token_for_another_lesson(monkeypatch):

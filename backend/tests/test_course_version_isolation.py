@@ -1,6 +1,6 @@
 from decimal import Decimal
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -11,6 +11,9 @@ from src.modules.courses.application.use_cases.get_lesson_stream_use_case import
 from src.modules.courses.application.use_cases.get_lesson_use_case import GetLessonUseCase
 from src.modules.courses.application.use_cases.list_course_versions_use_case import (
     ListCourseVersionsUseCase,
+)
+from src.modules.courses.infrastructure.repositories.supabase_course_repository import (
+    SupabaseCourseRepository,
 )
 
 
@@ -24,6 +27,38 @@ async def test_public_course_reads_immutable_current_version():
 
     assert result == "published-version"
     repository.get_by_id.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_legacy_published_course_without_snapshot_uses_live_record():
+    client = MagicMock()
+    version_response = MagicMock(data=None)
+    client.table.return_value.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = (
+        version_response
+    )
+    repository = SupabaseCourseRepository(client)
+    legacy_course = SimpleNamespace(status="published")
+    repository.get_by_id = AsyncMock(return_value=legacy_course)  # type: ignore[method-assign]
+
+    result = await repository.get_published_by_id("legacy-course")
+
+    assert result is legacy_course
+    repository.get_by_id.assert_awaited_once_with("legacy-course")  # type: ignore[attr-defined]
+
+
+@pytest.mark.asyncio
+async def test_draft_course_without_snapshot_stays_private():
+    client = MagicMock()
+    version_response = MagicMock(data=None)
+    client.table.return_value.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = (
+        version_response
+    )
+    repository = SupabaseCourseRepository(client)
+    repository.get_by_id = AsyncMock(  # type: ignore[method-assign]
+        return_value=SimpleNamespace(status="draft")
+    )
+
+    assert await repository.get_published_by_id("draft-course") is None
 
 
 @pytest.mark.asyncio

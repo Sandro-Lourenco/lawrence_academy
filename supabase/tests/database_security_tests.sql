@@ -108,11 +108,11 @@ VALUES ('66666666-6666-6666-6666-666666666666', 'a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a
 
 
 -- TESTE 2: Auto-correção de Tarefas
-INSERT INTO public.task_submissions (task_id, user_id, selected_option)
-VALUES ('dddddddd-dddd-dddd-dddd-dddddddddddd', '22222222-2222-2222-2222-222222222222', 'C');
+INSERT INTO public.task_submissions (task_id, user_id, selected_option, idempotency_key)
+VALUES ('dddddddd-dddd-dddd-dddd-dddddddddddd', '22222222-2222-2222-2222-222222222222', 'C', 'database-security-correct');
 
-INSERT INTO public.task_submissions (task_id, user_id, selected_option)
-VALUES ('dddddddd-dddd-dddd-dddd-dddddddddddd', '44444444-4444-4444-4444-444444444444', 'A');
+INSERT INTO public.task_submissions (task_id, user_id, selected_option, idempotency_key)
+VALUES ('dddddddd-dddd-dddd-dddd-dddddddddddd', '44444444-4444-4444-4444-444444444444', 'A', 'database-security-incorrect');
 
 DO $$
 DECLARE
@@ -302,7 +302,7 @@ BEGIN
 END $$;
 
 -- Finalizar transação e dar rollback para manter banco limpo
-ROLLBACK;
-
 SELECT pass('All assertions completed');
 SELECT * FROM finish();
+
+ROLLBACK;

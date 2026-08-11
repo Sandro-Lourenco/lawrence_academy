@@ -44,7 +44,8 @@ class LessonRepository implements ILessonRepository {
     final response = await _networkClient.get(
       '/api/v1/courses/$courseId/lessons/$lessonId/stream',
     );
-    return response.data['signedUrl'] as String;
+    final signedUrl = response.data['signedUrl'] as String;
+    return _networkClient.resolveUrl(signedUrl);
   }
 
   @override

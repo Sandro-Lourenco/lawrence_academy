@@ -12,6 +12,7 @@ def production_settings(**overrides: object) -> Settings:
         "supabase_anon_key": "anon-value",
         "stripe_api_key": "stripe-secret-value",
         "stripe_webhook_secret": "webhook-secret-value",
+        "jwt_secret_key": "production-jwt-secret-with-at-least-32-characters",
         "allowed_origins": ["https://app.lawrence.example"],
     }
     values.update(overrides)
@@ -30,6 +31,7 @@ def test_production_configuration_accepts_complete_explicit_values() -> None:
         "supabase_anon_key",
         "stripe_api_key",
         "stripe_webhook_secret",
+        "jwt_secret_key",
     ],
 )
 def test_production_configuration_rejects_missing_values(field: str) -> None:
@@ -40,6 +42,13 @@ def test_production_configuration_rejects_missing_values(field: str) -> None:
 def test_production_configuration_rejects_placeholders() -> None:
     with pytest.raises(ValidationError):
         production_settings(stripe_api_key="sk_test_placeholder")
+
+
+def test_production_configuration_rejects_local_jwt_secret() -> None:
+    with pytest.raises(ValidationError):
+        production_settings(
+            jwt_secret_key="local_only_playback_secret_change_me_2026_64_chars_minimum"
+        )
 
 
 def test_production_configuration_rejects_wildcard_cors() -> None:

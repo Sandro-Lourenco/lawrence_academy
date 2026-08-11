@@ -72,7 +72,7 @@ def test_get_profile_me_bola_protection(mock_supabase, mock_get_user):
 
 @patch("src.shared.database.auth_db.auth.get_user")
 @patch("src.shared.database.db")
-def test_submit_task_bola_protection(mock_supabase, mock_get_user):
+def test_legacy_submit_task_contract_fails_closed(mock_supabase, mock_get_user):
     """Garante que o envio de tarefas associe o user_id do JWT e ignore falsificações do corpo (BOLA)."""
     mock_user = MagicMock()
     mock_user.id = "real_student_id"
@@ -107,20 +107,9 @@ def test_submit_task_bola_protection(mock_supabase, mock_get_user):
         headers={"Authorization": "Bearer valid-jwt-token"},
     )
 
-    assert response.status_code == 200
-
-    import unittest.mock as mock
-
-    # Garantir que o user_id inserido no payload final enviado ao banco foi o "real_student_id" do JWT
-    mock_supabase.table.return_value.insert.assert_called_once_with(
-        {
-            "task_id": "task_uuid_123",
-            "user_id": "real_student_id",
-            "selected_option": "A",
-            "status": mock.ANY,
-            "submitted_at": mock.ANY,
-        }
-    )
+    assert response.status_code == 410
+    assert response.json()["detail"].startswith("Use POST /api/v1/tasks/")
+    mock_supabase.table.return_value.insert.assert_not_called()
 
 
 def test_external_service_error_handler():

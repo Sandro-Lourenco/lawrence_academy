@@ -1,12 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, ConfigDict
 from src.core.security.security import get_current_user, require_role, CurrentUser
 from src.core.database.database import get_admin_supabase_client
 from src.modules.assessments.infrastructure.repositories.supabase_assessment_repository import (
     SupabaseAssessmentRepository,
-)
-from src.modules.assessments.application.use_cases.submit_task_use_case import (
-    SubmitTaskUseCase,
 )
 from src.modules.assessments.application.use_cases.grade_submission_use_case import (
     GradeSubmissionUseCase,
@@ -30,20 +27,10 @@ async def submit_task(
     current_user: CurrentUser = Depends(get_current_user),
 ):
     """Cria uma submissão de tarefa associada ao perfil aluno autenticado (Legacy route redirection)."""
-    repo = SupabaseAssessmentRepository(get_admin_supabase_client())
-    use_case = SubmitTaskUseCase(repo)
-    res = await use_case.execute(
-        task_id=submission.task_id,
-        user_id=current_user.id,
-        selected_option=submission.selected_option,
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="Use POST /api/v1/tasks/{task_id}/submissions.",
     )
-    return {
-        "id": res.id,
-        "task_id": res.task_id,
-        "user_id": res.user_id,
-        "selected_option": res.selected_option,
-        "status": res.status,
-    }
 
 
 @router.put("/api/teacher/submissions/{submission_id}/review")

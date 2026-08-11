@@ -26,6 +26,7 @@ Nota sobre upload resumível:
 """
 
 import logging
+import os
 import uuid
 from typing import Dict, Any, Optional
 
@@ -41,7 +42,10 @@ from src.core.storage.repositories import StorageRepository
 logger = logging.getLogger(__name__)
 
 # Limite de 2GB — validado no backend E deve ser configurado no bucket (metadata)
-MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 * 1024  # 2GB
+MAX_FILE_SIZE_BYTES = min(
+    int(os.getenv("MAX_VIDEO_UPLOAD_BYTES", str(50 * 1024 * 1024))),
+    2 * 1024 * 1024 * 1024,
+)
 
 # MIME types declarados aceitos pelo cliente (não confiável — Worker valida com ffprobe)
 ALLOWED_MIME_TYPES = frozenset(["video/mp4", "video/quicktime", "video/x-m4v"])
@@ -148,7 +152,8 @@ class GenerateLessonUploadUrlUseCase:
 
         if size_bytes > MAX_FILE_SIZE_BYTES:
             raise ValidationError(
-                f"Tamanho do arquivo ({size_bytes} bytes) excede o limite de 2GB."
+                "O vídeo excede o limite de 50 MB deste ambiente. "
+                "Comprima o arquivo ou escolha um vídeo menor."
             )
 
         # Proteção contra path traversal no filename do cliente

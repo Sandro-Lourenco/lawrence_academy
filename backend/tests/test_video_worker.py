@@ -70,6 +70,14 @@ def test_healthcheck_accepts_recent_heartbeat(tmp_path, monkeypatch):
     assert healthcheck.is_worker_alive() is True
 
 
+def test_healthcheck_rejects_heartbeat_far_in_the_future(tmp_path, monkeypatch):
+    heartbeat_file = tmp_path / "future-heartbeat"
+    heartbeat_file.touch()
+    monkeypatch.setattr(healthcheck, "HEARTBEAT_FILE", heartbeat_file)
+
+    assert healthcheck.is_worker_alive(now=heartbeat_file.stat().st_mtime - 10) is False
+
+
 def test_healthcheck_rejects_unresolvable_supabase(monkeypatch):
     monkeypatch.setenv("SUPABASE_URL", "https://unresolvable.invalid")
 

@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: lawrence-api-staging
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /ready
+    envVars:
+      - key: APP_ENV
+        value: staging
+      - key: SUPABASE_URL
+        value: https://ctjsmeyilapeliptelfk.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: https://lawrence-api-staging.onrender.com
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+
+  - type: worker
+    name: lawrence-video-worker-staging
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./src/workers/video_worker/Dockerfile
+    plan: starter
+    envVars:
+      - key: SUPABASE_URL
+        value: https://ctjsmeyilapeliptelfk.supabase.co
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: VIDEO_AI_ENRICHMENT_ENABLED
+        value: "false"

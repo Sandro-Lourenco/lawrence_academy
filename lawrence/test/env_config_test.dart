@@ -119,6 +119,26 @@ void main() {
       expect(config.apiBaseUrl, 'https://api.lawrenceacademy.com');
     });
 
+    test("staging exige configuracao explicita e HTTPS", () {
+      expect(
+        () => EnvConfig.resolveEnvironment(
+          environmentValue: 'staging',
+          providedApiBaseUrl: '',
+          providedSupabaseUrl: '',
+          providedSupabaseAnonKey: '',
+        ),
+        throwsStateError,
+      );
+
+      final config = EnvConfig.resolveEnvironment(
+        environmentValue: 'staging',
+        providedApiBaseUrl: 'https://lawrence-api-staging.onrender.com',
+        providedSupabaseUrl: 'https://staging.supabase.co',
+        providedSupabaseAnonKey: 'sb_publishable_test',
+      );
+      expect(config.environment, AppEnvironment.stage);
+    });
+
     // 11. Supabase ausente em produção
     test("Supabase ausente em producao deve falhar", () {
       expect(

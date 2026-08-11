@@ -33,6 +33,7 @@ class SupabaseAssessmentRepository(AssessmentRepository):
             graded_at=datetime.fromisoformat(row["graded_at"].replace("Z", "+00:00"))
             if row.get("graded_at")
             else None,
+            idempotency_key=row.get("idempotency_key"),
         )
 
     def _map_task_row(self, row: dict) -> Task:
@@ -102,11 +103,41 @@ class SupabaseAssessmentRepository(AssessmentRepository):
             self._map_row(typing.cast(dict[str, typing.Any], row)) for row in res.data
         ]
 
+    async def get_tasks_by_course_ids(self, course_ids: List[str]) -> List[Task]:
+        if not course_ids:
+            return []
+        res = (
+            self.client.table("tasks")
+            .select("*")
+            .in_("course_id", course_ids)
+            .is_("deleted_at", "null")
+            .execute()
+        )
+        return [
+            self._map_task_row(typing.cast(dict[str, typing.Any], row))
+            for row in res.data or []
+        ]
+
+    async def get_submission_by_idempotency_key(
+        self, user_id: str, idempotency_key: str
+    ) -> TaskSubmission | None:
+        res = (
+            self.client.table("task_submissions")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("idempotency_key", idempotency_key)
+            .execute()
+        )
+        if not res.data:
+            return None
+        return self._map_row(typing.cast(dict[str, typing.Any], res.data[0]))
+
     async def save(self, submission: TaskSubmission) -> TaskSubmission:
         data = {
             "task_id": submission.task_id,
             "user_id": submission.user_id,
             "selected_option": submission.selected_option,
+            "idempotency_key": submission.idempotency_key,
         }
         if submission.text_answer is not None:
             data["text_answer"] = submission.text_answer

@@ -107,6 +107,11 @@ jobs:
             cat "$RUNNER_TEMP/local-backend.log"
             exit 1
           fi
+          pwsh ./scripts/ci/test-student-playback-e2e.ps1 \
+            -BackendUrl 'http://127.0.0.1:8000' \
+            -SupabaseUrl "$API_URL" \
+            -SupabaseAnonKey "$ANON_KEY" \
+            -StudentPassword 'CI-Local-Student-2026!'
       - name: Stop local Supabase
         if: always()
         run: supabase stop --no-backup
@@ -128,8 +133,13 @@ jobs:
           cache-dependency-path: |
             backend/requirements.txt
             backend/requirements-dev.txt
+            backend/src/workers/video_worker/requirements.txt
       - name: Install locked backend inputs
-        run: python -m pip install -r requirements.txt -r requirements-dev.txt
+        run: >-
+          python -m pip install
+          -r requirements.txt
+          -r requirements-dev.txt
+          -r src/workers/video_worker/requirements.txt
       - name: Ruff
         run: python -m ruff check src tests conftest.py
       - name: Mypy
@@ -176,6 +186,45 @@ jobs:
       - name: Build unsigned Android App Bundle
         run: flutter build appbundle --release $TEST_DEFINES
 
+  security:
+    name: Secrets, dependencies, SAST, and filesystem scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Scan repository history for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+      - name: Audit pinned Python dependency inputs
+        uses: pypa/gh-action-pip-audit@v1.1.0
+        with:
+          inputs: >-
+            backend/requirements.txt
+            backend/requirements-dev.txt
+            backend/src/workers/video_worker/requirements.txt
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: python
+      - name: Analyze Python with CodeQL
+        uses: github/codeql-action/analyze@v4
+      - name: Scan lockfiles, source, and container definitions
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
   release-candidate-gate:
     name: Release candidate gate
     if: always()
@@ -183,6 +232,7 @@ jobs:
       - database-and-local-e2e
       - backend
       - flutter
+      - security
     runs-on: ubuntu-latest
     steps:
       - name: Require every gate from this commit
@@ -190,7 +240,9 @@ jobs:
           DATABASE_RESULT: ${{ needs.database-and-local-e2e.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
           FLUTTER_RESULT: ${{ needs.flutter.result }}
+          SECURITY_RESULT: ${{ needs.security.result }}
         run: |
           test "$DATABASE_RESULT" = "success"
           test "$BACKEND_RESULT" = "success"
           test "$FLUTTER_RESULT" = "success"
+          test "$SECURITY_RESULT" = "success"

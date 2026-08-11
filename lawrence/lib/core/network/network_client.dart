@@ -62,6 +62,7 @@ final networkClientProvider = Provider<NetworkClient>((ref) {
 
 class NetworkClient {
   final Dio _dio;
+  final Uri _baseUri;
   static const _maxReadAttempts = 3;
   static const _authRetryKey = 'authRetryAttempted';
   static const _forcedAuthTokenKey = 'forcedAuthToken';
@@ -70,7 +71,8 @@ class NetworkClient {
     required String baseUrl,
     required AuthTokenCoordinator tokenCoordinator,
     Dio? dio,
-  }) : _dio =
+  }) : _baseUri = Uri.parse(baseUrl.endsWith('/') ? baseUrl : '$baseUrl/'),
+       _dio =
            dio ??
            Dio(
              BaseOptions(
@@ -170,6 +172,15 @@ class NetworkClient {
     );
   }
 
+  /// Resolves API-owned relative resource URLs against the configured public
+  /// API origin. This keeps browser media URLs independent from reverse-proxy
+  /// host/scheme headers while preserving absolute third-party URLs.
+  String resolveUrl(String url) {
+    final candidate = Uri.parse(url);
+    if (candidate.hasScheme) return candidate.toString();
+    return _baseUri.resolveUri(candidate).toString();
+  }
+
   Failure _handleDioError(DioException e) {
     if (e.type == DioExceptionType.connectionTimeout) {
       return const NetworkFailure(
@@ -213,7 +224,9 @@ class NetworkClient {
         } else if (data['message'] != null) {
           message = data['message'].toString();
         } else if (data['detail'] != null) {
-          message = data['detail'].toString();
+          message = statusCode == 422
+              ? _formatValidationDetail(data['detail'])
+              : data['detail'].toString();
         }
       }
 
@@ -227,6 +240,24 @@ class NetworkClient {
       message: 'Falha inesperada na requisição: ${e.message}',
       code: 'UNKNOWN_FAILURE',
     );
+  }
+
+  String _formatValidationDetail(dynamic detail) {
+    if (detail is! List) return detail.toString();
+    final messages = detail
+        .whereType<Map>()
+        .map((item) {
+          final location = (item['loc'] as List? ?? const [])
+              .where((part) => part != 'body')
+              .join('.');
+          final reason = item['msg']?.toString() ?? 'valor inválido';
+          return location.isEmpty ? reason : '$location: $reason';
+        })
+        .where((message) => message.isNotEmpty)
+        .toList();
+    return messages.isEmpty
+        ? 'Dados enviados são inválidos.'
+        : messages.join('; ');
   }
 
   Future<Response<T>> get<T>(

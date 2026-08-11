@@ -9,12 +9,13 @@ class JwtPlaybackService:
     """Short-lived capability token for browser-compatible private HLS playback."""
 
     def __init__(self, secret_key: str | None = None):
-        self.secret_key = secret_key or os.getenv("JWT_SECRET_KEY")
+        resolved_secret = secret_key or os.getenv("JWT_SECRET_KEY")
         environment = os.getenv("APP_ENV") or os.getenv("ENV") or "development"
-        if not self.secret_key:
+        if not resolved_secret:
             if environment != "test":
                 raise ValueError("JWT_SECRET_KEY is required for protected playback.")
-            self.secret_key = "test_only_playback_secret_key_32_bytes"
+            resolved_secret = "test_only_playback_secret_key_32_bytes"
+        self.secret_key: str = resolved_secret
 
     def generate(
         self,

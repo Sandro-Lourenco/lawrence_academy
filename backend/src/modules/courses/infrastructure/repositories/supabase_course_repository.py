@@ -112,7 +112,11 @@ class SupabaseCourseRepository(CourseRepository):
         )
 
     def _map_course(self, data: dict) -> Course:
-        modules = [self._map_module(m) for m in data.get("modules", []) or []]
+        modules = [
+            self._map_module(m)
+            for m in data.get("modules", []) or []
+            if m.get("deleted_at") is None
+        ]
         return Course(
             id=data["id"],
             instructor_id=data["instructor_id"],
@@ -206,11 +210,22 @@ class SupabaseCourseRepository(CourseRepository):
         if lesson_ids:
             jobs_query = (
                 self.client.table("video_processing_jobs")
-                .select("lesson_id,status,created_at")
+                .select("id,lesson_id,status,created_at")
                 .in_("lesson_id", lesson_ids)
                 .order("created_at", desc=True)
             )
             jobs_response = await run_sync_io(jobs_query.execute)
+            current_job_by_lesson = {
+                lesson.get("id"): lesson.get("pending_upload_job_id")
+                for module in course_data.get("modules", [])
+                for lesson in module.get("lessons", [])
+                if lesson.get("id") and lesson.get("pending_upload_job_id")
+            }
+            status_by_job_id = {
+                job.get("id"): job.get("status")
+                for job in _response_data(jobs_response) or []
+                if job.get("id")
+            }
             latest_status_by_lesson: dict[str, str] = {}
             for job in _response_data(jobs_response) or []:
                 lesson_id = job.get("lesson_id")
@@ -218,7 +233,13 @@ class SupabaseCourseRepository(CourseRepository):
                     latest_status_by_lesson[lesson_id] = job["status"]
             for module in course_data.get("modules", []):
                 for lesson in module.get("lessons", []):
-                    lesson["video_job_status"] = latest_status_by_lesson.get(lesson.get("id"))
+                    lesson_id = lesson.get("id")
+                    current_job_id = current_job_by_lesson.get(lesson_id)
+                    lesson["video_job_status"] = (
+                        status_by_job_id.get(current_job_id)
+                        if current_job_id
+                        else latest_status_by_lesson.get(lesson_id)
+                    )
         return self._map_course(course_data)
 
     async def get_by_slug(self, slug: str) -> Optional[Course]:
@@ -319,6 +340,13 @@ class SupabaseCourseRepository(CourseRepository):
         )
         res = await run_sync_io(query.execute)
         if not res or not _response_data(res) or not _response_data(res).get("snapshot"):
+            # Compatibility for courses published before immutable versions
+            # were introduced. New publications must still create and read a
+            # current snapshot; this fallback only keeps legacy public records
+            # reachable until they are republished through the canonical flow.
+            live_course = await self.get_by_id(course_id)
+            if live_course and live_course.status == "published":
+                return live_course
             return None
         return self._map_course(_response_data(res)["snapshot"])
 
@@ -684,6 +712,8 @@ class SupabaseCourseRepository(CourseRepository):
             self.client.table("modules")
             .update({"deleted_at": datetime.now(timezone.utc).isoformat()})
             .eq("id", module_id)
+            .is_("deleted_at", "null")
+            .select("id")
             .execute()
         )
         return len(_response_data(res)) > 0
