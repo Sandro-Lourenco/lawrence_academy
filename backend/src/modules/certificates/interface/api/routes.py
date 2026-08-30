@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from slowapi import Limiter  # type: ignore # slowapi does not provide type stubs
 from slowapi.util import get_remote_address  # type: ignore # slowapi does not provide type stubs
 
@@ -12,12 +12,19 @@ from src.modules.certificates.application.dtos import (
 )
 from src.modules.certificates.application.usecases import (
     GenerateCertificateUseCase,
+    DownloadCertificatePdfUseCase,
+    ReconcileCertificatesUseCase,
     VerifyCertificateUseCase,
 )
-from src.modules.certificates.domain.repositories import CertificateRepository
+from src.modules.certificates.domain.repositories import (
+    CertificateDocumentRenderer,
+    CertificateRepository,
+)
 from src.modules.certificates.interface.api.dependencies import (
+    get_certificate_document_renderer,
     get_certificate_repository,
 )
+from src.shared.config import settings
 
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/api/v1/certificates", tags=["Certificates"])
@@ -45,16 +52,46 @@ async def verify_certificate(
     return await use_case.execute(code)
 
 
+@router.get("/{certificate_id}/pdf")
+async def download_certificate_pdf(
+    certificate_id: str,
+    current_user: CurrentUser = Depends(get_current_user),
+    repository: CertificateRepository = Depends(get_certificate_repository),
+    renderer: CertificateDocumentRenderer = Depends(get_certificate_document_renderer),
+):
+    content = await DownloadCertificatePdfUseCase(
+        repository,
+        renderer,
+        settings.public_web_url,
+    ).execute(current_user.id, certificate_id)
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="lawrence-certificate-{certificate_id}.pdf"'
+            ),
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 @router.get("", response_model=List[CertificateResponseDTO])
 async def list_certificates(
     current_user: CurrentUser = Depends(get_current_user),
     repository: CertificateRepository = Depends(get_certificate_repository),
 ):
     certificates = await repository.list_by_student(current_user.id)
-    return [
-        CertificateResponseDTO(**certificate.model_dump())
-        for certificate in certificates
-    ]
+    return [CertificateResponseDTO(**certificate.model_dump()) for certificate in certificates]
+
+
+@router.post("/reconcile", response_model=List[CertificateResponseDTO])
+async def reconcile_certificates(
+    current_user: CurrentUser = Depends(get_current_user),
+    repository: CertificateRepository = Depends(get_certificate_repository),
+):
+    return await ReconcileCertificatesUseCase(repository).execute(current_user.id)
 
 
 legacy_router.add_api_route(

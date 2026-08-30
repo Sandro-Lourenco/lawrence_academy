@@ -45,7 +45,6 @@ class CertificateEligibilityEvidence(BaseModel):
             and bool(self.course_name and self.course_name.strip())
             and bool(self.required_lesson_ids)
             and set(self.required_lesson_ids).issubset(self.completed_lesson_ids)
-            and bool(self.required_task_ids)
             and set(self.required_task_ids).issubset(self.passed_task_ids)
             and set(self.required_learn_more_ids).issubset(
                 self.completed_learn_more_ids

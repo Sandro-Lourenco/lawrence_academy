@@ -118,7 +118,7 @@ def test_renditions_keep_adaptive_ladder_for_full_hd():
 
 
 @patch("src.workers.video_worker.transcoder.subprocess.run")
-def test_transcode_uses_fast_preset_and_preserves_aspect_ratio(mock_run, tmp_path):
+def test_transcode_uses_storage_efficient_quality_and_preserves_aspect_ratio(mock_run, tmp_path):
     transcoder.transcode_to_hls(
         "input.mp4",
         str(tmp_path),
@@ -128,7 +128,10 @@ def test_transcode_uses_fast_preset_and_preserves_aspect_ratio(mock_run, tmp_pat
     )
 
     command = mock_run.call_args.args[0]
-    assert command[command.index("-preset") + 1] == "veryfast"
+    assert command[command.index("-preset") + 1] == "slow"
+    assert "-crf:v:0" in command
+    assert "-b:v:0" not in command
+    assert command[command.index("-hls_flags") + 1] == "independent_segments"
     filter_graph = command[command.index("-filter_complex") + 1]
     assert "force_original_aspect_ratio=decrease" in filter_graph
     assert "1920:1080" not in filter_graph
@@ -244,6 +247,8 @@ def test_lesson_activation_is_scoped_to_current_upload_job():
 
     assert ("pending_upload_job_id", "job-current") in query.filters
     assert "status" not in query.payload
+    assert query.payload["video_source_type"] == "upload"
+    assert query.payload["external_video_id"] is None
 
 
 def test_trailer_terminal_failure_is_reflected_on_current_course():

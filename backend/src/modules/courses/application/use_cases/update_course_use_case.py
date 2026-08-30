@@ -1,6 +1,7 @@
 from decimal import Decimal
 from src.modules.courses.domain.entities import Course
 from src.modules.courses.domain.offer_rules import validate_course_offer
+from src.modules.courses.domain.external_video import parse_external_video_url
 from src.modules.courses.domain.repositories import CourseRepository
 from src.core.errors.errors import AuthorizationError, NotFoundError
 
@@ -32,6 +33,31 @@ class UpdateCourseUseCase:
         if not existing:
             raise NotFoundError("Curso não encontrado.")
 
+        requested_trailer_url = course_data.get("trailer_video_url")
+        remove_external_trailer = bool(course_data.get("remove_external_trailer"))
+        external_trailer = (
+            parse_external_video_url(requested_trailer_url)
+            if requested_trailer_url
+            else None
+        )
+        if external_trailer is not None:
+            trailer_hls_path = None
+            trailer_source_type = external_trailer.provider
+            trailer_external_video_id = external_trailer.video_id
+            trailer_status = "ready"
+        elif remove_external_trailer:
+            trailer_hls_path = None
+            trailer_source_type = "upload"
+            trailer_external_video_id = None
+            trailer_status = "empty"
+        else:
+            trailer_hls_path = course_data.get(
+                "trailer_hls_path", existing.trailer_hls_path
+            )
+            trailer_source_type = existing.trailer_source_type
+            trailer_external_video_id = existing.trailer_external_video_id
+            trailer_status = existing.trailer_status
+
         updated = Course(
             id=course_id,
             instructor_id=existing.instructor_id,
@@ -56,7 +82,10 @@ class UpdateCourseUseCase:
             competencies=course_data.get("competencies", existing.competencies),
             expected_outcomes=course_data.get("expected_outcomes", existing.expected_outcomes),
             thumbnail_url=course_data.get("thumbnail_url", existing.thumbnail_url),
-            trailer_hls_path=course_data.get("trailer_hls_path", existing.trailer_hls_path),
+            trailer_hls_path=trailer_hls_path,
+            trailer_source_type=trailer_source_type,
+            trailer_external_video_id=trailer_external_video_id,
+            trailer_status=trailer_status,
             monthly_price=Decimal(str(course_data.get("monthly_price", existing.monthly_price))),
             promotional_monthly_price=(
                 Decimal(str(course_data["promotional_monthly_price"]))
@@ -83,6 +112,12 @@ class UpdateCourseUseCase:
             authoring_revision=existing.authoring_revision,
         )
         validate_course_offer(updated)
-        return await self.repository.update(
-            course_id, updated, expected_authoring_revision
-        )
+        saved = await self.repository.update(course_id, updated, expected_authoring_revision)
+        if "prerequisite_course_ids" in course_data:
+            await self.repository.replace_course_prerequisites(
+                course_id=course_id,
+                instructor_id=existing.instructor_id,
+                prerequisite_course_ids=list(dict.fromkeys(course_data["prerequisite_course_ids"])),
+            )
+            return await self.repository.get_by_id(course_id) or saved
+        return saved

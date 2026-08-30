@@ -1,5 +1,5 @@
 import typing
-from typing import Optional
+from typing import Any, Optional
 from supabase import Client
 from src.core.concurrency import run_sync_io
 from src.modules.profiles.domain.entities import Profile
@@ -61,9 +61,9 @@ class SupabaseProfileRepository(ProfileRepository):
         twitter_url: Optional[str] = None,
         github_url: Optional[str] = None,
         custom_url: Optional[str] = None,
-        academic_formations: Optional[list] = None,
+        academic_formations: Optional[list[Any]] = None,
     ) -> Profile:
-        update_data = {}
+        update_data: dict[str, Any] = {}
         if full_name is not None:
             update_data["full_name"] = full_name
         if referred_by is not None:

@@ -10,6 +10,7 @@ from src.core.errors.handlers import install_error_handlers
 from src.core.security.security import CurrentUser, get_current_user
 from src.modules.courses.interface.api.dependencies import get_course_repository
 from src.modules.courses.interface.api.routes import router
+from src.modules.courses.domain.entities import Lesson
 
 
 def _client(repository: AsyncMock) -> TestClient:
@@ -74,6 +75,34 @@ def test_playback_url_does_not_trust_internal_proxy_origin(monkeypatch):
     assert response.json()["signedUrl"].startswith(
         "/api/v1/courses/course-1/lessons/lesson-1/hls/master.m3u8?token="
     )
+
+
+def test_external_video_url_is_returned_after_authenticated_access_check(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "test")
+    repository = AsyncMock()
+    repository.get_published_by_id.return_value = SimpleNamespace(
+        monthly_price=Decimal("0"),
+    )
+    repository.get_published_lesson.return_value = Lesson(
+        id="lesson-1",
+        module_id="module-1",
+        course_id="course-1",
+        title="Aula externa",
+        hls_storage_path=None,
+        video_source_type="vimeo",
+        external_video_id="123456789",
+    )
+    client = _client(repository)
+
+    response = client.get("/api/v1/courses/course-1/lessons/lesson-1/stream")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "sourceType": "external",
+        "provider": "vimeo",
+        "url": "https://vimeo.com/123456789",
+    }
+    repository.generate_signed_url.assert_not_awaited()
 
 
 def test_student_hls_proxy_rejects_token_for_another_lesson(monkeypatch):

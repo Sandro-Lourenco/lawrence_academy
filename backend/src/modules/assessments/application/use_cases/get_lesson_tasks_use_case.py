@@ -1,7 +1,8 @@
 from typing import Dict, Any
 from src.modules.assessments.domain.repositories import AssessmentRepository
 from src.modules.courses.domain.repositories import CourseRepository
-from src.core.errors.errors import AuthorizationError, NotFoundError
+from src.modules.courses.application.access_policy import ensure_student_course_access
+from src.core.errors.errors import NotFoundError
 
 
 class GetLessonTasksUseCase:
@@ -30,11 +31,11 @@ class GetLessonTasksUseCase:
         if not lesson:
             raise NotFoundError("Aula não encontrada.")
 
-        has_access = await self.course_repo.has_active_subscription(
-            student_id=user_id, course_id=course_id
+        await ensure_student_course_access(
+            self.course_repo,
+            student_id=user_id,
+            course_id=course_id,
         )
-        if not has_access:
-            raise AuthorizationError("Usuário não tem acesso a este curso.")
 
         # Busca as tarefas
         tasks = await self.assessment_repo.get_tasks_by_lesson_id(lesson_id)

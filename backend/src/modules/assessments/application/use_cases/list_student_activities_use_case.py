@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timezone
 from typing import Any
 
 from src.modules.assessments.domain.repositories import AssessmentRepository
@@ -20,10 +21,10 @@ class ListStudentActivitiesUseCase:
         self.profile_repository = profile_repository
 
     async def execute(self, user_id: str) -> list[dict[str, Any]]:
-        courses = await self.course_repository.list_all()
+        courses = await self.course_repository.list_published_versions()
         checks = await asyncio.gather(
             *(
-                self.course_repository.has_active_subscription(user_id, course.id)
+                _has_student_access(self.course_repository, user_id, course)
                 for course in courses
             )
         )
@@ -54,7 +55,9 @@ class ListStudentActivitiesUseCase:
                 continue
             attempts = [item for item in submissions if item.task_id == task.id]
             attempts.sort(
-                key=lambda item: item.submitted_at or item.graded_at,
+                key=lambda item: item.submitted_at
+                or item.graded_at
+                or datetime.min.replace(tzinfo=timezone.utc),
                 reverse=True,
             )
             latest = attempts[0] if attempts else None
@@ -107,3 +110,11 @@ class ListStudentActivitiesUseCase:
                 }
             )
         return result
+
+
+async def _has_student_access(
+    repository: CourseRepository, user_id: str, course: Any
+) -> bool:
+    if course.monthly_price <= 0:
+        return True
+    return await repository.has_active_subscription(user_id, course.id)

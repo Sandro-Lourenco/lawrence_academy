@@ -38,8 +38,23 @@ def _to_legacy_dict(course):
         "summary": course.summary,
         "description": course.description,
         "requirements": course.requirements,
+        "prerequisite_courses": [
+            {
+                "id": prerequisite.id,
+                "title": prerequisite.title,
+                "slug": prerequisite.slug,
+                "summary": prerequisite.summary,
+                "category": prerequisite.category,
+                "status": prerequisite.status,
+                "thumbnail_url": prerequisite.thumbnail_url,
+                "cover_image_path": prerequisite.cover_image_path,
+            }
+            for prerequisite in course.prerequisite_courses
+        ],
         "thumbnail_url": course.thumbnail_url,
         "trailer_hls_path": course.trailer_hls_path,
+        "trailer_source_type": course.trailer_source_type,
+        "trailer_external_video_id": course.trailer_external_video_id,
         "monthly_price": float(course.monthly_price),
         "status": course.status,
         "modules": [
@@ -112,9 +127,7 @@ async def create_course(
 async def update_course(
     course_id: str,
     course_data: CourseCreateSchema,
-    expected_authoring_revision: int = Header(
-        alias="If-Match-Authoring-Revision", ge=0
-    ),
+    expected_authoring_revision: int = Header(alias="If-Match-Authoring-Revision", ge=0),
     current_user: CurrentUser = Depends(require_role(["teacher", "admin"])),
 ):
     """Atualiza as informações de um curso existente (Legacy route redirection)."""

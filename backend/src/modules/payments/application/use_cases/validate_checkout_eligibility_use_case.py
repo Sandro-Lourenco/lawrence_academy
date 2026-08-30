@@ -38,8 +38,8 @@ class ValidateCheckoutEligibilityUseCase:
         self, student_id: str, course_id: str
     ) -> CheckoutEligibilityResult:
         if self.course_repo is not None:
-            course = await self.course_repo.get_by_id(course_id)
-            if course is None or course.status != "published":
+            course = await self.course_repo.get_published_by_id(course_id)
+            if course is None:
                 raise NotFoundError("Curso publicado não encontrado.")
             if course.monthly_price <= 0:
                 return CheckoutEligibilityResult(

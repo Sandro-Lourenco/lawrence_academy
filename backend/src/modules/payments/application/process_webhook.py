@@ -67,21 +67,27 @@ class StripeWebhookProcessor:
             if "duplicate key" in str(db_err).lower() or "unique constraint" in str(db_err).lower():
                 existing = (
                     database.db.table("payment_events")
-                    .select("status")
+                    .select("status, payload_hash")
                     .eq("provider", provider)
                     .eq("provider_event_id", event_id)
                     .execute()
                 )
                 if existing.data:
-                    current_status = typing.cast(dict[str, typing.Any], existing.data[0]).get(
-                        "status"
+                    existing_event = typing.cast(
+                        dict[str, typing.Any], existing.data[0]
                     )
+                    current_status = existing_event.get("status")
+                    if existing_event.get("payload_hash") not in {None, payload_hash}:
+                        raise ValueError(
+                            "Stripe event id was received with a different payload"
+                        )
                     if current_status == "failed" or current_status == "received":
                         update_res = (
                             database.db.table("payment_events")
                             .update({"status": "processing", "payload_hash": payload_hash})
                             .eq("provider", provider)
                             .eq("provider_event_id", event_id)
+                            .eq("status", current_status)
                             .execute()
                         )
                         return True if update_res.data else False
@@ -91,9 +97,11 @@ class StripeWebhookProcessor:
     @staticmethod
     def mark_event_failed(provider: str, event_id: str, error_message: str) -> None:
         """Marca o evento como falho em vez de deletá-lo, mantendo histórico e permitindo reenvio."""
-        database.db.table("payment_events").update({"status": "failed"}).eq(
-            "provider", provider
-        ).eq("provider_event_id", event_id).execute()
+        database.db.table("payment_events").update(
+            {"status": "failed", "processing_error": error_message[:1000]}
+        ).eq("provider", provider).eq("provider_event_id", event_id).eq(
+            "status", "processing"
+        ).execute()
 
     @staticmethod
     def mark_event_processed(provider: str, event_id: str) -> None:
@@ -116,6 +124,12 @@ class StripeWebhookProcessor:
             await cls._process_payment_failed(event)
         elif event_type == "customer.subscription.deleted":
             await cls._process_subscription_deleted(event)
+        elif event_type == "customer.subscription.updated":
+            await cls._process_subscription_updated(event)
+        elif event_type == "charge.refunded":
+            await cls._process_charge_state(event, status="canceled")
+        elif event_type == "charge.dispute.created":
+            await cls._process_charge_state(event, status="past_due")
         else:
             print(f"[Stripe Webhook] Evento ignorado: {event_type}")
 
@@ -316,3 +330,74 @@ class StripeWebhookProcessor:
                     "notification_type": "info",
                 }
             ).execute()
+
+    @staticmethod
+    async def _process_subscription_updated(event: dict) -> None:
+        """Synchronize Stripe subscription lifecycle changes into access state."""
+        subscription = typing.cast(
+            dict[str, typing.Any], event.get("data", {}).get("object", {})
+        )
+        stripe_sub_id = subscription.get("id")
+        if not stripe_sub_id:
+            raise ValueError("Stripe subscription update is missing its id")
+
+        stripe_status = str(subscription.get("status") or "")
+        status_map = {
+            "active": "active",
+            "trialing": "trialing",
+            "past_due": "past_due",
+            "unpaid": "past_due",
+            "incomplete": "past_due",
+            "incomplete_expired": "canceled",
+            "paused": "past_due",
+            "canceled": "canceled",
+        }
+        local_status = status_map.get(stripe_status)
+        if local_status is None:
+            raise ValueError("Unsupported Stripe subscription status")
+
+        update_data: dict[str, typing.Any] = {
+            "status": local_status,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        for source, target in (
+            ("current_period_start", "current_period_start"),
+            ("current_period_end", "current_period_end"),
+        ):
+            timestamp = subscription.get(source)
+            if isinstance(timestamp, (int, float)):
+                update_data[target] = datetime.fromtimestamp(
+                    timestamp, tz=timezone.utc
+                ).isoformat()
+
+        database.db.table("subscriptions").update(
+            typing.cast(typing.Any, update_data)
+        ).eq("provider_subscription_id", stripe_sub_id).execute()
+
+    @staticmethod
+    async def _process_charge_state(event: dict, *, status: str) -> None:
+        """Suspend access after a refund or dispute using the invoice relationship."""
+        charge = typing.cast(
+            dict[str, typing.Any], event.get("data", {}).get("object", {})
+        )
+        invoice_value = charge.get("invoice")
+        subscription_id: str | None = None
+        if isinstance(invoice_value, dict):
+            raw_subscription = invoice_value.get("subscription")
+            subscription_id = (
+                raw_subscription if isinstance(raw_subscription, str) else None
+            )
+        elif isinstance(invoice_value, str):
+            invoice = typing.cast(typing.Any, stripe.Invoice.retrieve(invoice_value))
+            raw_subscription = getattr(invoice, "subscription", None)
+            subscription_id = raw_subscription if isinstance(raw_subscription, str) else None
+
+        if not subscription_id:
+            raise ValueError("Stripe charge is not linked to a subscription")
+
+        database.db.table("subscriptions").update(
+            {
+                "status": status,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        ).eq("provider_subscription_id", subscription_id).execute()

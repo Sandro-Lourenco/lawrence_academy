@@ -132,6 +132,17 @@ class SupabaseAssessmentRepository(AssessmentRepository):
             return None
         return self._map_row(typing.cast(dict[str, typing.Any], res.data[0]))
 
+    async def get_submission_by_id(self, submission_id: str) -> TaskSubmission:
+        res = (
+            self.client.table("task_submissions")
+            .select("*")
+            .eq("id", submission_id)
+            .execute()
+        )
+        if not res.data:
+            raise NotFoundError("Submissão não encontrada para avaliação.")
+        return self._map_row(typing.cast(dict[str, typing.Any], res.data[0]))
+
     async def save(self, submission: TaskSubmission) -> TaskSubmission:
         data = {
             "task_id": submission.task_id,

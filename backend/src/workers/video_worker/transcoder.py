@@ -14,16 +14,16 @@ class HlsRendition(NamedTuple):
     name: str
     width: int
     height: int
-    video_bitrate: str
     maxrate: str
     bufsize: str
     audio_bitrate: str
+    crf: int
 
 
 HLS_RENDITIONS = (
-    HlsRendition("480p", 854, 480, "800k", "850k", "1200k", "96k"),
-    HlsRendition("720p", 1280, 720, "1500k", "1600k", "2200k", "128k"),
-    HlsRendition("1080p", 1920, 1080, "3000k", "3200k", "4500k", "192k"),
+    HlsRendition("480p", 854, 480, "800k", "1200k", "64k", 23),
+    HlsRendition("720p", 1280, 720, "1500k", "2250k", "96k", 22),
+    HlsRendition("1080p", 1920, 1080, "2800k", "4200k", "128k", 21),
 )
 
 
@@ -221,8 +221,8 @@ def transcode_to_hls(
                 f"[v{index}out]",
                 f"-c:v:{index}",
                 "libx264",
-                f"-b:v:{index}",
-                rendition.video_bitrate,
+                f"-crf:v:{index}",
+                str(rendition.crf),
                 f"-maxrate:v:{index}",
                 rendition.maxrate,
                 f"-bufsize:v:{index}",
@@ -243,15 +243,23 @@ def transcode_to_hls(
     cmd.extend(
         [
             "-preset",
-            os.getenv("VIDEO_FFMPEG_PRESET", "veryfast"),
+            os.getenv("VIDEO_FFMPEG_PRESET", "slow"),
+            "-profile:v",
+            "high",
+            "-pix_fmt",
+            "yuv420p",
             "-sc_threshold",
             "0",
+            "-force_key_frames",
+            "expr:gte(t,n_forced*6)",
             "-f",
             "hls",
             "-hls_time",
             "6",
             "-hls_playlist_type",
             "vod",
+            "-hls_flags",
+            "independent_segments",
             "-var_stream_map",
             " ".join(
                 f"v:{index},a:{index},name:{rendition.name}"

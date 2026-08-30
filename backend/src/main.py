@@ -10,9 +10,7 @@ from src.shared.config import settings
 
 # Roteadores de cada módulo
 from src.modules.profiles.interfaces.routes import router as profiles_router
-from src.modules.courses.interfaces.routes import router as courses_router
 from src.modules.assessments.interfaces.routes import router as assessments_router
-from src.modules.courses.api.router import router as new_courses_router
 from src.modules.students.api.router import router as new_students_router
 
 from src.modules.profiles.interface.api.routes import router as profiles_v1_router
@@ -92,9 +90,7 @@ app.add_middleware(
 app.include_router(payments_legacy_router, deprecated=True)
 app.include_router(certificates_legacy_router, deprecated=True)
 app.include_router(profiles_router, deprecated=True)
-app.include_router(courses_router, deprecated=True)
 app.include_router(assessments_router, deprecated=True)
-app.include_router(new_courses_router, deprecated=True)
 app.include_router(new_students_router, deprecated=True)
 
 # Novas rotas v1 padronizadas

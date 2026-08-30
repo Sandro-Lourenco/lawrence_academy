@@ -1,5 +1,5 @@
 from typing import Protocol, List, Optional
-from src.modules.courses.domain.entities import Course, Lesson, LessonBlock, Module
+from src.modules.courses.domain.entities import Course, CourseStudent, Lesson, LessonBlock, Module
 
 
 class CourseRepository(Protocol):
@@ -37,6 +37,14 @@ class CourseRepository(Protocol):
         """Lista os cursos pertencentes a um instrutor, incluindo rascunhos."""
         ...
 
+    async def get_course_type(self, course_id: str) -> Optional[str]:
+        """Recupera somente o tipo do curso para regras de autoria."""
+        ...
+
+    async def list_course_students(self, course_id: str) -> List[CourseStudent]:
+        """Lista alunos com acesso e progresso usando consultas em lote."""
+        ...
+
     async def create(
         self,
         course: Course,
@@ -51,6 +59,16 @@ class CourseRepository(Protocol):
         self, course_id: str, course: Course, expected_authoring_revision: int
     ) -> Course:
         """Atualiza dados do curso."""
+        ...
+
+    async def replace_course_prerequisites(
+        self,
+        *,
+        course_id: str,
+        instructor_id: str,
+        prerequisite_course_ids: list[str],
+    ) -> None:
+        """Substitui relações de pré-requisito com validação transacional no banco."""
         ...
 
     async def delete(self, course_id: str) -> bool:

@@ -199,10 +199,13 @@ class SupabaseStorageRepository:
             (
                 self.client.table("courses")
                 .update(
-                    {
-                        "trailer_upload_job_id": job_id,
-                        "trailer_status": "upload_pending",
-                    }
+                      {
+                          "trailer_upload_job_id": job_id,
+                          "trailer_source_type": "upload",
+                          "trailer_external_video_id": None,
+                          "trailer_hls_path": None,
+                          "trailer_status": "upload_pending",
+                      }
                 )
                 .eq("id", course_id)
                 .execute()

@@ -4,7 +4,14 @@ from decimal import Decimal
 from typing import List, Optional
 from supabase import Client
 from postgrest.exceptions import APIError
-from src.modules.courses.domain.entities import Course, Module, Lesson, LessonBlock
+from src.modules.courses.domain.entities import (
+    Course,
+    CoursePrerequisite,
+    CourseStudent,
+    Lesson,
+    LessonBlock,
+    Module,
+)
 from src.modules.courses.domain.repositories import CourseRepository
 from src.core.concurrency import run_sync_io
 from src.core.storage.public_url import to_public_supabase_url
@@ -19,6 +26,14 @@ def _response_data(response: object) -> typing.Any:
     only this external boundary is explicitly dynamic.
     """
     return typing.cast(typing.Any, response).data
+
+
+_COURSE_AGGREGATE_SELECT = (
+    "*, modules(*, lessons(*, lesson_blocks(*))), "
+    "course_prerequisites!course_prerequisites_course_id_fkey("
+    "prerequisite_course:courses!course_prerequisites_prerequisite_course_id_fkey("
+    "id,title,slug,summary,category,status,thumbnail_url,cover_image_path))"
+)
 
 
 class SupabaseCourseRepository(CourseRepository):
@@ -82,6 +97,8 @@ class SupabaseCourseRepository(CourseRepository):
             course_id=data["course_id"],
             title=data["title"],
             hls_storage_path=data.get("hls_storage_path"),
+            video_source_type=data.get("video_source_type") or "upload",
+            external_video_id=data.get("external_video_id"),
             video_job_status=data.get("video_job_status"),
             description=data.get("description"),
             order_index=int(data.get("order_index") or 0),
@@ -106,8 +123,12 @@ class SupabaseCourseRepository(CourseRepository):
             course_id=data["course_id"],
             title=data["title"],
             order_index=int(data.get("order_index") or 0),
+            description=data.get("description"),
             status=data.get("status") or "draft",
+            is_system=bool(data.get("is_system", False)),
+            updated_at=data.get("updated_at"),
             created_at=data.get("created_at"),
+            deleted_at=data.get("deleted_at"),
             lessons=sorted(lessons, key=lambda x: x.order_index),
         )
 
@@ -117,6 +138,39 @@ class SupabaseCourseRepository(CourseRepository):
             for m in data.get("modules", []) or []
             if m.get("deleted_at") is None
         ]
+        prerequisite_courses = []
+        for relation in data.get("course_prerequisites", []) or []:
+            prerequisite = relation.get("prerequisite_course") or {}
+            if prerequisite.get("id"):
+                prerequisite_courses.append(
+                    CoursePrerequisite(
+                        id=prerequisite["id"],
+                        title=prerequisite.get("title") or "Curso",
+                        slug=prerequisite.get("slug") or "",
+                        summary=prerequisite.get("summary") or "",
+                        category=prerequisite.get("category") or "costura",
+                        status=prerequisite.get("status") or "published",
+                        thumbnail_url=prerequisite.get("thumbnail_url"),
+                        cover_image_path=prerequisite.get("cover_image_path"),
+                    )
+                )
+        # Published snapshots store the objects directly instead of join rows.
+        for prerequisite in data.get("prerequisite_courses", []) or []:
+            if prerequisite.get("id") and not any(
+                existing.id == prerequisite["id"] for existing in prerequisite_courses
+            ):
+                prerequisite_courses.append(
+                    CoursePrerequisite(
+                        id=prerequisite["id"],
+                        title=prerequisite.get("title") or "Curso",
+                        slug=prerequisite.get("slug") or "",
+                        summary=prerequisite.get("summary") or "",
+                        category=prerequisite.get("category") or "costura",
+                        status=prerequisite.get("status") or "published",
+                        thumbnail_url=prerequisite.get("thumbnail_url"),
+                        cover_image_path=prerequisite.get("cover_image_path"),
+                    )
+                )
         return Course(
             id=data["id"],
             instructor_id=data["instructor_id"],
@@ -131,6 +185,9 @@ class SupabaseCourseRepository(CourseRepository):
             level=data.get("level") or "iniciante",
             description=data.get("description"),
             requirements=data.get("requirements") or [],
+            prerequisite_courses=sorted(
+                prerequisite_courses, key=lambda item: item.title.casefold()
+            ),
             learning_objectives=data.get("learning_objectives") or [],
             target_audience=data.get("target_audience") or [],
             required_materials=data.get("required_materials") or [],
@@ -138,6 +195,8 @@ class SupabaseCourseRepository(CourseRepository):
             expected_outcomes=data.get("expected_outcomes") or [],
             thumbnail_url=data.get("thumbnail_url"),
             trailer_hls_path=data.get("trailer_hls_path"),
+            trailer_source_type=data.get("trailer_source_type") or "upload",
+            trailer_external_video_id=data.get("trailer_external_video_id"),
             cover_image_path=data.get("cover_image_path"),
             cover_alt_text=data.get("cover_alt_text"),
             cover_focal_x=float(
@@ -192,7 +251,7 @@ class SupabaseCourseRepository(CourseRepository):
     async def get_by_id(self, course_id: str) -> Optional[Course]:
         query = (
             self.client.table("courses")
-            .select("*, modules(*, lessons(*, lesson_blocks(*)))")
+            .select(_COURSE_AGGREGATE_SELECT)
             .eq("id", course_id)
             .is_("deleted_at", "null")
             .maybe_single()
@@ -245,7 +304,7 @@ class SupabaseCourseRepository(CourseRepository):
     async def get_by_slug(self, slug: str) -> Optional[Course]:
         query = (
             self.client.table("courses")
-            .select("*, modules(*, lessons(*, lesson_blocks(*)))")
+            .select(_COURSE_AGGREGATE_SELECT)
             .eq("slug", slug)
             .is_("deleted_at", "null")
             .maybe_single()
@@ -269,9 +328,7 @@ class SupabaseCourseRepository(CourseRepository):
 
     async def list_all(self) -> List[Course]:
         query = (
-            self.client.table("courses")
-            .select("*, modules(*, lessons(*, lesson_blocks(*)))")
-            .is_("deleted_at", "null")
+            self.client.table("courses").select(_COURSE_AGGREGATE_SELECT).is_("deleted_at", "null")
         )
         res = await run_sync_io(query.execute)
         return [
@@ -315,7 +372,7 @@ class SupabaseCourseRepository(CourseRepository):
                 # Se nÃƒÂ£o houver snapshots criados ainda, busca os dados live
                 live_query = (
                     self.client.table("courses")
-                    .select("*, modules(*, lessons(*, lesson_blocks(*)))")
+                    .select(_COURSE_AGGREGATE_SELECT)
                     .in_("id", course_ids)
                 )
                 res_live = await run_sync_io(live_query.execute)
@@ -323,9 +380,7 @@ class SupabaseCourseRepository(CourseRepository):
             return courses
         else:
             live_query = (
-                self.client.table("courses")
-                .select("*, modules(*, lessons(*, lesson_blocks(*)))")
-                .in_("id", course_ids)
+                self.client.table("courses").select(_COURSE_AGGREGATE_SELECT).in_("id", course_ids)
             )
             res_live = await run_sync_io(live_query.execute)
             return [self._map_course(row) for row in (_response_data(res_live) or [])]
@@ -386,7 +441,7 @@ class SupabaseCourseRepository(CourseRepository):
     async def list_by_instructor(self, instructor_id: str) -> List[Course]:
         res = (
             self.client.table("courses")
-            .select("*, modules(*, lessons(*, lesson_blocks(*)))")
+            .select(_COURSE_AGGREGATE_SELECT)
             .eq("instructor_id", instructor_id)
             .is_("deleted_at", "null")
             .execute()
@@ -395,6 +450,102 @@ class SupabaseCourseRepository(CourseRepository):
             self._map_course(typing.cast(dict[str, typing.Any], row))
             for row in (_response_data(res) or [])
         ]
+
+    async def get_course_type(self, course_id: str) -> Optional[str]:
+        response = (
+            self.client.table("courses")
+            .select("course_type")
+            .eq("id", course_id)
+            .is_("deleted_at", "null")
+            .maybe_single()
+            .execute()
+        )
+        data = _response_data(response)
+        return (data.get("course_type") or "complete") if isinstance(data, dict) else None
+
+    async def list_course_students(self, course_id: str) -> List[CourseStudent]:
+        """Monta a visão do professor em consultas em lote, sem N+1."""
+        subscriptions_response = (
+            self.client.table("subscriptions")
+            .select("student_id,status,current_period_end,created_at")
+            .eq("course_id", course_id)
+            .is_("deleted_at", "null")
+            .execute()
+        )
+        progress_response = (
+            self.client.table("lesson_progress")
+            .select("student_id,progress_percentage,completed,created_at")
+            .eq("course_id", course_id)
+            .execute()
+        )
+        lesson_response = (
+            self.client.table("lessons")
+            .select("id")
+            .eq("course_id", course_id)
+            .is_("deleted_at", "null")
+            .execute()
+        )
+
+        subscriptions = _response_data(subscriptions_response) or []
+        progress_rows = _response_data(progress_response) or []
+        access_by_student: dict[str, dict] = {str(row["student_id"]): row for row in subscriptions}
+        # Cursos gratuitos não geram assinatura: o primeiro progresso comprova a matrícula.
+        for row in progress_rows:
+            student_id = str(row["student_id"])
+            access_by_student.setdefault(
+                student_id,
+                {
+                    "student_id": student_id,
+                    "status": "free",
+                    "created_at": row.get("created_at"),
+                    "current_period_end": None,
+                },
+            )
+        if not access_by_student:
+            return []
+
+        profiles_response = (
+            self.client.table("profiles")
+            .select("id,full_name,email,avatar_url")
+            .in_("id", list(access_by_student))
+            .execute()
+        )
+        profiles = {str(row["id"]): row for row in (_response_data(profiles_response) or [])}
+        progress_by_student: dict[str, list[dict]] = {}
+        for row in progress_rows:
+            progress_by_student.setdefault(str(row["student_id"]), []).append(row)
+
+        total_lessons = len(_response_data(lesson_response) or [])
+        students: list[CourseStudent] = []
+        for student_id, access in access_by_student.items():
+            profile = profiles.get(student_id)
+            if not profile:
+                continue
+            rows = progress_by_student.get(student_id, [])
+            completed_lessons = sum(bool(row.get("completed")) for row in rows)
+            progress_percentage = (
+                round(
+                    sum(float(row.get("progress_percentage") or 0) for row in rows) / total_lessons,
+                    2,
+                )
+                if total_lessons
+                else 0.0
+            )
+            students.append(
+                CourseStudent(
+                    id=student_id,
+                    full_name=profile.get("full_name") or "Aluno",
+                    email=profile.get("email") or "",
+                    avatar_url=profile.get("avatar_url"),
+                    access_status=access.get("status") or "unknown",
+                    enrolled_at=access.get("created_at"),
+                    current_period_end=access.get("current_period_end"),
+                    progress_percentage=min(progress_percentage, 100.0),
+                    completed_lessons=completed_lessons,
+                    total_lessons=total_lessons,
+                )
+            )
+        return sorted(students, key=lambda item: item.full_name.casefold())
 
     async def create(
         self,
@@ -431,6 +582,9 @@ class SupabaseCourseRepository(CourseRepository):
             "expected_outcomes": course.expected_outcomes,
             "thumbnail_url": course.thumbnail_url,
             "trailer_hls_path": course.trailer_hls_path,
+            "trailer_source_type": course.trailer_source_type,
+            "trailer_external_video_id": course.trailer_external_video_id,
+            "trailer_status": course.trailer_status,
             "monthly_price": float(course.monthly_price),
             "promotional_monthly_price": (
                 float(course.promotional_monthly_price)
@@ -456,7 +610,7 @@ class SupabaseCourseRepository(CourseRepository):
                 if idempotency_key:
                     replay = (
                         self.client.table("courses")
-                        .select("*, modules(*, lessons(*, lesson_blocks(*)))")
+                        .select(_COURSE_AGGREGATE_SELECT)
                         .eq("id", course.id)
                         .eq("instructor_id", course.instructor_id)
                         .maybe_single()
@@ -470,7 +624,38 @@ class SupabaseCourseRepository(CourseRepository):
             raise
         if not _response_data(res):
             raise NotFoundError("Erro ao criar curso.")
-        return self._map_course(typing.cast(dict[str, typing.Any], _response_data(res)[0]))
+        # Recarrega o agregado: cursos rápidos recebem o módulo interno por trigger.
+        created = await self.get_by_id(course.id)
+        if not created:
+            raise NotFoundError("Erro ao recarregar o curso criado.")
+        return created
+
+    async def replace_course_prerequisites(
+        self,
+        *,
+        course_id: str,
+        instructor_id: str,
+        prerequisite_course_ids: list[str],
+    ) -> None:
+        try:
+            self.client.rpc(
+                "set_course_prerequisites",
+                {
+                    "p_course_id": course_id,
+                    "p_instructor_id": instructor_id,
+                    "p_prerequisite_ids": prerequisite_course_ids,
+                },
+            ).execute()
+        except APIError as error:
+            if error.code == "42501":
+                raise AuthorizationError(
+                    "Apenas o professor proprietário pode definir pré-requisitos."
+                ) from error
+            if error.code in {"23503", "23505", "23514"}:
+                raise ConflictError(
+                    "Selecione cursos publicados válidos e sem dependências circulares."
+                ) from error
+            raise
 
     async def update(
         self, course_id: str, course: Course, expected_authoring_revision: int
@@ -495,6 +680,9 @@ class SupabaseCourseRepository(CourseRepository):
             "expected_outcomes": course.expected_outcomes,
             "thumbnail_url": course.thumbnail_url,
             "trailer_hls_path": course.trailer_hls_path,
+            "trailer_source_type": course.trailer_source_type,
+            "trailer_external_video_id": course.trailer_external_video_id,
+            "trailer_status": course.trailer_status,
             "monthly_price": float(course.monthly_price),
             "promotional_monthly_price": (
                 float(course.promotional_monthly_price)
@@ -573,6 +761,10 @@ class SupabaseCourseRepository(CourseRepository):
             "description": lesson.description,
             "order_index": lesson.order_index,
             "duration_seconds": lesson.duration_seconds,
+            "estimated_duration_minutes": lesson.estimated_duration_minutes,
+            "is_required": lesson.is_required,
+            "video_source_type": lesson.video_source_type,
+            "external_video_id": lesson.external_video_id,
             "status": lesson.status,
         }
         try:
@@ -719,7 +911,7 @@ class SupabaseCourseRepository(CourseRepository):
         return len(_response_data(res)) > 0
 
     async def has_active_subscription(self, student_id: str, course_id: str) -> bool:
-        from datetime import datetime, timezone
+        from datetime import datetime, timedelta, timezone
 
         query = (
             self.client.table("subscriptions")
@@ -734,15 +926,15 @@ class SupabaseCourseRepository(CourseRepository):
 
         for sub in typing.cast(list[dict[str, typing.Any]], _response_data(res)):
             status = sub.get("status")
-            if status == "active":
+            if status in {"active", "trialing"}:
                 return True
 
             current_period_end_str = sub.get("current_period_end")
-            if current_period_end_str:
+            if status == "past_due" and current_period_end_str:
                 current_period_end = datetime.fromisoformat(
                     current_period_end_str.replace("Z", "+00:00")
                 )
-                if current_period_end > datetime.now(timezone.utc):
+                if current_period_end + timedelta(days=5) > datetime.now(timezone.utc):
                     return True
 
         return False
@@ -787,7 +979,7 @@ class SupabaseCourseRepository(CourseRepository):
     async def get_publication_snapshot(self, course_id: str) -> dict:
         res = (
             self.client.table("courses")
-            .select("*, modules(*, lessons(*, lesson_blocks(*)))")
+            .select(_COURSE_AGGREGATE_SELECT)
             .eq("id", course_id)
             .is_("deleted_at", "null")
             .maybe_single()
@@ -830,9 +1022,7 @@ class SupabaseCourseRepository(CourseRepository):
                     if job.get("status") not in {"completed", "failed", "dead_letter"}
                 ]
                 failed_jobs = [
-                    job
-                    for job in current_jobs
-                    if job.get("status") in {"failed", "dead_letter"}
+                    job for job in current_jobs if job.get("status") in {"failed", "dead_letter"}
                 ]
 
         return {

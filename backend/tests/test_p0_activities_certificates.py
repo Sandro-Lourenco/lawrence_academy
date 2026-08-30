@@ -7,9 +7,18 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from src.core.errors.errors import AuthorizationError, ServiceUnavailableError, ValidationError
+from src.core.errors.errors import (
+    AuthorizationError,
+    ConflictError,
+    ServiceUnavailableError,
+    ValidationError,
+)
 from src.modules.assessments.application.use_cases.submit_task_use_case import SubmitTaskUseCase
+from src.modules.assessments.application.use_cases.grade_submission_use_case import (
+    GradeSubmissionUseCase,
+)
 from src.modules.assessments.domain.entities import Task, TaskSubmission
+from src.modules.courses.domain.entities import Course
 from src.modules.certificates.application.dtos import GenerateCertificateRequest
 from src.modules.certificates.application.usecases import (
     GenerateCertificateUseCase,
@@ -32,8 +41,28 @@ async def test_submission_retry_returns_same_result_without_new_attempt():
     )
     repository = Mock()
     repository.get_submission_by_idempotency_key = AsyncMock(return_value=existing)
+    repository.get_task_by_id = AsyncMock(
+        return_value=Task(
+            id="task-1",
+            course_id="course-1",
+            lesson_id="lesson-1",
+            title="Prova",
+            task_type="multiple_choice",
+        )
+    )
     repository.save = AsyncMock()
     course_repository = Mock()
+    course_repository.get_published_by_id = AsyncMock(
+        return_value=Course(
+            id="course-1",
+            instructor_id="teacher-1",
+            title="Curso",
+            slug="curso",
+            summary="Curso publicado",
+            status="published",
+            monthly_price=Decimal("0"),
+        )
+    )
 
     result = await SubmitTaskUseCase(repository, course_repository).execute(
         "task-1", "student-1", selected_option="A", idempotency_key="request-1"
@@ -57,6 +86,17 @@ async def test_submission_fails_closed_without_course_access():
         )
     )
     course_repository = Mock()
+    course_repository.get_published_by_id = AsyncMock(
+        return_value=Course(
+            id="course-1",
+            instructor_id="teacher-1",
+            title="Curso",
+            slug="curso",
+            summary="Curso publicado",
+            status="published",
+            monthly_price=Decimal("59.90"),
+        )
+    )
     course_repository.has_active_subscription = AsyncMock(return_value=False)
 
     with pytest.raises(AuthorizationError):
@@ -84,6 +124,17 @@ async def test_multiple_choice_is_graded_against_correct_option(answer, expected
     repository.get_user_submissions_for_tasks = AsyncMock(return_value=[])
     repository.save = AsyncMock(side_effect=lambda submission: submission)
     course_repository = Mock()
+    course_repository.get_published_by_id = AsyncMock(
+        return_value=Course(
+            id="course-1",
+            instructor_id="teacher-1",
+            title="Curso",
+            slug="curso",
+            summary="Curso publicado",
+            status="published",
+            monthly_price=Decimal("59.90"),
+        )
+    )
     course_repository.has_active_subscription = AsyncMock(return_value=True)
 
     result = await SubmitTaskUseCase(repository, course_repository).execute(
@@ -95,6 +146,84 @@ async def test_multiple_choice_is_graded_against_correct_option(answer, expected
 
     assert result.status == "graded"
     assert result.score == expected_score
+
+
+@pytest.mark.asyncio
+async def test_idempotency_key_cannot_be_reused_for_another_task():
+    repository = Mock()
+    repository.get_task_by_id = AsyncMock(
+        return_value=Task(
+            id="task-2",
+            course_id="course-1",
+            lesson_id="lesson-1",
+            title="Outra atividade",
+            task_type="multiple_choice",
+        )
+    )
+    repository.get_submission_by_idempotency_key = AsyncMock(
+        return_value=TaskSubmission(
+            id="submission-1",
+            task_id="task-1",
+            user_id="student-1",
+            status="graded",
+            idempotency_key="request-reused",
+        )
+    )
+    course_repository = Mock()
+    course_repository.get_published_by_id = AsyncMock(
+        return_value=Course(
+            id="course-1",
+            instructor_id="teacher-1",
+            title="Curso",
+            slug="curso",
+            summary="Curso publicado",
+            status="published",
+            monthly_price=Decimal("0"),
+        )
+    )
+
+    with pytest.raises(ConflictError):
+        await SubmitTaskUseCase(repository, course_repository).execute(
+            "task-2",
+            "student-1",
+            selected_option="A",
+            idempotency_key="request-reused",
+        )
+
+
+@pytest.mark.asyncio
+async def test_teacher_cannot_grade_another_teachers_submission():
+    submission = TaskSubmission(
+        id="submission-1",
+        task_id="task-1",
+        user_id="student-1",
+        status="pending_review",
+    )
+    repository = Mock()
+    repository.get_submission_by_id = AsyncMock(return_value=submission)
+    repository.get_task_by_id = AsyncMock(
+        return_value=Task(
+            id="task-1",
+            course_id="course-1",
+            lesson_id="lesson-1",
+            title="Redação",
+            task_type="essay",
+        )
+    )
+    repository.review = AsyncMock()
+    course_repository = Mock()
+    course_repository.get_instructor_id = AsyncMock(return_value="teacher-owner")
+
+    with pytest.raises(AuthorizationError):
+        await GradeSubmissionUseCase(repository, course_repository).execute(
+            submission_id="submission-1",
+            score=8,
+            teacher_feedback="Bom desenvolvimento.",
+            teacher_id="teacher-other",
+            teacher_role="teacher",
+        )
+
+    repository.review.assert_not_awaited()
 
 
 def _eligible() -> CertificateEligibilityEvidence:

@@ -68,7 +68,9 @@ async def test_super_admin_can_read_any_teacher_course():
 
 
 def test_supabase_course_repository_mapping_with_null_and_missing_values():
-    from src.modules.courses.infrastructure.repositories.supabase_course_repository import SupabaseCourseRepository
+    from src.modules.courses.infrastructure.repositories.supabase_course_repository import (
+        SupabaseCourseRepository,
+    )
     from unittest.mock import MagicMock
 
     repo = SupabaseCourseRepository(MagicMock())
@@ -100,3 +102,82 @@ def test_supabase_course_repository_mapping_with_null_and_missing_values():
     assert course.reviews_enabled is True
     assert course.comments_enabled is True
     assert course.modules == []
+
+
+def test_supabase_course_repository_maps_lesson_blocks_without_module_fields():
+    from unittest.mock import MagicMock
+
+    from src.modules.courses.infrastructure.repositories.supabase_course_repository import (
+        SupabaseCourseRepository,
+    )
+
+    block = SupabaseCourseRepository(MagicMock())._map_lesson_block(
+        {
+            "id": "block-1",
+            "lesson_id": "lesson-1",
+            "course_id": "course-1",
+            "block_type": "text",
+            "content": {"text": "Introdução"},
+            "is_system": False,
+        }
+    )
+
+    assert block.id == "block-1"
+    assert block.content == {"text": "Introdução"}
+
+
+def test_supabase_course_repository_preserves_quick_course_system_module():
+    from unittest.mock import MagicMock
+
+    from src.modules.courses.infrastructure.repositories.supabase_course_repository import (
+        SupabaseCourseRepository,
+    )
+
+    module = SupabaseCourseRepository(MagicMock())._map_module(
+        {
+            "id": "system-module-1",
+            "course_id": "quick-course-1",
+            "title": "Conteúdo do curso rápido",
+            "description": "Módulo interno",
+            "order_index": 0,
+            "status": "draft",
+            "is_system": True,
+            "lessons": [],
+        }
+    )
+
+    assert module.is_system is True
+    assert module.description == "Módulo interno"
+
+
+def test_supabase_course_repository_maps_prerequisite_course_objects():
+    from unittest.mock import MagicMock
+
+    from src.modules.courses.infrastructure.repositories.supabase_course_repository import (
+        SupabaseCourseRepository,
+    )
+
+    repo = SupabaseCourseRepository(MagicMock())
+    data = {
+        "id": "course-123",
+        "instructor_id": "teacher-123",
+        "title": "Alta-costura avançada",
+        "slug": "alta-costura-avancada",
+        "modules": [],
+        "course_prerequisites": [
+            {
+                "prerequisite_course": {
+                    "id": "course-basic",
+                    "title": "Fundamentos da costura",
+                    "slug": "fundamentos-da-costura",
+                    "status": "published",
+                    "category": "costura",
+                }
+            }
+        ],
+    }
+
+    course = repo._map_course(data)
+
+    assert len(course.prerequisite_courses) == 1
+    assert course.prerequisite_courses[0].id == "course-basic"

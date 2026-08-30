@@ -1,5 +1,6 @@
-from src.core.errors.errors import AuthorizationError, NotFoundError
+from src.core.errors.errors import AuthorizationError, NotFoundError, ValidationError
 from src.modules.courses.domain.entities import Lesson
+from src.modules.courses.domain.external_video import parse_external_video_url
 from src.modules.courses.domain.repositories import CourseRepository
 
 
@@ -34,6 +35,10 @@ class UpdateLessonUseCase:
             if not target_module:
                 raise NotFoundError("Módulo de destino não encontrado neste curso.")
 
+        requested = dict(lesson_data)
+        video_url = requested.pop("video_url", None)
+        remove_external_video = bool(requested.pop("remove_external_video", False))
+
         allowed = {
             "title",
             "description",
@@ -43,7 +48,39 @@ class UpdateLessonUseCase:
             "is_required",
             "module_id",
         }
-        changes = {key: value for key, value in lesson_data.items() if key in allowed}
+        changes = {key: value for key, value in requested.items() if key in allowed}
+        if video_url is not None:
+            external_video = parse_external_video_url(video_url)
+            estimated_minutes = requested.get(
+                "estimated_duration_minutes", lesson.estimated_duration_minutes
+            )
+            if not estimated_minutes:
+                raise ValidationError(
+                    "Informe a duração estimada para uma aula vinculada por link."
+                )
+            changes.update(
+                {
+                    "video_source_type": external_video.provider,
+                    "external_video_id": external_video.video_id,
+                    "hls_storage_path": None,
+                    "pending_upload_job_id": None,
+                    "duration_seconds": estimated_minutes * 60,
+                }
+            )
+        elif remove_external_video:
+            changes.update(
+                {
+                    "video_source_type": "upload",
+                    "external_video_id": None,
+                    "hls_storage_path": None,
+                    "pending_upload_job_id": None,
+                    "duration_seconds": 0,
+                }
+            )
+        elif lesson.video_source_type in {"youtube", "vimeo"} and (
+            estimated_minutes := requested.get("estimated_duration_minutes")
+        ):
+            changes["duration_seconds"] = estimated_minutes * 60
         if not changes:
             return lesson
         return await self.repository.update_lesson(lesson_id, changes)

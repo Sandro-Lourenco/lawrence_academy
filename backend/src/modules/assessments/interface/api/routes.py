@@ -167,16 +167,20 @@ async def submit_task(
 async def review_submission(
     submission_id: str,
     payload: GradeReviewInputSchema,
-    current_user: CurrentUser = Depends(require_role(["teacher", "admin"])),
+    current_user: CurrentUser = Depends(
+        require_role(["teacher", "admin", "super_admin"])
+    ),
     repository: AssessmentRepository = Depends(get_assessment_repository),
+    course_repository: CourseRepository = Depends(get_course_repository),
 ):
     """Atribui nota e comentário a um exercício discursivo (BOLA-safe)."""
-    use_case = GradeSubmissionUseCase(repository)
+    use_case = GradeSubmissionUseCase(repository, course_repository)
     res = await use_case.execute(
         submission_id=submission_id,
         score=payload.score,
         teacher_feedback=payload.teacher_comment,
         teacher_id=current_user.id,
+        teacher_role=current_user.role,
     )
     return {
         "status": "success",

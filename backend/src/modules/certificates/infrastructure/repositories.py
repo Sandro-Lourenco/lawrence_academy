@@ -56,6 +56,24 @@ class SupabaseCertificateRepository:
         )
         return [Certificate(**cast(dict, item)) for item in response.data]
 
+    async def list_completion_candidate_course_ids(
+        self, student_id: str
+    ) -> list[str]:
+        response = (
+            self.client.table("lesson_progress")
+            .select("course_id")
+            .eq("student_id", student_id)
+            .eq("completed", True)
+            .execute()
+        )
+        return sorted(
+            {
+                str(cast(dict, item)["course_id"])
+                for item in response.data or []
+                if cast(dict, item).get("course_id")
+            }
+        )
+
     async def get_eligibility_evidence(
         self, student_id: str, course_id: str
     ) -> CertificateEligibilityEvidence:

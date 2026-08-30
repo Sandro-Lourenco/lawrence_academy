@@ -1,5 +1,5 @@
 from src.modules.courses.domain.repositories import CourseRepository
-from src.core.errors.errors import AuthorizationError
+from src.core.errors.errors import AuthorizationError, ValidationError
 
 
 class DeleteModuleUseCase:
@@ -25,5 +25,7 @@ class DeleteModuleUseCase:
         module = await self.repository.get_module_by_id_and_course_id(module_id, course_id)
         if not module:
             return True
+        if module.is_system:
+            raise ValidationError("A estrutura interna de um curso rápido não pode ser removida.")
 
         return await self.repository.delete_module(module_id)

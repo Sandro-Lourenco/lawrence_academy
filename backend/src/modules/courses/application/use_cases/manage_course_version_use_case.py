@@ -5,19 +5,24 @@ from src.modules.courses.domain.repositories import CourseRepository
 def _counts(snapshot: dict) -> dict[str, int]:
     modules = snapshot.get("modules") or []
     lessons = [lesson for module in modules for lesson in (module.get("lessons") or [])]
-    blocks = [
-        block
-        for lesson in lessons
-        for block in (lesson.get("lesson_blocks") or [])
-    ]
+    blocks = [block for lesson in lessons for block in (lesson.get("lesson_blocks") or [])]
     return {"modules": len(modules), "lessons": len(lessons), "blocks": len(blocks)}
 
 
 class ManageCourseVersionUseCase:
     _comparison_fields = (
-        "title", "subtitle", "summary", "description", "category", "level",
-        "monthly_price", "promotional_monthly_price", "visibility",
-        "certificate_enabled", "reviews_enabled", "comments_enabled",
+        "title",
+        "subtitle",
+        "summary",
+        "description",
+        "category",
+        "level",
+        "monthly_price",
+        "promotional_monthly_price",
+        "visibility",
+        "certificate_enabled",
+        "reviews_enabled",
+        "comments_enabled",
     )
 
     def __init__(self, repository: CourseRepository):
@@ -30,9 +35,7 @@ class ManageCourseVersionUseCase:
         if role not in {"admin", "super_admin"} and owner != user_id:
             raise AuthorizationError("Acesso negado à versão deste curso.")
 
-    async def detail(
-        self, *, course_id: str, version_id: str, user_id: str, role: str
-    ) -> dict:
+    async def detail(self, *, course_id: str, version_id: str, user_id: str, role: str) -> dict:
         await self._authorize(course_id, user_id, role)
         version = await self.repository.get_course_version(course_id, version_id)
         if not version:
@@ -44,8 +47,7 @@ class ManageCourseVersionUseCase:
         live = current.get("course") or {}
         snapshot = version["snapshot"]
         changed_fields = [
-            field for field in self._comparison_fields
-            if snapshot.get(field) != live.get(field)
+            field for field in self._comparison_fields if snapshot.get(field) != live.get(field)
         ]
         return {
             **version,

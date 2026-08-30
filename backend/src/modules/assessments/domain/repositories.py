@@ -29,6 +29,10 @@ class AssessmentRepository(Protocol):
         """Retorna a resposta original de um retry sem criar nova tentativa."""
         ...
 
+    async def get_submission_by_id(self, submission_id: str) -> TaskSubmission:
+        """Busca a submissão que será revisada antes de qualquer mutação."""
+        ...
+
     async def save(self, submission: TaskSubmission) -> TaskSubmission:
         """Salva uma nova submissão de exercício ou tarefa."""
         ...

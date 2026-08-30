@@ -17,6 +17,8 @@ class CertificateRepository(Protocol):
 
     async def list_by_student(self, student_id: str) -> list[Certificate]: ...
 
+    async def list_completion_candidate_course_ids(self, student_id: str) -> list[str]: ...
+
     async def get_eligibility_evidence(
         self, student_id: str, course_id: str
     ) -> CertificateEligibilityEvidence: ...
@@ -31,3 +33,7 @@ class CertificateRepository(Protocol):
         signature_version: int,
         metadata: dict,
     ) -> Certificate: ...
+
+
+class CertificateDocumentRenderer(Protocol):
+    def render(self, certificate: Certificate, verification_url: str) -> bytes: ...

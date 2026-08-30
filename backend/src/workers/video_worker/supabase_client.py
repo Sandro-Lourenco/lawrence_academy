@@ -169,6 +169,15 @@ def download_raw_video(storage_path: str, local_dest_path: str) -> int:
         raise
 
 
+def delete_raw_video(storage_path: str) -> None:
+    """Remove o original somente depois da ativação atômica da versão HLS."""
+    try:
+        supabase.storage.from_("raw-videos").remove([storage_path])
+    except Exception as e:
+        logger.error(f"Erro ao remover raw video já processado '{storage_path}': {e}")
+        raise
+
+
 def upload_processed_file(local_file_path: str, storage_dest_path: str, content_type: str):
     """Upload idempotente de uma saída candidata no bucket privado.
 
@@ -221,6 +230,8 @@ def activate_lesson_video(
             supabase.table("lessons")
             .update(
                 {
+                    "video_source_type": "upload",
+                    "external_video_id": None,
                     "hls_storage_path": hls_storage_path,
                     "duration_seconds": duration,
                     "ai_summary": ai_summary,
@@ -249,8 +260,10 @@ def activate_course_trailer(course_id: str, job_id: str, hls_storage_path: str):
         response = (
             supabase.table("courses")
             .update(
-                {
-                    "trailer_hls_path": hls_storage_path,
+                  {
+                      "trailer_source_type": "upload",
+                      "trailer_external_video_id": None,
+                      "trailer_hls_path": hls_storage_path,
                     "trailer_status": "ready",
                     "updated_at": datetime.now(timezone.utc).isoformat(),
                 }

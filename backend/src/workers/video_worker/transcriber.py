@@ -13,10 +13,11 @@ client = OpenAI(api_key=api_key) if api_key else None
 def transcribe_audio_file(audio_path: str) -> list:
     """Usa a API da OpenAI (Whisper) para transcrever o áudio com timestamps."""
     if not client:
-        # Mock de transcrição caso não haja chave da API (para testes ou demonstração)
-        print(
-            "Aviso: OPENAI_API_KEY não definida. Utilizando transcrição simulada (Mock)."
-        )
+        if os.getenv("APP_ENV", "development") in {"staging", "production"}:
+            raise RuntimeError(
+                "OPENAI_API_KEY é obrigatória para transcrição em staging/produção."
+            )
+        # Fixture explícita apenas para desenvolvimento local e testes.
         return get_mock_transcription()
 
     with open(audio_path, "rb") as audio_file:

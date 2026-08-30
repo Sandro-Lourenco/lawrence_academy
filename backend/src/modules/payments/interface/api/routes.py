@@ -60,6 +60,14 @@ class CheckoutRequestSchema(BaseModel):
             raise ValueError("URL de retorno deve usar HTTPS ou o app Lawrence.")
         if parsed.scheme == "https" and not parsed.netloc:
             raise ValueError("URL HTTPS de retorno inválida.")
+        if parsed.username or parsed.password or parsed.fragment:
+            raise ValueError("URL de retorno contém componentes não permitidos.")
+        if settings.app_env == "production":
+            expected = urlparse(settings.public_web_url)
+            if parsed.scheme != "https" or parsed.netloc.lower() != expected.netloc.lower():
+                raise ValueError(
+                    "Em produção, o retorno do pagamento deve usar o domínio público configurado."
+                )
         return value
 
 
@@ -133,8 +141,8 @@ async def create_checkout_session(
     if not result.can_purchase:
         raise ConflictError(result.message or "Não é possível comprar este curso no momento.")
 
-    course = await course_repository.get_by_id(payload.course_id)
-    if course is None or course.status != "published":
+    course = await course_repository.get_published_by_id(payload.course_id)
+    if course is None:
         raise HTTPException(status_code=404, detail="Curso publicado não encontrado.")
     if course.monthly_price <= 0:
         raise ConflictError("Cursos gratuitos não precisam de checkout.")
@@ -171,6 +179,20 @@ async def create_checkout_session(
         }
 
     try:
+        student_subscriptions = await repository.get_by_student(current_user.id)
+        existing_customer_id = next(
+            (
+                item.provider_customer_id
+                for item in student_subscriptions
+                if item.provider == "stripe" and item.provider_customer_id
+            ),
+            None,
+        )
+        customer_arguments = (
+            {"customer": existing_customer_id}
+            if existing_customer_id
+            else {"customer_email": current_user.email}
+        )
         session = await run_in_threadpool(
             stripe.checkout.Session.create,
             payment_method_types=["card"],
@@ -199,9 +221,9 @@ async def create_checkout_session(
             success_url=payload.success_url,
             cancel_url=payload.cancel_url,
             client_reference_id=current_user.id,
-            customer_email=current_user.email,
             metadata={"course_id": payload.course_id, "user_id": current_user.id},
             idempotency_key=idempotency_key,
+            **customer_arguments,
         )
         return {
             "status": "success",
@@ -257,11 +279,12 @@ async def handle_stripe_webhook(
         event = stripe.Webhook.construct_event(
             body, stripe_signature, settings.stripe_webhook_secret
         )
-    except Exception as e:
+    except Exception:
+        logger.warning("Stripe webhook signature verification failed")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Falha na verificação da assinatura do webhook: {str(e)}",
-        )
+            detail="Assinatura do webhook inválida.",
+        ) from None
 
     event_id = event["id"]
     event_type = event.get("type", "unknown")
@@ -290,7 +313,7 @@ async def handle_stripe_webhook(
         from src.core.errors.errors import ExternalServiceError
 
         raise ExternalServiceError(
-            message=f"Erro ao processar webhook: {str(proc_err)}",
+            message="Não foi possível processar o evento de pagamento.",
             provider="stripe",
             request_id=event_id,
         )

@@ -1,9 +1,13 @@
 import uuid
 
-from src.core.errors.errors import AuthorizationError, NotFoundError
+from src.core.errors.errors import AuthorizationError, NotFoundError, ValidationError
 from src.modules.courses.domain.entities import Lesson
+from src.modules.courses.domain.external_video import parse_external_video_url
 from src.modules.courses.domain.repositories import CourseRepository
-from src.modules.courses.application.idempotency import deterministic_resource_id, request_fingerprint
+from src.modules.courses.application.idempotency import (
+    deterministic_resource_id,
+    request_fingerprint,
+)
 
 
 class CreateLessonUseCase:
@@ -30,10 +34,21 @@ class CreateLessonUseCase:
         if current_user_role != "super_admin" and instructor_id != current_user_id:
             raise AuthorizationError("Apenas o instrutor pode criar aulas neste curso.")
 
+        external_video = None
+        video_url = lesson_data.get("video_url")
+        if video_url:
+            external_video = parse_external_video_url(video_url)
+            if not lesson_data.get("estimated_duration_minutes"):
+                raise ValidationError(
+                    "Informe a duração estimada para uma aula vinculada por link."
+                )
+
+        estimated_minutes = lesson_data.get("estimated_duration_minutes")
         lesson = Lesson(
             id=(
                 deterministic_resource_id(f"lesson:{course_id}:{module_id}", idempotency_key)
-                if idempotency_key else str(uuid.uuid4())
+                if idempotency_key
+                else str(uuid.uuid4())
             ),
             module_id=module_id,
             course_id=course_id,
@@ -41,8 +56,11 @@ class CreateLessonUseCase:
             description=lesson_data.get("description"),
             order_index=lesson_data.get("order_index", 0),
             hls_storage_path=None,
+            video_source_type=external_video.provider if external_video else "upload",
+            external_video_id=external_video.video_id if external_video else None,
+            duration_seconds=(estimated_minutes or 0) * 60 if external_video else 0,
             status=lesson_data.get("status", "draft"),
-            estimated_duration_minutes=lesson_data.get("estimated_duration_minutes"),
+            estimated_duration_minutes=estimated_minutes,
             is_required=lesson_data.get("is_required", True),
         )
         if not idempotency_key:

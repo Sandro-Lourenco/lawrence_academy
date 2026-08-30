@@ -4,6 +4,7 @@ from src.modules.assessments.domain.entities import Task
 from src.modules.assessments.domain.repositories import AssessmentRepository
 from src.modules.courses.domain.repositories import CourseRepository
 from src.core.errors.errors import AuthorizationError, NotFoundError
+from src.modules.assessments.domain.task_validation import validate_task_definition
 
 class CreateTaskUseCase:
     """Caso de uso para professores/administradores criarem tarefas em lições."""
@@ -28,6 +29,11 @@ class CreateTaskUseCase:
         current_user_id: str,
         current_user_role: str,
     ) -> Task:
+        validate_task_definition(
+            task_type=task_type,
+            options=options,
+            correct_option=correct_option,
+        )
         # Validar curso e obter instrutor para verificar autoridade
         if current_user_role == "teacher":
             instructor_id = await self.course_repo.get_instructor_id(course_id)

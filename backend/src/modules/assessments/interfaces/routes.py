@@ -1,13 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, ConfigDict
 from src.core.security.security import get_current_user, require_role, CurrentUser
-from src.core.database.database import get_admin_supabase_client
-from src.modules.assessments.infrastructure.repositories.supabase_assessment_repository import (
-    SupabaseAssessmentRepository,
-)
-from src.modules.assessments.application.use_cases.grade_submission_use_case import (
-    GradeSubmissionUseCase,
-)
 from src.modules.assessments.interfaces.schemas import TaskSubmissionSchema
 
 router = APIRouter(tags=["assessments"])
@@ -39,22 +32,8 @@ async def review_submission(
     payload: GradeReviewSchema,
     current_user: CurrentUser = Depends(require_role(["teacher", "admin"])),
 ):
-    """Atribui nota e feedback do professor a uma submissão de tarefa discursiva (Legacy route redirection)."""
-    repo = SupabaseAssessmentRepository(get_admin_supabase_client())
-    use_case = GradeSubmissionUseCase(repo)
-    res = await use_case.execute(
-        submission_id=submission_id,
-        score=payload.score,
-        teacher_feedback=payload.teacher_comment,
-        teacher_id=current_user.id,
+    """Desativa a rota legada para manter uma única política de autorização."""
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="Use PUT /api/v1/tasks/submissions/{submission_id}/review.",
     )
-    return {
-        "status": "success",
-        "data": {
-            "id": res.id,
-            "score": float(res.score) if res.score is not None else None,
-            "teacher_feedback": res.teacher_feedback,
-            "status": res.status,
-            "graded_by": res.graded_by,
-        },
-    }

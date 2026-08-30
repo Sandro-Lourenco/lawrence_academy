@@ -1,6 +1,6 @@
 from src.modules.courses.domain.entities import Module
 from src.modules.courses.domain.repositories import CourseRepository
-from src.core.errors.errors import AuthorizationError, NotFoundError
+from src.core.errors.errors import AuthorizationError, NotFoundError, ValidationError
 
 
 class UpdateModuleUseCase:
@@ -21,6 +21,8 @@ class UpdateModuleUseCase:
         module = await self.repository.get_module_by_id_and_course_id(module_id, course_id)
         if not module:
             raise NotFoundError("Módulo não encontrado para o curso especificado.")
+        if module.is_system:
+            raise ValidationError("A estrutura interna de um curso rápido não pode ser editada.")
 
         # Verifica dono do curso
         if current_user_role != "super_admin":

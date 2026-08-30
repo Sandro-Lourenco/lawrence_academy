@@ -41,6 +41,12 @@ from src.modules.courses.application.use_cases.delete_course_use_case import (
 router = APIRouter(prefix="/api/v1/courses", tags=["courses"])
 
 PlanningItem = Annotated[str, Field(min_length=2, max_length=240)]
+CourseId = Annotated[
+    str,
+    Field(
+        pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    ),
+]
 
 
 class LessonCreateInputSchema(BaseModel):
@@ -77,6 +83,7 @@ class LessonResponseSchema(BaseModel):
     estimated_duration_minutes: Optional[int] = None
     is_required: bool = True
     hls_storage_path: Optional[str] = None
+    video_source_type: Literal["upload", "youtube", "vimeo"] = "upload"
     video_job_status: Optional[str] = None
     material_pdf_url: Optional[str] = None
     status: str
@@ -90,21 +97,46 @@ class ModuleResponseSchema(BaseModel):
     order_index: int
     description: Optional[str] = None
     status: str = "draft"
+    is_system: bool = False
     lessons: List[LessonResponseSchema]
+
+
+class CoursePrerequisiteResponseSchema(BaseModel):
+    id: str
+    title: str
+    slug: str
+    summary: str = ""
+    category: str = "costura"
+    status: str = "published"
+    thumbnail_url: Optional[str] = None
+    cover_image_path: Optional[str] = None
 
 
 class CourseCreateInputSchema(BaseModel):
     title: str = Field(min_length=3, max_length=120)
-    slug: str = Field(min_length=3, max_length=255, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-    summary: str = Field(min_length=10, max_length=240)
+    slug: Optional[str] = Field(
+        default=None, min_length=3, max_length=255, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    )
+    summary: Optional[str] = Field(default=None, min_length=10, max_length=240)
     course_type: Literal["complete", "quick", "workshop"] = "complete"
     subtitle: str = Field(default="", max_length=160)
     language: Literal["pt-BR", "en", "es"] = "pt-BR"
     estimated_duration_minutes: Optional[int] = Field(default=None, ge=1, le=100000)
-    category: Optional[str] = "costura"
+    category: Literal[
+        "corte",
+        "costura",
+        "modelagem",
+        "fashion_design",
+        "style_design",
+        "mini_curso",
+        "bordado",
+        "negocios",
+        "outros",
+    ] = "costura"
     level: Optional[str] = "iniciante"
-    description: Optional[str] = Field(default=None, max_length=5000)
+    description: str = Field(min_length=10, max_length=5000)
     requirements: List[PlanningItem] = Field(default_factory=list, max_length=20)
+    prerequisite_course_ids: List[CourseId] = Field(default_factory=list, max_length=20)
     learning_objectives: List[PlanningItem] = Field(default_factory=list, max_length=20)
     target_audience: List[PlanningItem] = Field(default_factory=list, max_length=20)
     required_materials: List[PlanningItem] = Field(default_factory=list, max_length=20)
@@ -112,6 +144,7 @@ class CourseCreateInputSchema(BaseModel):
     expected_outcomes: List[PlanningItem] = Field(default_factory=list, max_length=20)
     thumbnail_url: Optional[str] = None
     trailer_hls_path: Optional[str] = None
+    trailer_video_url: Optional[str] = Field(default=None, max_length=2048)
     cover_image_path: Optional[str] = None
     cover_alt_text: Optional[str] = None
     cover_focal_x: float = 0.5
@@ -144,6 +177,7 @@ class CourseResponseSchema(BaseModel):
     estimated_duration_minutes: Optional[int] = None
     description: Optional[str] = None
     requirements: List[str]
+    prerequisite_courses: List[CoursePrerequisiteResponseSchema] = Field(default_factory=list)
     learning_objectives: List[str] = Field(default_factory=list)
     target_audience: List[str] = Field(default_factory=list)
     required_materials: List[str] = Field(default_factory=list)
@@ -151,6 +185,8 @@ class CourseResponseSchema(BaseModel):
     expected_outcomes: List[str] = Field(default_factory=list)
     thumbnail_url: Optional[str] = None
     trailer_hls_path: Optional[str] = None
+    trailer_source_type: str = "upload"
+    trailer_external_video_id: Optional[str] = None
     cover_image_path: Optional[str] = None
     cover_alt_text: Optional[str] = None
     cover_focal_x: float = 0.5
@@ -173,7 +209,81 @@ class CourseResponseSchema(BaseModel):
     modules: List[ModuleResponseSchema] = []
 
 
-@router.get("", response_model=List[CourseResponseSchema])
+class PublicLessonResponseSchema(BaseModel):
+    """Curriculum metadata safe to expose before enrolment."""
+
+    id: str
+    module_id: str
+    course_id: str
+    title: str
+    description: Optional[str] = None
+    order_index: int
+    duration_seconds: int
+    estimated_duration_minutes: Optional[int] = None
+    is_required: bool = True
+    status: str
+
+
+class PublicModuleResponseSchema(BaseModel):
+    id: str
+    course_id: str
+    title: str
+    order_index: int
+    description: Optional[str] = None
+    status: str = "published"
+    is_system: bool = False
+    lessons: List[PublicLessonResponseSchema] = Field(default_factory=list)
+
+
+class PublicCourseResponseSchema(BaseModel):
+    """Published sales-page data without protected lesson payloads or media paths."""
+
+    id: str
+    instructor_id: str
+    title: str
+    slug: str
+    category: str
+    level: str
+    summary: str
+    course_type: str = "complete"
+    subtitle: str = ""
+    language: str = "pt-BR"
+    estimated_duration_minutes: Optional[int] = None
+    description: Optional[str] = None
+    requirements: List[str] = Field(default_factory=list)
+    prerequisite_courses: List[CoursePrerequisiteResponseSchema] = Field(
+        default_factory=list
+    )
+    learning_objectives: List[str] = Field(default_factory=list)
+    target_audience: List[str] = Field(default_factory=list)
+    required_materials: List[str] = Field(default_factory=list)
+    competencies: List[str] = Field(default_factory=list)
+    expected_outcomes: List[str] = Field(default_factory=list)
+    thumbnail_url: Optional[str] = None
+    trailer_source_type: str = "upload"
+    trailer_external_video_id: Optional[str] = None
+    cover_image_path: Optional[str] = None
+    cover_alt_text: Optional[str] = None
+    cover_focal_x: float = 0.5
+    cover_focal_y: float = 0.5
+    trailer_status: str = "empty"
+    cover_status: str = "empty"
+    monthly_price: Decimal
+    promotional_monthly_price: Optional[Decimal] = None
+    promotion_starts_at: Optional[datetime] = None
+    promotion_ends_at: Optional[datetime] = None
+    certificate_enabled: bool = True
+    reviews_enabled: bool = True
+    comments_enabled: bool = True
+    visibility: str = "public"
+    availability: str = "immediate"
+    scheduled_publish_at: Optional[datetime] = None
+    is_featured: bool = False
+    status: str
+    modules: List[PublicModuleResponseSchema] = Field(default_factory=list)
+
+
+@router.get("", response_model=List[PublicCourseResponseSchema])
 async def list_courses(
     limit: int = Query(default=50, ge=1, le=50),
     repo: CourseRepository = Depends(get_course_repository),
@@ -184,7 +294,7 @@ async def list_courses(
     return courses
 
 
-@router.get("/slug/{slug}", response_model=CourseResponseSchema)
+@router.get("/slug/{slug}", response_model=PublicCourseResponseSchema)
 async def get_course_by_slug(
     slug: str,
     repo: CourseRepository = Depends(get_course_repository),
@@ -195,7 +305,7 @@ async def get_course_by_slug(
     return course
 
 
-@router.get("/{course_id}", response_model=CourseResponseSchema)
+@router.get("/{course_id}", response_model=PublicCourseResponseSchema)
 async def get_course(
     course_id: str,
     repo: CourseRepository = Depends(get_course_repository),
@@ -204,6 +314,99 @@ async def get_course(
     use_case = GetCourseUseCase(repo)
     course = await use_case.execute(course_id)
     return course
+
+
+@router.get("/{course_id}/trailer/stream")
+async def get_course_trailer_stream(
+    course_id: str,
+    request: Request,
+    repo: CourseRepository = Depends(get_course_repository),
+):
+    """Creates a short-lived public capability for a published trailer."""
+    course = await repo.get_published_by_id(course_id)
+    master_path = course.trailer_hls_path if course else None
+    expected_prefix = f"course-trailers/{course_id}/"
+    if (
+        not course
+        or course.trailer_status != "ready"
+        or not isinstance(master_path, str)
+        or not master_path.startswith(expected_prefix)
+        or not master_path.endswith("/master.m3u8")
+    ):
+        raise HTTPException(status_code=404, detail="Trailer não disponível.")
+
+    token = JwtPlaybackService().generate(
+        user_id="public-trailer",
+        course_id=course_id,
+        lesson_id="trailer",
+        master_path=master_path,
+        duration_seconds=300,
+    )
+    playback_url = request.url_for(
+        "get_course_trailer_hls_asset",
+        course_id=course_id,
+        asset_path="master.m3u8",
+    )
+    return {"signedUrl": f"{playback_url.path}?token={quote(token, safe='')}"}
+
+
+@router.get(
+    "/{course_id}/trailer/hls/{asset_path:path}",
+    name="get_course_trailer_hls_asset",
+)
+async def get_course_trailer_hls_asset(
+    course_id: str,
+    asset_path: str,
+    token: str = Query(min_length=20),
+    repo: CourseRepository = Depends(get_course_repository),
+) -> Response:
+    try:
+        playback = JwtPlaybackService().validate(
+            token,
+            course_id=course_id,
+            lesson_id="trailer",
+        )
+    except jwt.PyJWTError as exc:
+        raise HTTPException(status_code=401, detail="Sessão de trailer inválida.") from exc
+
+    requested = PurePosixPath(asset_path)
+    if (
+        requested.is_absolute()
+        or ".." in requested.parts
+        or requested.suffix.lower() not in {".m3u8", ".ts", ".vtt", ".key", ".bin"}
+    ):
+        raise HTTPException(status_code=404, detail="Mídia não encontrada.")
+
+    master_path = playback.get("master_path")
+    expected_prefix = f"course-trailers/{course_id}/"
+    if not isinstance(master_path, str) or not master_path.startswith(expected_prefix):
+        raise HTTPException(status_code=404, detail="Mídia não encontrada.")
+
+    storage_path = str(PurePosixPath(master_path).parent / requested)
+    if requested.suffix.lower() != ".m3u8":
+        signed_url = await repo.generate_signed_url(storage_path)
+        return RedirectResponse(
+            signed_url,
+            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+            headers={"Cache-Control": "private, max-age=60"},
+        )
+
+    content = await repo.download_hls_asset(storage_path)
+    text = content.decode("utf-8")
+    text = "\n".join(
+        line if not line or line.startswith("#") else _append_playback_token(line, token)
+        for line in text.splitlines()
+    )
+    text = re.sub(
+        r'URI="([^"]+)"',
+        lambda match: f'URI="{_append_playback_token(match.group(1), token)}"',
+        text,
+    )
+    return Response(
+        content=text.encode("utf-8"),
+        media_type="application/vnd.apple.mpegurl",
+        headers={"Cache-Control": "private, max-age=60"},
+    )
 
 
 @router.post("", response_model=CourseResponseSchema, status_code=status.HTTP_201_CREATED)
@@ -280,14 +483,23 @@ async def get_lesson_stream(
     current_user: CurrentUser = Depends(get_current_user),
     repo: CourseRepository = Depends(get_course_repository),
 ):
-    """Returns an authenticated HLS proxy URL; child manifests keep the JWT header."""
+    """Returns an authenticated HLS capability or a vetted external video URL."""
     use_case = GetLessonStreamUseCase(repo)
-    master_path = await use_case.authorize_and_get_path(
+    source = await use_case.authorize_and_get_source(
         user_id=current_user.id,
         role=current_user.role,
         course_id=course_id,
         lesson_id=lesson_id,
     )
+    if source.source_type == "external":
+        return {
+            "sourceType": "external",
+            "provider": source.provider,
+            "url": source.external_url,
+        }
+    master_path = source.hls_storage_path
+    if not master_path:
+        raise HTTPException(status_code=404, detail="Vídeo não disponível.")
     token = JwtPlaybackService().generate(
         user_id=current_user.id,
         course_id=course_id,
@@ -305,7 +517,10 @@ async def get_lesson_stream(
     # Serializing request.url_for() in that setup creates a mixed-content URL
     # which browsers reject before loading the first HLS manifest. The client
     # already knows the canonical API origin and resolves this path against it.
-    return {"signedUrl": f"{playback_url.path}?token={quote(token, safe='')}"}
+    return {
+        "sourceType": "hls",
+        "signedUrl": f"{playback_url.path}?token={quote(token, safe='')}",
+    }
 
 
 @router.get(

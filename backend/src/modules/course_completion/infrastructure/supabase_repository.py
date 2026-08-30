@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import cast
 
@@ -25,12 +25,29 @@ class SupabaseCourseCompletionRepository:
         now = datetime.now(timezone.utc)
         for row in response.data or []:
             subscription = cast(dict, row)
-            if subscription.get("status") == "active":
+            subscription_status = subscription.get("status")
+            if subscription_status in {"active", "trialing"}:
                 return True
             end = subscription.get("current_period_end")
-            if end and datetime.fromisoformat(str(end).replace("Z", "+00:00")) > now:
+            if (
+                subscription_status == "past_due"
+                and end
+                and datetime.fromisoformat(str(end).replace("Z", "+00:00"))
+                + timedelta(days=5)
+                > now
+            ):
                 return True
-        return False
+        course_response = await self._execute(
+            self.client.table("courses")
+            .select("id,monthly_price,status")
+            .eq("id", course_id)
+            .eq("status", "published")
+            .is_("deleted_at", "null")
+        )
+        if not course_response.data:
+            return False
+        course = cast(dict, course_response.data[0])
+        return Decimal(str(course.get("monthly_price") or 0)) <= 0
 
     async def get_completion(self, student_id: str, course_id: str) -> CourseCompletion:
         lessons_response = await self._execute(

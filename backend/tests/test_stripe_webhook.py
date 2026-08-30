@@ -68,7 +68,7 @@ def test_stripe_webhook_invalid_signature(mock_construct):
     )
 
     assert response.status_code == 400
-    assert "Falha na verifica" in response.json()["detail"]
+    assert response.json()["detail"] == "Assinatura do webhook inválida."
 
 
 @patch("src.modules.payments.interface.api.routes.stripe.Webhook.construct_event")
@@ -175,7 +175,36 @@ def test_stripe_webhook_processing_failure(mock_process, mock_supabase, mock_con
     )
 
     assert response.status_code == 502
-    assert "Erro ao processar webhook" in response.json()["error"]["message"]
+    assert (
+        response.json()["error"]["message"]
+        == "Não foi possível processar o evento de pagamento."
+    )
+
+
+@pytest.mark.asyncio
+@patch("src.shared.database.db")
+async def test_subscription_updated_synchronizes_access_status(mock_supabase):
+    query = MagicMock()
+    mock_supabase.table.return_value = query
+
+    await StripeWebhookProcessor.process_event(
+        {
+            "type": "customer.subscription.updated",
+            "data": {
+                "object": {
+                    "id": "sub_updated",
+                    "status": "past_due",
+                    "current_period_start": 1717171717,
+                    "current_period_end": 1717271717,
+                }
+            },
+        }
+    )
+
+    query.update.assert_called_once()
+    query.update.return_value.eq.assert_called_once_with(
+        "provider_subscription_id", "sub_updated"
+    )
 
 
 @patch("src.modules.payments.interface.api.routes.stripe.Webhook.construct_event")

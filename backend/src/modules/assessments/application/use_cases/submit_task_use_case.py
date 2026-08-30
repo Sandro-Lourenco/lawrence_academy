@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 from src.modules.assessments.domain.entities import TaskSubmission
 from src.modules.assessments.domain.repositories import AssessmentRepository
 from src.modules.courses.domain.repositories import CourseRepository
-from src.core.errors.errors import AuthorizationError, ValidationError
+from src.modules.courses.application.access_policy import ensure_student_course_access
+from src.core.errors.errors import AuthorizationError, ConflictError, ValidationError
 
 
 class SubmitTaskUseCase:
@@ -27,18 +28,23 @@ class SubmitTaskUseCase:
     ) -> TaskSubmission:
         if not idempotency_key.strip():
             raise ValidationError("Informe uma chave de idempotência.")
+        # Busca a tarefa para obter regras (tipo, max_attempts, resposta certa)
+        task = await self.repository.get_task_by_id(task_id)
+        await ensure_student_course_access(
+            self.course_repository,
+            student_id=user_id,
+            course_id=task.course_id,
+        )
+
         existing_retry = await self.repository.get_submission_by_idempotency_key(
             user_id, idempotency_key
         )
         if existing_retry:
+            if existing_retry.task_id != task_id:
+                raise ConflictError(
+                    "Esta chave de idempotência já foi usada em outra atividade."
+                )
             return existing_retry
-
-        # Busca a tarefa para obter regras (tipo, max_attempts, resposta certa)
-        task = await self.repository.get_task_by_id(task_id)
-        if not await self.course_repository.has_active_subscription(
-            student_id=user_id, course_id=task.course_id
-        ):
-            raise AuthorizationError("Usuário não tem acesso a este curso.")
 
         selected_option = selected_option.strip() if selected_option else None
         text_answer = text_answer.strip() if text_answer else None

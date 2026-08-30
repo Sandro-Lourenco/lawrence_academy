@@ -30,16 +30,24 @@ class CoursePublicationUseCase:
             add("title", "Informe o título do curso.", "blocking", "basic")
         if len((course.get("summary") or "").strip()) < 10:
             add("summary", "Complete a descrição curta.", "blocking", "basic")
-        if not course.get("category") or not course.get("level"):
-            add("classification", "Informe categoria e nível.", "blocking", "basic")
-        if not course.get("learning_objectives"):
-            add("objectives", "Adicione objetivos de aprendizagem.", "blocking", "planning")
-        if not course.get("target_audience"):
-            add("audience", "Informe o público-alvo.", "blocking", "planning")
+        if not course.get("category"):
+            add("classification", "Informe a categoria.", "blocking", "basic")
         if course.get("cover_status") != "ready":
             add("cover", "Envie uma imagem de capa válida.", "blocking", "media")
         if course.get("monthly_price") is None:
             add("price", "Confirme o preço do curso.", "blocking", "offer")
+        unavailable_prerequisites = [
+            relation.get("prerequisite_course") or {}
+            for relation in course.get("course_prerequisites", []) or []
+            if (relation.get("prerequisite_course") or {}).get("status") != "published"
+        ]
+        if unavailable_prerequisites:
+            add(
+                "prerequisite_courses",
+                "Todos os cursos pré-requisitos precisam estar publicados.",
+                "blocking",
+                "basic",
+            )
         if course.get("availability") == "scheduled":
             add(
                 "scheduling",
@@ -50,7 +58,12 @@ class CoursePublicationUseCase:
 
         modules = [m for m in course.get("modules", []) if m.get("deleted_at") is None]
         if not modules:
-            add("modules", "Crie ao menos um módulo.", "blocking", "curriculum")
+            add(
+                "modules",
+                "Adicione o conteúdo do curso.",
+                "blocking",
+                "curriculum",
+            )
         lesson_count = 0
         for module in modules:
             lessons = [
@@ -92,20 +105,28 @@ class CoursePublicationUseCase:
                         ],
                     }
                 )
-                if lesson.get("is_required") is True and not lesson.get("hls_storage_path"):
+                has_external_video = lesson.get("video_source_type") in {
+                    "youtube",
+                    "vimeo",
+                } and bool(lesson.get("external_video_id"))
+                if (
+                    lesson.get("is_required") is True
+                    and not lesson.get("hls_storage_path")
+                    and not has_external_video
+                ):
                     add(
                         f"required-video:{lesson['id']}",
                         (
                             f"A aula obrigatória “{lesson.get('title') or 'Sem título'}” "
-                            "ainda não possui vídeo processado."
+                            "ainda não possui vídeo processado ou link externo válido."
                         ),
                         "blocking",
                         f"lesson:{lesson['id']}",
                     )
-                if not blocks:
+                if not blocks and not lesson.get("hls_storage_path") and not has_external_video:
                     add(
                         f"lesson:{lesson['id']}",
-                        f"A aula “{lesson.get('title') or 'Sem título'}” não possui conteúdo.",
+                        f"A aula “{lesson.get('title') or 'Sem título'}” não possui vídeo nem conteúdo.",
                         "blocking",
                         f"lesson:{lesson['id']}",
                     )
@@ -121,6 +142,7 @@ class CoursePublicationUseCase:
                             f"block:{block['id']}",
                         )
                     if block.get("block_type") == "activity":
+                        activity_type = content.get("activity_type") or "single_choice"
                         if not content.get("question"):
                             add(
                                 f"activity:{block['id']}",
@@ -128,21 +150,43 @@ class CoursePublicationUseCase:
                                 "blocking",
                                 f"block:{block['id']}",
                             )
+                        if not str(content.get("task_id") or "").strip():
+                            add(
+                                f"activity-task:{block['id']}",
+                                "Atividade ainda não foi confirmada no servidor.",
+                                "blocking",
+                                f"block:{block['id']}",
+                            )
                         items = content.get("items") or []
                         correct_index = content.get("correct_index")
-                        if len(items) < 2:
+                        if activity_type == "single_choice" and len(items) < 2:
                             add(
                                 f"activity-options:{block['id']}",
                                 "Atividade precisa ter ao menos duas alternativas.",
                                 "blocking",
                                 f"block:{block['id']}",
                             )
-                        if not isinstance(correct_index, int) or not (
-                            0 <= correct_index < len(items)
+                        if activity_type == "single_choice" and (
+                            not isinstance(correct_index, int)
+                            or not (0 <= correct_index < len(items))
                         ):
                             add(
                                 f"activity-answer:{block['id']}",
                                 "Selecione uma alternativa correta para a atividade.",
+                                "blocking",
+                                f"block:{block['id']}",
+                            )
+                        if activity_type == "true_false" and correct_index not in {0, 1}:
+                            add(
+                                f"activity-answer:{block['id']}",
+                                "Selecione verdadeiro ou falso como resposta correta.",
+                                "blocking",
+                                f"block:{block['id']}",
+                            )
+                        if activity_type not in {"single_choice", "true_false", "essay"}:
+                            add(
+                                f"activity-type:{block['id']}",
+                                "Tipo de atividade não suportado no lançamento.",
                                 "blocking",
                                 f"block:{block['id']}",
                             )
@@ -175,7 +219,11 @@ class CoursePublicationUseCase:
                 "blocking",
                 "media",
             )
-        if not course.get("trailer_hls_path"):
+        has_external_trailer = course.get("trailer_source_type") in {
+            "youtube",
+            "vimeo",
+        } and bool(course.get("trailer_external_video_id"))
+        if not course.get("trailer_hls_path") and not has_external_trailer:
             add(
                 "trailer",
                 "Adicionar um trailer pode melhorar a apresentação.",

@@ -1,8 +1,11 @@
 import uuid
 from src.modules.courses.domain.entities import Module
 from src.modules.courses.domain.repositories import CourseRepository
-from src.core.errors.errors import AuthorizationError, NotFoundError
-from src.modules.courses.application.idempotency import deterministic_resource_id, request_fingerprint
+from src.core.errors.errors import AuthorizationError, NotFoundError, ValidationError
+from src.modules.courses.application.idempotency import (
+    deterministic_resource_id,
+    request_fingerprint,
+)
 
 
 class CreateModuleUseCase:
@@ -29,10 +32,17 @@ class CreateModuleUseCase:
             if instructor_id != current_user_id:
                 raise AuthorizationError("Acesso negado. Você não é o instrutor deste curso.")
 
+        if await self.repository.get_course_type(course_id) == "quick":
+            raise ValidationError(
+                "Cursos rápidos não usam módulos. Adicione as aulas diretamente ao curso."
+            )
+
         module = Module(
-            id=module_data.get("id") or (
+            id=module_data.get("id")
+            or (
                 deterministic_resource_id(f"module:{course_id}", idempotency_key)
-                if idempotency_key else str(uuid.uuid4())
+                if idempotency_key
+                else str(uuid.uuid4())
             ),
             course_id=course_id,
             title=module_data["title"],

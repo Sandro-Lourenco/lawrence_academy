@@ -166,6 +166,31 @@ async def test_required_lesson_without_hls_blocks_even_when_job_is_missing():
 
 
 @pytest.mark.asyncio
+async def test_required_lesson_with_external_video_can_publish():
+    snapshot = ready_snapshot()
+    lesson = snapshot["course"]["modules"][0]["lessons"][0]
+    lesson.update(
+        {
+            "is_required": True,
+            "hls_storage_path": None,
+            "video_source_type": "youtube",
+            "external_video_id": "dQw4w9WgXcQ",
+        }
+    )
+    repository = AsyncMock()
+    repository.get_instructor_id.return_value = "teacher-1"
+    repository.get_publication_snapshot.return_value = snapshot
+
+    checklist = await CoursePublicationUseCase(repository).checklist(
+        course_id="course-1", user_id="teacher-1", role="teacher"
+    )
+
+    assert not any(
+        item["code"] == "required-video:lesson-1" for item in checklist["issues"]
+    )
+
+
+@pytest.mark.asyncio
 async def test_active_current_video_job_blocks_publication():
     snapshot = ready_snapshot()
     snapshot["pending_jobs"] = [

@@ -62,7 +62,10 @@ def summarize_transcription(segments: list) -> dict:
     Se o texto for muito longo, fragmenta e consolida as partes usando IA.
     """
     if not gemini_key:
-        print("Aviso: GEMINI_API_KEY não definida. Utilizando resumo simulado (Mock).")
+        if os.getenv("APP_ENV", "development") in {"staging", "production"}:
+            raise RuntimeError(
+                "GEMINI_API_KEY é obrigatória para resumos em staging/produção."
+            )
         return get_mock_summary()
 
     # Formatar os segmentos em blocos de texto legíveis com marcação de tempo

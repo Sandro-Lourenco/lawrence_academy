@@ -1,8 +1,13 @@
 from fastapi import Depends, Header, HTTPException, status, Cookie
+import jwt
 from pydantic import BaseModel
 
 from src.core.concurrency import run_sync_io
 from src.shared import database
+from src.shared.config import settings
+
+
+_APPLICATION_ROLES = {"student", "teacher", "admin", "super_admin"}
 
 
 class CurrentUser(BaseModel):
@@ -48,12 +53,45 @@ async def get_current_user(
             detail="Sessão expirada ou credenciais inválidas.",
         )
 
+    claims = _decode_verified_token_claims(token)
+    token_metadata = claims.get("app_metadata")
+    fallback_metadata = res.user.app_metadata or {}
+    app_metadata = token_metadata if isinstance(token_metadata, dict) else fallback_metadata
+    claimed_role = app_metadata.get("role") or claims.get("user_role")
+    role = claimed_role if claimed_role in _APPLICATION_ROLES else "student"
+    amr = claims.get("amr")
+    legacy_amr = fallback_metadata.get("amr", [])
+    mfa_enabled = claims.get("aal") == "aal2" or _amr_contains_mfa(amr or legacy_amr)
+
     return CurrentUser(
         id=res.user.id,
         email=res.user.email or "",
-        role=res.user.app_metadata.get("role", "student"),
-        mfa_enabled="mfa" in res.user.app_metadata.get("amr", []),
+        role=role,
+        mfa_enabled=mfa_enabled,
     )
+
+
+def _decode_verified_token_claims(token: str) -> dict:
+    """Decode claims only after Supabase has verified the same bearer token."""
+    try:
+        payload = jwt.decode(
+            token,
+            options={"verify_signature": False, "verify_aud": False},
+        )
+        return payload if isinstance(payload, dict) else {}
+    except jwt.PyJWTError:
+        return {}
+
+
+def _amr_contains_mfa(amr: object) -> bool:
+    if not isinstance(amr, list):
+        return False
+    for item in amr:
+        if item == "mfa":
+            return True
+        if isinstance(item, dict) and item.get("method") in {"mfa", "totp"}:
+            return True
+    return False
 
 
 def require_role(allowed_roles: list[str]):
@@ -64,6 +102,15 @@ def require_role(allowed_roles: list[str]):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Acesso negado. Nível de permissão insuficiente.",
+            )
+        if (
+            settings.app_env == "production"
+            and user.role in {"admin", "super_admin"}
+            and not user.mfa_enabled
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Acesso administrativo exige segundo fator de autenticação.",
             )
         return user
 

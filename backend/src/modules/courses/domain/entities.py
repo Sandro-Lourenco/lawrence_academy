@@ -26,6 +26,8 @@ class Lesson:
     course_id: str
     title: str
     hls_storage_path: Optional[str]
+    video_source_type: str = "upload"
+    external_video_id: Optional[str] = None
     video_job_status: Optional[str] = None
     description: Optional[str] = None
     order_index: int = 0
@@ -49,10 +51,41 @@ class Module:
     order_index: int = 0
     description: Optional[str] = None
     status: str = "draft"
+    is_system: bool = False
     updated_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
     lessons: List[Lesson] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class CourseStudent:
+    """Aluno com acesso ao curso e seu progresso resumido para o professor."""
+
+    id: str
+    full_name: str
+    email: str
+    access_status: str
+    enrolled_at: Optional[datetime] = None
+    current_period_end: Optional[datetime] = None
+    avatar_url: Optional[str] = None
+    progress_percentage: float = 0.0
+    completed_lessons: int = 0
+    total_lessons: int = 0
+
+
+@dataclass(frozen=True)
+class CoursePrerequisite:
+    """Referência verificável a um curso que deve ser concluído antes."""
+
+    id: str
+    title: str
+    slug: str
+    summary: str = ""
+    category: str = "costura"
+    status: str = "published"
+    thumbnail_url: Optional[str] = None
+    cover_image_path: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -72,6 +105,7 @@ class Course:
     level: str = "iniciante"
     description: Optional[str] = None
     requirements: List[str] = field(default_factory=list)
+    prerequisite_courses: List[CoursePrerequisite] = field(default_factory=list)
     learning_objectives: List[str] = field(default_factory=list)
     target_audience: List[str] = field(default_factory=list)
     required_materials: List[str] = field(default_factory=list)
@@ -79,6 +113,8 @@ class Course:
     expected_outcomes: List[str] = field(default_factory=list)
     thumbnail_url: Optional[str] = None
     trailer_hls_path: Optional[str] = None
+    trailer_source_type: str = "upload"
+    trailer_external_video_id: Optional[str] = None
     cover_image_path: Optional[str] = None
     cover_alt_text: Optional[str] = None
     cover_focal_x: float = 0.5

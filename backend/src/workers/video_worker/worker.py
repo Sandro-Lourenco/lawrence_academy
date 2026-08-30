@@ -5,7 +5,6 @@ import shutil
 import hashlib
 import tempfile
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
 from . import supabase_client
@@ -24,7 +23,6 @@ HEARTBEAT_FILE = Path(
 )
 HEARTBEAT_INTERVAL_SECONDS = 10
 JOB_POLL_INTERVAL_SECONDS = float(os.getenv("VIDEO_JOB_POLL_INTERVAL_SECONDS", "1"))
-UPLOAD_CONCURRENCY = max(1, int(os.getenv("VIDEO_UPLOAD_CONCURRENCY", "4")))
 AI_ENRICHMENT_ENABLED = os.getenv("VIDEO_AI_ENRICHMENT_ENABLED", "false").lower() in {
     "1",
     "true",
@@ -164,13 +162,12 @@ async def process_job(job: dict) -> None:
         upload_items.append(
             (local_thumb_path, f"{storage_dest_prefix}/thumbnail.jpg", "image/jpeg")
         )
-        with ThreadPoolExecutor(max_workers=UPLOAD_CONCURRENCY) as executor:
-            list(
-                executor.map(
-                    lambda item: supabase_client.upload_processed_file(*item),
-                    upload_items,
-                )
-            )
+        # O cliente síncrono do Storage mantém uma conexão HTTP/2 compartilhada
+        # e não oferece garantia de segurança entre threads. O envio sequencial,
+        # aliado ao upsert idempotente, evita falhas de controle de fluxo e torna
+        # uma eventual retentativa capaz de reaproveitar os arquivos já enviados.
+        for upload_item in upload_items:
+            supabase_client.upload_processed_file(*upload_item)
 
         # 9. Ativação atômica da versão candidata
         #    A lição permanece inalterada até esse momento final.
@@ -190,6 +187,23 @@ async def process_job(job: dict) -> None:
                 duration=tech_meta["duration"],
                 ai_summary=ai_summary,
             )
+
+        processed_size = sum(
+            os.path.getsize(local_path)
+            for local_path, _, _ in upload_items
+            if os.path.exists(local_path)
+        )
+        tech_meta["processed_size_bytes"] = processed_size
+        tech_meta["storage_ratio"] = round(processed_size / real_size, 4) if real_size else None
+
+        # O original deixa de ser necessário após a ativação. Falha de limpeza
+        # não invalida uma versão já publicada; fica registrada para observação.
+        try:
+            supabase_client.delete_raw_video(raw_path)
+            tech_meta["raw_deleted"] = True
+        except Exception as cleanup_error:
+            tech_meta["raw_deleted"] = False
+            job_logger.warning(f"Vídeo ativado, mas o bruto não pôde ser removido: {cleanup_error}")
 
         # 10. Concluir job com sucesso absoluto
         supabase_client.update_job_status(

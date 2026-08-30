@@ -1,32 +1,48 @@
-FROM python:3.11-slim
+# syntax=docker/dockerfile:1.7
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+ARG PYTHON_VERSION=3.13.14
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+FROM python:${PYTHON_VERSION}-slim-bookworm AS dependencies
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /build
+
+COPY src/workers/video_worker/requirements.txt ./requirements.txt
+RUN python -m venv /opt/venv \
+    && /opt/venv/bin/pip install --upgrade pip setuptools wheel \
+    && /opt/venv/bin/pip install --requirement requirements.txt
+
+FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime
+
+ENV PATH="/opt/venv/bin:${PATH}" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONFAULTHANDLER=1 \
+    VIDEO_WORKER_TEMP_DIR=/tmp/lawrence-video-worker/jobs \
+    VIDEO_WORKER_HEARTBEAT_FILE=/tmp/lawrence-video-worker/heartbeat \
+    VIDEO_JOB_POLL_INTERVAL_SECONDS=1 \
+    VIDEO_FFMPEG_PRESET=veryfast \
+    VIDEO_AI_ENRICHMENT_ENABLED=false
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 10002 worker \
+    && useradd --uid 10002 --gid worker --create-home --shell /usr/sbin/nologin worker
 
 WORKDIR /app
 
-COPY src/workers/video_worker/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir --requirement /app/requirements.txt
+COPY --from=dependencies /opt/venv /opt/venv
+COPY --chown=worker:worker src /app/src
 
-COPY src /app/src
-
-RUN addgroup --system worker \
-    && adduser --system --ingroup worker worker \
-    && mkdir -p /tmp/lawrence-video-worker \
-    && chown -R worker:worker /tmp/lawrence-video-worker
+# A imagem de produção prioriza compressão eficiente. Mantemos a configuração
+# depois das dependências do sistema para mudanças de qualidade não invalidarem
+# a camada pesada do FFmpeg no cache do Docker.
+ENV VIDEO_FFMPEG_PRESET=slow
 
 USER worker
-
-ENV VIDEO_WORKER_TEMP_DIR=/tmp/lawrence-video-worker/jobs
-ENV VIDEO_WORKER_HEARTBEAT_FILE=/tmp/lawrence-video-worker/heartbeat
-ENV VIDEO_JOB_POLL_INTERVAL_SECONDS=1
-ENV VIDEO_UPLOAD_CONCURRENCY=4
-ENV VIDEO_FFMPEG_PRESET=veryfast
-ENV VIDEO_AI_ENRICHMENT_ENABLED=false
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD ["python", "-m", "src.workers.video_worker.healthcheck"]

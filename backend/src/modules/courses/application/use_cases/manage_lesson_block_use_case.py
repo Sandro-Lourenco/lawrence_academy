@@ -4,7 +4,10 @@ from typing import List
 from src.core.errors.errors import AuthorizationError, NotFoundError, ValidationError
 from src.modules.courses.domain.entities import LessonBlock
 from src.modules.courses.domain.repositories import CourseRepository
-from src.modules.courses.application.idempotency import deterministic_resource_id, request_fingerprint
+from src.modules.courses.application.idempotency import (
+    deterministic_resource_id,
+    request_fingerprint,
+)
 
 
 class ManageLessonBlockUseCase:
@@ -35,7 +38,8 @@ class ManageLessonBlockUseCase:
         block = LessonBlock(
             id=(
                 deterministic_resource_id(f"block:{course_id}:{lesson_id}", idempotency_key)
-                if idempotency_key else str(uuid.uuid4())
+                if idempotency_key
+                else str(uuid.uuid4())
             ),
             lesson_id=lesson_id,
             course_id=course_id,
@@ -72,7 +76,13 @@ class ManageLessonBlockUseCase:
         )
 
     async def duplicate(
-        self, *, course_id: str, lesson_id: str, block_id: str, user_id: str, role: str,
+        self,
+        *,
+        course_id: str,
+        lesson_id: str,
+        block_id: str,
+        user_id: str,
+        role: str,
         idempotency_key: str | None = None,
     ):
         await self._authorize(course_id, lesson_id, user_id, role)

@@ -135,6 +135,11 @@ class FakeCourseRepository:
     async def get_by_id(self, course_id: str) -> Course | None:
         return self.course if course_id == self.course.id else None
 
+    async def get_published_by_id(self, course_id: str) -> Course | None:
+        if self.course.status != "published":
+            return None
+        return self.course if course_id == self.course.id else None
+
 
 async def current_user() -> CurrentUser:
     return CurrentUser(id="student-1", email="student@example.com", role="student")

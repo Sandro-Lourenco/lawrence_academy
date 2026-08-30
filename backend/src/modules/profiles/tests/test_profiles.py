@@ -12,7 +12,7 @@ os.environ["SUPABASE_SERVICE_KEY"] = "mock-key"
 os.environ["STRIPE_API_KEY"] = "sk_test_mock"
 os.environ["STRIPE_WEBHOOK_SECRET"] = "whsec_test_mock"
 
-from main import app
+from src.main import app
 
 client = TestClient(app)
 

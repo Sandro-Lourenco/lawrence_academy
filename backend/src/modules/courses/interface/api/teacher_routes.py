@@ -58,6 +58,9 @@ from src.modules.courses.application.use_cases.manage_course_version_use_case im
 from src.modules.courses.application.use_cases.list_teacher_courses_use_case import (
     ListTeacherCoursesUseCase,
 )
+from src.modules.courses.application.use_cases.list_course_students_use_case import (
+    ListCourseStudentsUseCase,
+)
 from src.modules.courses.application.use_cases.create_lesson_use_case import (
     CreateLessonUseCase,
 )
@@ -70,6 +73,7 @@ from src.modules.courses.application.use_cases.delete_lesson_use_case import (
 from src.modules.courses.interface.api.routes import (
     CourseResponseSchema,
     CourseCreateInputSchema,
+    CourseId,
     ModuleResponseSchema,
     LessonResponseSchema,
 )
@@ -103,10 +107,23 @@ class CourseUpdateInputSchema(BaseModel):
     subtitle: Optional[str] = Field(default=None, max_length=160)
     language: Optional[Literal["pt-BR", "en", "es"]] = None
     estimated_duration_minutes: Optional[int] = Field(default=None, ge=1, le=100000)
-    category: Optional[str] = None
+    category: Optional[
+        Literal[
+            "corte",
+            "costura",
+            "modelagem",
+            "fashion_design",
+            "style_design",
+            "mini_curso",
+            "bordado",
+            "negocios",
+            "outros",
+        ]
+    ] = None
     level: Optional[str] = None
     description: Optional[str] = None
     requirements: Optional[List[PlanningItem]] = Field(default=None, max_length=20)
+    prerequisite_course_ids: Optional[List[CourseId]] = Field(default=None, max_length=20)
     learning_objectives: Optional[List[PlanningItem]] = Field(default=None, max_length=20)
     target_audience: Optional[List[PlanningItem]] = Field(default=None, max_length=20)
     required_materials: Optional[List[PlanningItem]] = Field(default=None, max_length=20)
@@ -114,6 +131,8 @@ class CourseUpdateInputSchema(BaseModel):
     expected_outcomes: Optional[List[PlanningItem]] = Field(default=None, max_length=20)
     thumbnail_url: Optional[str] = None
     trailer_hls_path: Optional[str] = None
+    trailer_video_url: Optional[str] = Field(default=None, max_length=2048)
+    remove_external_trailer: bool = False
     monthly_price: Optional[Decimal] = Field(default=None, ge=0, le=1000000)
     promotional_monthly_price: Optional[Decimal] = Field(default=None, ge=0)
     promotion_starts_at: Optional[datetime] = None
@@ -125,6 +144,27 @@ class CourseUpdateInputSchema(BaseModel):
     availability: Optional[Literal["immediate", "scheduled"]] = None
     scheduled_publish_at: Optional[datetime] = None
     status: Optional[Literal["draft", "reviewing"]] = None
+
+    @model_validator(mode="after")
+    def validate_trailer_source_change(self):
+        if self.trailer_video_url and self.remove_external_trailer:
+            raise ValueError(
+                "trailer_video_url e remove_external_trailer não podem ser usados juntos"
+            )
+        return self
+
+
+class CourseStudentResponseSchema(BaseModel):
+    id: str
+    full_name: str
+    email: str
+    access_status: str
+    enrolled_at: Optional[datetime] = None
+    current_period_end: Optional[datetime] = None
+    avatar_url: Optional[str] = None
+    progress_percentage: float = Field(ge=0, le=100)
+    completed_lessons: int = Field(ge=0)
+    total_lessons: int = Field(ge=0)
 
 
 class ModuleCreateInputSchema(BaseModel):
@@ -148,6 +188,7 @@ class LessonCreateInputSchema(BaseModel):
     status: str = Field(default="draft", pattern="^(draft|published)$")
     estimated_duration_minutes: Optional[int] = Field(default=None, ge=1, le=1440)
     is_required: bool = True
+    video_url: Optional[str] = Field(default=None, max_length=2048)
 
 
 class LessonUpdateInputSchema(BaseModel):
@@ -158,13 +199,21 @@ class LessonUpdateInputSchema(BaseModel):
     estimated_duration_minutes: Optional[int] = Field(default=None, ge=1, le=1440)
     is_required: Optional[bool] = None
     module_id: Optional[str] = None
+    video_url: Optional[str] = Field(default=None, max_length=2048)
+    remove_external_video: bool = False
+
+    @model_validator(mode="after")
+    def validate_video_source_change(self):
+        if self.video_url and self.remove_external_video:
+            raise ValueError("video_url e remove_external_video não podem ser usados juntos")
+        return self
 
 
 class UploadUrlRequestSchema(BaseModel):
-    filename: str
+    filename: str = Field(min_length=1, max_length=255)
     content_type: str
-    size_bytes: int
-    idempotency_key: Optional[str] = None  # Chave única por tentativa (UUID recomendado)
+    size_bytes: int = Field(gt=0, le=50 * 1024 * 1024)
+    idempotency_key: Optional[str] = Field(default=None, min_length=8, max_length=255)
 
 
 class UploadUrlResponseSchema(BaseModel):
@@ -241,6 +290,16 @@ class BlockContentSchema(BaseModel):
         ]
     ] = None
     question: Optional[str] = Field(default=None, max_length=5000)
+    # Links the visual lesson block to the formal task used for grading and
+    # progress. If this field is absent from the schema, Pydantic silently
+    # discards the identifier received from the course wizard.
+    task_id: Optional[str] = Field(
+        default=None,
+        pattern=(
+            r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-"
+            r"[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        ),
+    )
     # Zero-based index of the option used by the automatic grader. This must
     # be part of the API contract; undeclared Pydantic fields are discarded.
     correct_index: Optional[int] = Field(default=None, ge=0, le=49)
@@ -322,6 +381,20 @@ async def get_teacher_course(
     )
 
 
+@router.get("/{course_id}/students", response_model=List[CourseStudentResponseSchema])
+async def list_course_students(
+    course_id: str,
+    current_user: CurrentUser = Depends(require_role(["teacher", "super_admin"])),
+    repository: CourseRepository = Depends(get_course_repository),
+):
+    """Lista alunos matriculados e seu progresso, com verificação de propriedade."""
+    return await ListCourseStudentsUseCase(repository).execute(
+        course_id=course_id,
+        user_id=current_user.id,
+        role=current_user.role,
+    )
+
+
 @router.post("", response_model=CourseResponseSchema, status_code=status.HTTP_201_CREATED)
 async def create_course(
     payload: CourseCreateInputSchema,
@@ -348,9 +421,7 @@ async def update_course(
     use_case = UpdateCourseUseCase(repository)
     course = await use_case.execute(
         course_id=course_id,
-        course_data=payload.model_dump(
-            exclude_unset=True, exclude={"expected_authoring_revision"}
-        ),
+        course_data=payload.model_dump(exclude_unset=True, exclude={"expected_authoring_revision"}),
         current_user_id=current_user.id,
         current_user_role=current_user.role,
         expected_authoring_revision=payload.expected_authoring_revision,
