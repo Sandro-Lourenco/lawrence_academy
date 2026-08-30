@@ -215,6 +215,34 @@ CREATE TYPE media_status AS ENUM(
 
 ---
 
+## Fonte de vídeo da aula
+
+`public.lessons` suporta duas estratégias sem expor URL arbitrária:
+
+- `video_source_type = 'upload'`: usa `hls_storage_path` privado e assinado;
+- `video_source_type = 'youtube' | 'vimeo'`: usa `external_video_id` validado.
+
+A constraint `lessons_video_source_check` exige `external_video_id` nulo para
+upload, ID de 11 caracteres para YouTube e ID numérico para Vimeo. A URL
+original não é persistida. As políticas RLS existentes de aluno, professor e
+admin continuam protegendo a linha.
+
+---
+
+## Fonte do vídeo de apresentação do curso
+
+`public.courses` usa `trailer_source_type` para distinguir o upload HLS de uma
+prévia externa. Para `youtube` e `vimeo`, somente
+`trailer_external_video_id` é persistido; a URL informada pelo professor não é
+armazenada. A constraint `courses_trailer_source_check` impede provedor ou ID
+inválido e garante que uma fonte externa não mantenha simultaneamente um
+`trailer_hls_path`.
+
+O início de um novo upload troca atomicamente a fonte para `upload`, limpa o ID
+externo e deixa o worker ativar o HLS somente para o job ainda vigente.
+
+---
+
 # ======================================
 # AUTH CONTEXT
 # ======================================
@@ -449,10 +477,15 @@ competencies                 text[]
 expected_outcomes            text[]
 ```
 
-`requirements` permanece como a lista de pré-requisitos. As novas colunas usam
-defaults retrocompatíveis e continuam protegidas pelas policies de ownership e
-RLS da tabela `courses`. A duração estimada não substitui a duração real obtida
-do pipeline de mídia.
+`requirements` permanece como a lista textual de conhecimentos prévios. Cursos
+que precisam ser concluídos antes são relações normalizadas em
+`public.course_prerequisites` (`course_id` -> `prerequisite_course_id`). A
+tabela usa UUID, timestamps, chaves estrangeiras, unicidade, índice reverso e
+RLS; clientes não recebem privilégios diretos. A função interna
+`set_course_prerequisites` valida ownership, publicação, autorreferência e
+ciclos. Snapshots de `course_versions` guardam os objetos relacionados para
+preservar a versão publicada. A duração estimada não substitui a duração real
+obtida do pipeline de mídia.
 
 ## Course Offer — Fase 2 do Studio de Autoria
 
@@ -852,3 +885,12 @@ fila. Isso impede que múltiplas instâncias do worker processem o mesmo upload.
 
 Migration canônica:
 `20260728120000_claim_video_processing_jobs.sql`.
+# Extensão — cursos rápidos e consulta de alunos (2026-08-21)
+
+- `modules.is_system BOOLEAN NOT NULL DEFAULT FALSE`: identifica exclusivamente o contêiner interno de aulas de um curso rápido.
+- Índice único parcial garante no máximo um contêiner interno ativo por curso.
+- Trigger `trg_sync_quick_course_system_module` cria o contêiner ao criar um curso rápido e impede mudanças destrutivas de tipo depois que existe conteúdo.
+- Índice parcial `idx_subscriptions_course_active_students` atende a página de alunos do professor.
+- Arquivos de vídeo não são armazenados no PostgreSQL. Originais entram no bucket privado `raw-videos`, são transcodificados para HLS adaptativo no bucket privado `lessons-hls` e são removidos depois da ativação atômica bem-sucedida.
+
+Os campos editoriais amplos de cursos permanecem no schema durante a janela de compatibilidade, mas o novo fluxo de autoria usa apenas título, descrição, pré-requisitos, categoria e materiais necessários. Uma remoção futura exige telemetria de uso e migração separada.

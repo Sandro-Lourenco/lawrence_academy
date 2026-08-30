@@ -351,6 +351,7 @@ Request:
   "language": "pt-BR",
   "estimated_duration_minutes": 720,
   "requirements": [],
+  "prerequisite_course_ids": ["11111111-1111-4111-8111-111111111111"],
   "learning_objectives": [],
   "target_audience": [],
   "required_materials": [],
@@ -371,13 +372,17 @@ O payload de criação e o `PATCH /teacher/courses/{id}` aceitam:
 - `estimated_duration_minutes`: inteiro positivo opcional;
 - `learning_objectives`: lista de até 20 itens;
 - `target_audience`: lista de até 20 itens;
+- `prerequisite_course_ids`: até 20 UUIDs de cursos publicados do mesmo professor;
 - `required_materials`: lista de até 20 itens;
 - `competencies`: lista de até 20 itens;
 - `expected_outcomes`: lista de até 20 itens.
 
-Cada item pedagógico possui de 2 a 240 caracteres. `requirements` continua
-representando pré-requisitos. O backend valida enumerações, limites, JWT, role
-e ownership; o frontend não é autoridade para esses campos.
+Cada item pedagógico possui de 2 a 240 caracteres. `requirements` representa
+conhecimentos prévios em texto. Quando a exigência for concluir outro curso,
+o cliente envia `prerequisite_course_ids` e a resposta retorna
+`prerequisite_courses` como objetos (`id`, `title`, `slug`, `summary`,
+`category`, `status` e imagens). O backend rejeita autorreferência, cursos não
+publicados, cursos de outro professor e ciclos de dependência.
 
 ### Contrato de oferta e configurações
 
@@ -443,9 +448,9 @@ Todas as operações validam JWT, role e ownership do curso no backend.
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| POST | `/api/v1/teacher/courses/{course_id}/modules/{module_id}/lessons` | Cria uma aula independente no módulo. Aceita `title`, `description` e `order_index`. |
-| PATCH | `/api/v1/teacher/courses/{course_id}` | Autosave do curso com CAS atômico. `expected_authoring_revision` é obrigatório; a resposta inclui a nova `authoring_revision`. Revisão obsoleta retorna `409 Conflict`, exigindo recarga/merge antes de repetir. |
-| PATCH | `/api/v1/teacher/courses/{course_id}/lessons/{lesson_id}` | Atualiza somente a aula selecionada. Aceita `title`, `description`, `order_index` e `status` (`draft`, `published`, `hidden`). |
+| POST | `/api/v1/teacher/courses/{course_id}/modules/{module_id}/lessons` | Cria uma aula independente no módulo. Aceita metadados e, opcionalmente, `video_url` HTTPS oficial de YouTube/Vimeo. Aula por link exige `estimated_duration_minutes`. |
+| PATCH | `/api/v1/teacher/courses/{course_id}` | Autosave do curso com CAS atômico. Aceita `trailer_video_url` oficial de YouTube/Vimeo ou `remove_external_trailer=true`. `expected_authoring_revision` é obrigatório; revisão obsoleta retorna `409 Conflict`. |
+| PATCH | `/api/v1/teacher/courses/{course_id}/lessons/{lesson_id}` | Atualiza somente a aula selecionada. Aceita metadados, `video_url` para substituir por YouTube/Vimeo e `remove_external_video=true` ao trocar o link por upload. |
 | PUT | `/api/v1/teacher/courses/{course_id}/lessons/{lesson_id}/blocks/reorder` | Reordena atomicamente todos os blocos ativos. Body: `block_ids` na ordem final e `expected_revision`; retorna `authoring_revision`. Responde conflito quando a revisão ficou obsoleta ou o conjunto está incompleto/duplicado. |
 | DELETE | `/api/v1/teacher/courses/{course_id}/lessons/{lesson_id}` | Arquiva logicamente somente a aula selecionada, preservando módulo e demais aulas. |
 
@@ -456,6 +461,26 @@ Geração de URLs pré-assinadas para envio direto de aulas para o Storage (buck
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
 | POST   | `/api/v1/teacher/courses/{c_id}/lessons/{l_id}/upload` | Retorna `signed_url`, `path` e `expires_in` para upload do vídeo `mp4`/`mov` (max 2GB). O caminho gerado internamente evita colisão de nomes e previne Path Traversal. |
+
+### Vídeo externo de aula
+
+Como alternativa ao upload, o professor pode informar um link HTTPS oficial de
+YouTube ou Vimeo no create/patch da aula. O backend valida host e formato,
+persiste somente `video_source_type` e o identificador normalizado e nunca busca
+a URL recebida. O catálogo público não recebe o identificador externo.
+
+`GET /api/v1/courses/{course_id}/lessons/{lesson_id}/stream` continua exigindo
+JWT, acesso ao curso e ownership/assinatura. A resposta é discriminada:
+
+```json
+{"sourceType":"hls","signedUrl":"/api/v1/.../master.m3u8?token=..."}
+```
+
+ou:
+
+```json
+{"sourceType":"external","provider":"youtube","url":"https://www.youtube.com/watch?v=..."}
+```
 
 ================================================
 
@@ -792,6 +817,13 @@ ESSAY
 
 # 12. Certificate Context
 
+Um certificado é emitido de forma idempotente por `(student_id, course_id)`
+somente quando o curso publicado permite certificado, todas as aulas e blocos
+obrigatórios foram concluídos e todas as atividades existentes foram aprovadas.
+O backend persiste no `metadata` assinado: `student_name`, `course_name`,
+`course_workload_hours`, `completed_lesson_count`, `completion_date` e
+`issuer_name`. O Flutter nunca fabrica esses dados.
+
 
 ## GET
 
@@ -806,6 +838,14 @@ ESSAY
 
 /certificates/generate
 
+## POST
+
+/api/v1/certificates/reconcile
+
+Reconcilia conclusões já sincronizadas e retorna a coleção do aluno. A operação
+é autenticada e idempotente; uma aula isolada concluída não reduz os requisitos
+de elegibilidade.
+
 
 
 ---
@@ -814,6 +854,18 @@ ESSAY
 ## GET
 
 /certificates/{code}/verify
+
+Verificação pública e sem autenticação. Retorna somente os metadados públicos
+necessários para comprovar autenticidade, conclusão e eventual revogação.
+
+## GET
+
+`/api/v1/certificates/{certificate_id}/pdf`
+
+Baixa o certificado privado em PDF. Exige JWT e ownership do aluno; certificados
+revogados não podem ser baixados. A resposta usa `application/pdf`,
+`Cache-Control: private, no-store` e contém QR Code apontando para a verificação
+pública por código.
 
 
 
@@ -1199,3 +1251,18 @@ course results in `unpublished`; publishing always uses the server checklist.
 
 Restoring content never changes the current public snapshot. A later explicit
 publication is required to make restored content visible to students.
+# Extensão — cursos rápidos e alunos do professor (2026-08-21)
+
+## Criação simplificada de curso
+
+`POST /api/v1/teacher/courses` aceita como dados editoriais essenciais `title`, `description`, `category`, `requirements`, `required_materials` e `course_type`. `monthly_price` permanece obrigatório por fazer parte da oferta. O backend deriva `slug` e `summary` quando omitidos; campos editoriais legados continuam aceitos temporariamente para compatibilidade.
+
+Para `course_type=quick`, o backend cria um contêiner interno de aulas. O cliente não deve apresentar esse contêiner como módulo nem permitir sua edição ou remoção.
+
+## Alunos de um curso
+
+`GET /api/v1/teacher/courses/{course_id}/students`
+
+- Autorização: professor proprietário ou `super_admin`.
+- Retorno: `id`, `full_name`, `email`, `access_status`, datas de acesso, avatar e resumo de progresso.
+- Cursos gratuitos incluem alunos que já iniciaram alguma aula, mesmo sem assinatura de pagamento.

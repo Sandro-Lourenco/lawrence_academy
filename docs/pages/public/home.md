@@ -1,7 +1,7 @@
 ---
-version: 2.0.0
+version: 3.0.0
 id: PAGE-PUBLIC-001
-name: Lawrence Academy Landing Page
+name: Maison Lawrence Landing Page
 route: /
 actor: Visitor
 status: implemented
@@ -9,51 +9,52 @@ status: implemented
 
 # Objetivo
 
-Apresentar a Lawrence Academy como uma escola premium de costura, modelagem,
-moda e estilo e conduzir visitantes ao catálogo ou à matrícula.
+Apresentar a Lawrence Academy como escola premium de costura, modelagem e
+alta-costura, permitindo entender a proposta no primeiro viewport e chegar ao
+catálogo sem ambiguidade.
 
-# Jornada
+# Tese
 
-1. Compreender a proposta de valor no primeiro viewport.
-2. Explorar o catálogo por trilha.
-3. Conhecer a criadora e o método.
-4. Entender os resultados esperados para a comunidade de alunas.
-5. Conhecer a futura biblioteca de e-books.
-6. Explorar cursos ou criar uma conta.
+**Maison Lawrence — técnica que se transforma em assinatura.**
 
-# Conteúdo
+A home usa vinho, ameixa, marfim e fotografia editorial clássica. A linguagem
+é feminina, segura e contemporânea; não usa símbolos literais de realeza,
+claims não comprovados nem textos copiados de referências.
 
-- Navegação pública com logo, busca, Início, Cursos e ações de sessão.
-- Hero editorial com CTA primário para `/courses` e secundário para a criadora.
-- Identidade baseada no manual da marca: azul-marinho, marrom couro, dourado,
-  amarelo-claro, preto, cinza e branco; wordmark serifado com dois traços.
-- Linguagem clássico-moderna com conteúdo editorial limpo e Liquid Glass
-  reservado a controles e superfícies funcionais.
-- Catálogo visual, história da criadora, comunidade, biblioteca de e-books em
-  preparação, método e chamada final.
-- Depoimentos identificados só podem ser publicados com autorização.
+# Jornada e seções
+
+1. Hero cinematográfico com proposta, `/courses` e atalho para o método.
+2. Faixa factual: cursos estruturados, prática, acompanhamento e certificado.
+3. Trilhas: Costura, Modelagem, Alta-costura e Fashion & Style.
+4. Curso em evidência e explicação de assinatura individual por curso.
+5. Método em três atos: Fundamento, Presença e Assinatura.
+6. Manifesto com espaço negativo e imagem de modelagem.
+7. Experiência: aulas, prática, acompanhamento, progresso e certificado.
+8. História da criação da escola, sem credenciais ou datas não validadas.
+9. FAQ com regras de produto verificadas.
+10. CTA final, entrada da aluna e footer.
+
+Depoimentos, números, marcas e biografias nominadas só entram após validação e
+consentimento. Comunidade não é prometida no MVP.
 
 # Responsividade
 
-- Mobile abaixo de 700 px: menu em drawer, hero e seções empilhadas.
-- Tablet entre 700 e 1099 px: grid adaptativo e navegação compacta.
-- Desktop a partir de 1100 px: composições assimétricas e header completo.
+- Mobile `<700`: imagem e texto empilhados, CTA adaptável, sem sobreposição.
+- Tablet `700–1099`: composição compacta e no máximo duas colunas.
+- Desktop `>=1100`: composição assimétrica, mídia 5/7 ou 4/8 e máximo 1440 px.
+- Texto suporta escala 200% sem redução artificial.
 
 # Acessibilidade
 
-- Ordem semântica, botões com rótulos explícitos e alvos mínimos de 48 px.
-- Contraste WCAG 2.2 AA, navegação por teclado e foco visível.
-- Imagens editoriais descritas semanticamente.
-- Animações e transições respeitam `disableAnimations`.
+- Um único H1; títulos em ordem; alvos mínimos 48 px.
+- Contraste WCAG 2.2 AA e foco visível.
+- Imagens informativas têm descrição; ornamentos são excluídos.
+- FAQ funciona por teclado e expõe estado expandido.
+- `disableAnimations` mostra o estado final, sem loop ou parallax.
 
-# Estados
+# Estado e performance
 
-Esta página é institucional e usa conteúdo local versionado. A ausência de um
-asset visual deve preservar a mensagem e os CTAs sem bloquear a navegação.
-
-# Performance
-
-- Fotografias editoriais em WebP ou JPEG otimizado e empacotadas localmente.
-- Sem chamadas de API no primeiro carregamento.
-- Liquid Glass restrito a poucas superfícies e isolado por `RepaintBoundary`.
-- Arquivos shell do Flutter são servidos com revalidação para evitar build antiga.
+A página usa conteúdo local versionado e não faz chamadas no primeiro
+carregamento. Ausência de imagem preserva conteúdo e CTAs. Assets editoriais
+usam WebP otimizado; animações se limitam a transform/opacity e não bloqueiam
+interação.

@@ -21,6 +21,19 @@ architecture: Clean Architecture + DDD
 
 ## Implementação canônica da fase — curso adquirido
 
+### Ações do aluno (2026-08)
+
+- Favoritar persiste a preferência no dispositivo e atualiza a área de
+  favoritos sem criar itens simulados.
+- Concluir só habilita após 100% das aulas e visita de todas as etapas
+  complementares “Saber mais”. A aprovação obrigatória continua sendo exigida
+  para emissão do certificado.
+- Sair do curso abre a gestão da assinatura; a interface não cancela acesso sem
+  confirmação no fluxo financeiro.
+- “Iniciar curso” só aparece após matrícula/acesso elegível. No catálogo, curso
+  gratuito usa “Matricular-se gratuitamente” e curso pago usa “Assinar e
+  matricular-se”.
+
 A rota autenticada `/dashboard/courses/:courseId` é a página de detalhes do
 curso adquirido. Ela valida a elegibilidade uma vez no nível do curso, carrega
 o currículo real por ID e combina as aulas com o progresso local/sincronizado.

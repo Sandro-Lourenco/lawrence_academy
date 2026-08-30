@@ -42,8 +42,7 @@ purpose:
 | --- | --- | --- |
 | Início | `/dashboard/home` | Bottom bar, rail ou sidebar |
 | Cursos | `/dashboard/courses` | Bottom bar, rail ou sidebar |
-| Projetos | `/dashboard/projects` | Bottom bar, rail ou sidebar |
-| Detalhe do projeto | `/dashboard/projects/:projectId` | Subrota autenticada de Projetos |
+| Detalhe do projeto | `/dashboard/projects/:projectId` | Acessado pela central de Atividades |
 | Conquistas | `/dashboard/achievements` | Bottom bar, rail ou sidebar |
 | Perfil | `/dashboard/profile` | Bottom bar, rail ou sidebar |
 
@@ -1633,3 +1632,6 @@ Design System define visual.
 
 Service API define dados.
 
+# Extensão de navegação do professor (2026-08-21)
+
+- `/teacher/courses/:courseId/students` — detalhe de matrículas e progresso do curso, acessível pelo botão **Alunos** em cada cartão do painel do professor.

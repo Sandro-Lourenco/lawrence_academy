@@ -55,6 +55,7 @@ Inspirado em:
 - Editar aulas.
 - Organizar aulas.
 - Fazer upload de vídeos.
+- Vincular vídeos por link oficial de YouTube ou Vimeo.
 - Adicionar materiais.
 - Configurar acesso.
 - Criar prévias gratuitas.
@@ -393,6 +394,26 @@ Bloquear
 ---
 
 # Conteúdo da Aula
+
+## Fonte do vídeo
+
+O professor escolhe uma opção:
+
+- **Enviar arquivo:** MP4, MOV ou M4V segue para processamento HLS privado;
+- **Usar link:** aceita somente HTTPS oficial de YouTube ou Vimeo e exige a
+  duração estimada da aula.
+
+Ao editar uma aula externa, deixar o campo vazio mantém o vínculo atual; colar
+outro link substitui o vídeo. Para voltar a upload, é obrigatório selecionar o
+novo arquivo. A lista identifica `Link do YouTube` ou `Link do Vimeo` como vídeo
+pronto. Links genéricos, HTTP, credenciais na URL e hosts semelhantes são
+rejeitados no Flutter e novamente no backend.
+
+O aluno recebe o link somente depois da validação autenticada de acesso ao
+curso. Após assistir no provedor oficial, pode marcar a aula como assistida; o
+progresso usa a duração configurada e segue a validação normal do backend.
+
+---
 
 Editor Rich Text
 

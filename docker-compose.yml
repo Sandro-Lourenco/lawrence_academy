@@ -1,49 +1,138 @@
+name: lawrence-academy
+
+x-runtime-defaults: &runtime-defaults
+  init: true
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+  networks:
+    - application
+
 services:
   backend:
+    <<: *runtime-defaults
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: lawrence-backend
+      pull: true
+      args:
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.13.14}
+    image: lawrence-academy/backend:local
     ports:
-      - "8000:8000"
-    restart: unless-stopped
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     env_file:
-      - .env
+      - path: .env
+        required: true
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      # Permite que o backend local use o mesmo projeto Supabase incorporado
+      # ao frontend sem substituir as credenciais remotas do arquivo .env.
+      SUPABASE_URL: ${BACKEND_SUPABASE_URL:-${SUPABASE_URL}}
+      SUPABASE_ANON_KEY: ${BACKEND_SUPABASE_ANON_KEY:-${SUPABASE_ANON_KEY}}
+      SUPABASE_SERVICE_KEY: ${BACKEND_SUPABASE_SERVICE_KEY:-${SUPABASE_SERVICE_KEY}}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:18080,http://127.0.0.1:18080}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local_only_playback_secret_change_me_2026_64_chars_minimum}
+      # Fallback exclusivo do ambiente Docker local. Produção deve fornecer
+      # uma chave aleatória persistente para manter assinaturas verificáveis.
+      CERTIFICATE_SECRET_KEY: ${CERTIFICATE_SECRET_KEY:-local_only_certificate_secret_change_me_2026_64_chars_minimum}
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-stripe}
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
     healthcheck:
       test:
         - CMD
         - python
         - -c
-        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=3)"
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/live', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: 768M
+
+  frontend:
+    <<: *runtime-defaults
+    build:
+      context: ./lawrence
+      dockerfile: Dockerfile
+      pull: true
+      args:
+        FLUTTER_VERSION: ${FLUTTER_VERSION:-3.44.9}
+        FLUTTER_SHA256: ${FLUTTER_SHA256:-a9120fa4a01048bdef438ddc3a2d4b7389662ea98a95db86eeaf10382bc4efcb}
+        BUILD_ENV: ${APP_ENV:-development}
+        API_BASE_URL: ${API_BASE_URL:-http://localhost:8000}
+        PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-http://localhost:18080}
+      secrets:
+        - frontend_build_env
+    image: lawrence-academy/frontend:local
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-18080}:8080"
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=32m,mode=1777
+      - /var/run:size=2m,mode=1777
+      - /tmp:size=2m,mode=1777
+    depends_on:
+      backend:
+        # The static shell remains available even if an upstream is degraded.
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8080/health"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 256M
 
   video-worker:
+    <<: *runtime-defaults
+    profiles: ["workers"]
     build:
       context: ./backend
       dockerfile: src/workers/video_worker/Dockerfile
-    container_name: lawrence-video-worker
-    restart: unless-stopped
-    env_file:
-      - .env
-    stop_grace_period: 30s
-
-  frontend:
-    build:
-      context: ./lawrence
-      dockerfile: Dockerfile
+      pull: true
       args:
-        # You can pass build-time variables (dart-defines) if needed
-        # Example:
-        - DART_DEFINES=--dart-define=ENV=dev --dart-define=API_BASE_URL=http://localhost:8000
-    container_name: lawrence-frontend
-    ports:
-      - "8080:80"
-    restart: unless-stopped
-    depends_on:
-      backend:
-        # Static UI must remain available to render its offline/error states
-        # even while the API or Supabase readiness probe is degraded.
-        condition: service_started
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.13.14}
+    image: lawrence-academy/video-worker:local
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      # O worker deve consumir a mesma fila do backend. Os overrides dedicados
+      # ainda permitem separar os serviços quando isso for intencional.
+      SUPABASE_URL: ${VIDEO_WORKER_SUPABASE_URL:-${BACKEND_SUPABASE_URL:-${SUPABASE_URL}}}
+      SUPABASE_SERVICE_ROLE_KEY: ${VIDEO_WORKER_SUPABASE_SERVICE_ROLE_KEY:-${BACKEND_SUPABASE_SERVICE_KEY:-${SUPABASE_SERVICE_KEY}}}
+    read_only: true
+    tmpfs:
+      - /tmp:size=2g,mode=1777
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.00"
+          memory: 2G
+
+networks:
+  application:
+    name: lawrence-academy-network
+    driver: bridge
+
+secrets:
+  frontend_build_env:
+    file: .env

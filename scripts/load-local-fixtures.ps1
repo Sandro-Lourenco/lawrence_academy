@@ -146,7 +146,16 @@ function Get-OrCreateLocalUser {
 }
 
 function Initialize-LocalHlsFixtures {
-    $workerContainer = 'lawrence-video-worker'
+    $workerContainer = @(
+        'lawrence-academy-video-worker-1',
+        'lawrence_academy-video-worker-1'
+    ) | Where-Object {
+        docker inspect --format '{{.State.Running}}' $_ 2>$null | Select-String '^true$'
+    } | Select-Object -First 1
+
+    if (-not $workerContainer) {
+        throw 'Worker de vídeo local indisponível. Inicie a stack Docker antes de carregar as fixtures.'
+    }
     $workerRunning = docker inspect `
         --format '{{.State.Running}}' `
         $workerContainer 2>$null

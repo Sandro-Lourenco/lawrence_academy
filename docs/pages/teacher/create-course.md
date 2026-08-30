@@ -200,7 +200,9 @@ Contrato persistente:
 - `course_type`: `complete`, `quick` ou `workshop`;
 - nome, slug, subtítulo, descrição curta e descrição completa;
 - categoria, nível, idioma e carga horária estimada em minutos;
-- pré-requisitos;
+- conhecimentos prévios em texto;
+- cursos publicados que precisam ser concluídos antes, selecionados como
+  objetos de curso;
 - objetivos de aprendizagem;
 - público-alvo;
 - materiais necessários;
@@ -210,6 +212,10 @@ Contrato persistente:
 Objetivos e demais listas pedagógicas aceitam no máximo 20 itens, com um item
 por linha na interface. A carga horária informada pelo professor é estimativa;
 a duração processada dos vídeos permanece como fonte da duração real.
+
+O seletor de cursos anteriores lista apenas outros cursos publicados do mesmo
+professor. A API persiste os UUIDs em uma relação e devolve os objetos de curso;
+o banco impede autorreferência e dependências circulares.
 
 ### Fase 2 — Apresentação e oferta
 
@@ -990,6 +996,9 @@ O professor deve visualizar exatamente como o curso ficará antes de publicar.
 - O professor deve conseguir organizar módulos e aulas por Drag and Drop.
 - O modelo comercial da plataforma deve permitir **apenas cursos vendidos por assinatura mensal individual**, sem venda única.
 - A pré-visualização deve refletir fielmente a experiência do aluno.
+- O vídeo público de apresentação deve aceitar upload processado ou link HTTPS
+  oficial de YouTube/Vimeo; as fontes são mutuamente exclusivas e o link é
+  validado no backend antes de aparecer na página pública do curso.
 - A página deve seguir integralmente o Lawrence Design System.
 - O efeito **Liquid Glass** deve ser utilizado exclusivamente em elementos flutuantes.
 - A experiência deve transmitir simplicidade, produtividade e controle, inspirada em Notion, Linear, Kajabi e Apple.

@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLUTTER_VERSION: "3.44.0"
+  FLUTTER_VERSION: "3.44.9"
   TEST_DEFINES: >-
     --dart-define=ENV=dev
     --dart-define=SUPABASE_URL=https://mock.supabase.co

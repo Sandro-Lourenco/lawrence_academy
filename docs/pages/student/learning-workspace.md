@@ -15,6 +15,24 @@ status: implemented
 
 # Objetivo
 
+## Sequência pedagógica e navegação visível (2026-08)
+
+- Assistir, Atividade e Saber mais formam uma sequência única e ordenada; não
+  são abas paralelas. O avanço percorre aula → atividade → saber mais → próxima
+  aula, omitindo etapas que não existirem.
+- O cabeçalho branco permanece visível e apresenta o nome do curso centralizado.
+  O título da aula fica abaixo do player. Anterior, Transcrição e o próximo
+  passo contextual formam uma barra inferior centralizada da etapa.
+- O currículo usa marcadores quadrados conectados por trilho azul. Aula,
+  atividade e Saber mais possuem ícones próprios, texto e estado semântico; cor
+  nunca é a única forma de comunicar o item atual.
+- No mobile, as ações permanecem numa barra inferior adaptativa. Conteúdos
+  longos rolam dentro da superfície correspondente.
+- Controles do player usam uma única superfície Liquid Glass delimitada, com
+  `RepaintBoundary`, blur de 20 px, contraste AA e alvos mínimos de 44 px.
+  Velocidade e volume são exibidos por possuírem suporte real; legenda e
+  qualidade permanecem ocultas até existirem trilhas/renditions selecionáveis.
+
 ## Retomada e tela cheia (2026-07)
 
 - A última aula e o modo `watch`, `activities` ou `learn-more` são persistidos

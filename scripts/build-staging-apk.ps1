@@ -2,6 +2,8 @@ param(
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^https://')]
     [string]$ApiBaseUrl,
+    [ValidatePattern('^https://')]
+    [string]$PublicWebUrl = $ApiBaseUrl,
     [string]$SupabaseUrl = 'https://ctjsmeyilapeliptelfk.supabase.co',
     [Parameter(Mandatory = $true)]
     [string]$SupabasePublishableKey
@@ -40,6 +42,7 @@ $flutterArgs = @(
     'build', 'apk', '--debug', '--flavor', 'staging',
     '--dart-define=ENV=staging',
     "--dart-define=API_BASE_URL=$ApiBaseUrl",
+    "--dart-define=PUBLIC_WEB_URL=$PublicWebUrl",
     "--dart-define=SUPABASE_URL=$SupabaseUrl",
     "--dart-define=SUPABASE_ANON_KEY=$SupabasePublishableKey"
 )
@@ -56,6 +59,18 @@ try {
                     $_.Attributes = $_.Attributes -band (-bnot [IO.FileAttributes]::ReadOnly)
                 }
         }
+    }
+
+    # Gradle's cleanMergeStagingDebugAssets intermittently fails on Windows
+    # when files from the previous Flutter asset merge retain filesystem
+    # attributes. This directory is generated and safe to recreate.
+    $mergedAssets = 'build\app\intermediates\assets\stagingDebug\mergeStagingDebugAssets'
+    if (Test-Path -LiteralPath $mergedAssets) {
+        Get-ChildItem -LiteralPath $mergedAssets -Recurse -Force |
+            ForEach-Object {
+                $_.Attributes = $_.Attributes -band (-bnot [IO.FileAttributes]::ReadOnly)
+            }
+        Remove-Item -LiteralPath $mergedAssets -Recurse -Force
     }
 
     & flutter @flutterArgs

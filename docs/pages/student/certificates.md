@@ -22,6 +22,21 @@ security:
 
 # Certificates
 
+## Implementação canônica — conclusão e prova nominal
+
+- Ao concluir todos os requisitos obrigatórios do curso, o player solicita a
+  emissão idempotente e invalida a coleção de certificados.
+- Ao abrir esta página, o backend reconcilia conclusões sincronizadas/offline
+  que ainda não possuam certificado, sem reduzir a regra de elegibilidade.
+- A lista de **cursos concluídos** usa o certificado emitido como autoridade;
+  100% apenas de vídeo não é apresentado como conclusão quando ainda existe
+  atividade obrigatória sem aprovação ou conteúdo obrigatório pendente.
+- Cada item mostra nome do curso, nome nominal do aluno, data de conclusão e
+  código público de validação. O documento usa somente fatos persistidos pelo
+  backend: nome, curso, carga horária, quantidade de aulas e data.
+- Nome, carga horária e quantidade de aulas nunca podem ser inventados no
+  cliente. Certificados legados sem um campo opcional usam texto neutro.
+
 ## Objetivo
 
 A página **Certificates** representa a conquista e reconhecimento do aluno dentro da Lawrence Academy.
@@ -536,7 +551,12 @@ GET /certificates/{id}
 
 GET /certificates/{id}/verify
 
-GET /certificates/{id}/download
+GET /api/v1/certificates/{id}/pdf
+
+O download exige autenticação e ownership. O PDF usa os dados persistidos e
+assinados do aluno/curso e inclui QR Code para `/verify-certificate?code=...`.
+Na interface, o aluno também pode compartilhar a conquista pública e copiar o
+link de validação. Certificados revogados bloqueiam essas ações.
 
 GET /student/achievements
 

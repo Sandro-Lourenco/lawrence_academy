@@ -37,3 +37,50 @@ services:
         sync: false
       - key: VIDEO_AI_ENRICHMENT_ENABLED
         value: "false"
+
+  - type: web
+    name: lawrence-api-production
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /ready
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: PAYMENT_PROVIDER
+        value: stripe
+      - key: PUBLIC_WEB_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: CERTIFICATE_SECRET_KEY
+        generateValue: true
+
+  - type: worker
+    name: lawrence-video-worker-production
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./src/workers/video_worker/Dockerfile
+    plan: starter
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: VIDEO_AI_ENRICHMENT_ENABLED
+        value: "false"

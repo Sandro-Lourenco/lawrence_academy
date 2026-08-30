@@ -68,6 +68,7 @@ $ErrorActionPreference = 'Continue'
 docker compose `
     -f $composeBase `
     -f $composeLocal `
+    --profile workers `
     up -d --build
 $composeExitCode = $LASTEXITCODE
 $ErrorActionPreference = $previousErrorActionPreference
@@ -79,7 +80,7 @@ $healthDeadline = (Get-Date).AddMinutes(2)
 do {
     try {
         $backendHealth = Invoke-RestMethod -Uri 'http://127.0.0.1:8000/ready'
-        $frontendHealth = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:8080/health'
+        $frontendHealth = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:18080/health'
         if ($backendHealth.status -eq 'ready' -and $frontendHealth.StatusCode -eq 200) {
             break
         }
@@ -106,6 +107,6 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Output ''
 Write-Output 'Lawrence Academy local pronta.'
-Write-Output 'Frontend: http://localhost:8080'
+Write-Output 'Frontend: http://localhost:18080'
 Write-Output 'Backend:  http://localhost:8000'
 Write-Output 'Supabase: http://localhost:54321'

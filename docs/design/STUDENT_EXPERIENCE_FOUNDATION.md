@@ -1,6 +1,6 @@
 ---
 name: Lawrence Student Experience Foundation
-version: 1.0.0
+version: 2.0.0
 status: Active
 scope: Student Experience
 platforms: [Flutter Android, Flutter Web]
@@ -27,7 +27,7 @@ segurança, acesso ou negócio.
 | Monetização | Assinatura mensal individual por curso |
 | Certificado | Exige 100% de progresso e aprovação obrigatória |
 | Vídeo | HLS protegido; MP4 público é proibido |
-| Navegação | Início, Cursos, Projetos, Conquistas e Perfil |
+| Navegação | Início, Cursos, Projetos, Agenda e Perfil |
 | Projetos iniciais | Apenas projetos avaliativos vinculados a cursos |
 | Offline | Suporte parcial no Android conforme a spec de estado/offline |
 | Acessibilidade | WCAG 2.2 AA, teclado Web e texto até 200% |
@@ -51,26 +51,47 @@ e emissão de certificado, podem existir sem introduzir o sistema avançado.
 
 | Token | Valor | Uso |
 | --- | --- | --- |
-| `brandNavy` | `#08265B` | Marca, títulos e estrutura |
-| `actionPrimary` | `#0067D9` | CTA, link e navegação selecionada |
-| `actionPrimaryHover` | `#0058BC` | Hover no Web |
-| `actionPrimaryPressed` | `#004A9F` | Estado pressionado |
-| `focusRing` | `#005FCC` | Indicador de foco |
+| `brandWine` | `#6B1328` | Marca e CTA no modo claro |
+| `actionPrimary` | `#6B1328` | CTA funcional, link e navegação selecionada |
+| `actionPrimaryHover` | `#811D3B` | Hover no Web |
+| `actionPrimaryPressed` | `#4B0C1B` | Estado pressionado |
+| `focusRing` | `#A63B5E` | Indicador de foco visível |
 | `practice` | `#C92C73` | Projetos e prática |
 | `success` | `#168447` | Conclusão e sucesso |
 | `warning` | `#9A5B00` | Atenção e prazo |
 | `danger` | `#BA1A1A` | Erro, atraso e ação destrutiva |
 | `info` | `#075E9E` | Informação neutra |
-| `achievement` | `#8A5A00` | Certificados e marcos |
-| `textPrimary` | `#10264F` | Texto principal |
-| `textSecondary` | `#52627C` | Texto secundário |
-| `canvas` | `#FFFFFF` | Superfície principal |
-| `canvasParchment` | `#F7F9FC` | Fundo da aplicação |
-| `borderMist` | `#D9E0EA` | Bordas e divisores |
+| `textPrimary` | `#181315` | Texto principal no modo claro |
+| `textSecondary` | `#62565A` | Texto secundário no modo claro |
+| `canvas` | `#F7F0E8` | Fundo marfim do modo claro |
+| `darkCanvas` | `#0C0C0E` | Fundo preto-carvão do modo escuro |
+| `darkSurface` | `#151518` | Superfície do modo escuro |
+| `darkElevated` | `#1D1D21` | Superfície elevada do modo escuro |
+| `darkTextPrimary` | `#F6F3EF` | Texto principal no modo escuro |
+| `darkTextSecondary` | `#BEB8B4` | Texto secundário no modo escuro |
+| `darkAction` | `#A63B5E` | Ação vinho legível no modo escuro |
+| `borderMist` | `#D8C8BA` | Bordas e divisores do modo claro |
+| `darkBorder` | `#34343A` | Bordas e divisores do modo escuro |
 
 As cores usadas como texto sobre branco foram verificadas com contraste entre
 4,75:1 e 14,87:1. Isso não autoriza combinações diferentes sem nova medição.
 Informação de estado deve usar cor, ícone e texto.
+
+### Direção editorial canônica
+
+A área do aluno segue o conceito **Ateliê editorial contemporâneo**:
+
+- carvão organiza estrutura e superfícies no modo escuro;
+- vinho identifica ações, foco e seleção sem tingir todo o fundo;
+- branco quente e pergaminho criam espaço negativo;
+- dourado não pertence à experiência autenticada da aluna;
+- Playfair Display é usado somente em títulos editoriais curtos;
+- Montserrat é usada em controles, metadados e conteúdo funcional;
+- glass permanece restrito a navegação e overlays com função clara.
+
+O botão primário é retangular, vinho, com texto branco e seta final. O reflexo
+superior é discreto e neutro. Certificados e marcos usam vinho, ícone e texto;
+nunca dourado como atalho para valor.
 
 ## Espaçamento
 
@@ -89,9 +110,9 @@ Escala baseada em 4 px:
 
 | Token | Valor | Uso |
 | --- | ---: | --- |
-| `control` | 8 px | Inputs, chips e foco |
-| `card` | 16 px | Cards de conteúdo |
-| `featured` | 24 px | Hero e painéis destacados |
+| `control` | 2 px | Botões e controles editoriais |
+| `card` | 0 px | Cards e listas de conteúdo |
+| `featured` | 0 px | Hero e painéis destacados |
 | `pill` | 999 px | Badge e botão realmente pill |
 
 Não criar raios intermediários por tela.
