@@ -48,7 +48,7 @@ void main() {
     );
 
     expect(result.action, CourseAccessAction.subscribe);
-    expect(result.label, 'Assinar curso');
+    expect(result.label, 'Assinar este curso');
   });
 
   test('pagamento vencido direciona ao gerenciamento', () {
@@ -105,4 +105,3 @@ void main() {
     expect(result.message, contains('temporariamente indisponível'));
   });
 }
-

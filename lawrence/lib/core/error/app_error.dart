@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import '../errors/app_exceptions.dart';
 
 enum ErrorType {
   network,
@@ -32,6 +33,51 @@ class AppError implements Exception {
     String title = 'Ops, algo deu errado';
     ErrorType type = ErrorType.unknown;
     IconData icon = Icons.error_outline;
+
+    if (exception is Failure) {
+      if (exception is NetworkFailure) {
+        return AppError(
+          title: 'Sem conexão',
+          message: exception.message,
+          type: ErrorType.network,
+          icon: Icons.wifi_off,
+        );
+      }
+      final code = exception.code ?? '';
+      if (exception is AuthFailure || code == 'HTTP_401') {
+        return const AppError(
+          title: 'Sessão expirada',
+          message: 'Sua sessão expirou. Faça login novamente para continuar.',
+          type: ErrorType.unauthorized,
+          icon: Icons.lock_outline,
+        );
+      }
+      if (code == 'HTTP_403') {
+        return const AppError(
+          title: 'Acesso negado',
+          message: 'Você não tem permissão para acessar este recurso.',
+          type: ErrorType.forbidden,
+          icon: Icons.block,
+        );
+      }
+      if (code == 'HTTP_400' || code == 'HTTP_422') {
+        return AppError(
+          title: 'Dados inválidos',
+          message: exception.message,
+          type: ErrorType.validation,
+          icon: Icons.warning_amber_rounded,
+        );
+      }
+      if (exception is ServerFailure || code.startsWith('HTTP_5')) {
+        return const AppError(
+          title: 'Instabilidade no servidor',
+          message:
+              'O servidor não conseguiu concluir a operação. Tente novamente.',
+          type: ErrorType.server,
+          icon: Icons.dns_outlined,
+        );
+      }
+    }
 
     if (exception is DioException) {
       if (exception.type == DioExceptionType.connectionTimeout ||
@@ -122,9 +168,32 @@ class AppError implements Exception {
 
     final str = exception.toString().toLowerCase();
 
-    if (str.contains('socket') ||
+    if ((str.contains('storageexception') &&
+            str.contains('maximum allowed size')) ||
+        str.contains('exceeded the maximum allowed size') ||
+        str.contains('excede o limite de 50 mb')) {
+      return const AppError(
+        title: 'Vídeo muito grande',
+        message:
+            'Este ambiente aceita vídeos de até 50 MB. Escolha um arquivo menor ou comprima o vídeo antes de enviar.',
+        type: ErrorType.validation,
+        icon: Icons.video_file_outlined,
+      );
+    }
+
+    if (str.contains('http_50') || str.contains('status code: 50')) {
+      return const AppError(
+        title: 'Instabilidade no servidor',
+        message:
+            'O servidor não conseguiu concluir a operação. Tente novamente.',
+        type: ErrorType.server,
+        icon: Icons.dns_outlined,
+      );
+    }
+
+    if (str.contains('socketexception') ||
         str.contains('network') ||
-        str.contains('conexão') ||
+        str.contains('failed host lookup') ||
         str.contains('connection_error') ||
         str.contains('no_connection')) {
       return const AppError(

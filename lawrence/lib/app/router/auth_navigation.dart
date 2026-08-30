@@ -4,6 +4,14 @@ String authenticatedHomeForRole(String? role) {
       : '/dashboard/home';
 }
 
+String postAuthDestinationForRole(String? role, Uri loginUri) {
+  if (role == 'teacher' || role == 'super_admin') {
+    return '/teacher';
+  }
+
+  return safePostAuthRedirect(loginUri) ?? authenticatedHomeForRole(role);
+}
+
 bool shouldRedirectAuthenticatedFromPublicEntry(String path) =>
     path == '/' ||
     path == '/login' ||
@@ -34,3 +42,7 @@ String? safePostAuthRedirect(Uri uri) {
     return null;
   }
 }
+
+bool isLoginCallbackUri(Uri uri) =>
+    uri.path == '/login-callback' ||
+    (uri.scheme == 'lawrence' && uri.host == 'login-callback');

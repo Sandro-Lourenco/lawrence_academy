@@ -43,4 +43,30 @@ class Certificate {
       issuedAt: DateTime.parse(json['issued_at'] as String),
     );
   }
+
+  String get studentName =>
+      metadata['student_name']?.toString().trim().isNotEmpty == true
+      ? metadata['student_name'].toString().trim()
+      : 'Estudante Lawrence';
+
+  String get courseName =>
+      metadata['course_name']?.toString().trim().isNotEmpty == true
+      ? metadata['course_name'].toString().trim()
+      : 'Formação Lawrence Academy';
+
+  double? get workloadHours {
+    final value = metadata['course_workload_hours'];
+    return value is num ? value.toDouble() : double.tryParse('$value');
+  }
+
+  int? get completedLessonCount {
+    final value = metadata['completed_lesson_count'];
+    return value is num ? value.toInt() : int.tryParse('$value');
+  }
+
+  DateTime get completionDate =>
+      DateTime.tryParse(metadata['completion_date']?.toString() ?? '') ??
+      issuedAt;
+
+  bool get isRevoked => revokedAt != null;
 }

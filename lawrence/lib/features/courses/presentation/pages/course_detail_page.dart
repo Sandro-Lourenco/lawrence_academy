@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/error/app_error.dart';
 import '../../../../core/errors/app_exceptions.dart';
 import '../../../../design_system/tokens/lawrence_theme.dart';
+import '../../../../design_system/widgets/couture_primary_button.dart';
+import '../../../../design_system/widgets/couture_progress_bar.dart';
 import '../../../../design_system/widgets/state_widgets.dart';
 import '../../../../design_system/widgets/status_badge.dart';
 import '../../../../design_system/widgets/student_page_header.dart';
@@ -13,8 +15,17 @@ import '../../../subscriptions/domain/entities/checkout_eligibility_result.dart'
 import '../../../subscriptions/presentation/controllers/checkout_eligibility_controller.dart';
 import '../../domain/entities/course.dart';
 import '../providers/course_detail_provider.dart';
+import '../../../lesson_progress/presentation/controllers/lesson_progress_controller.dart';
+import '../../../lesson_progress/domain/entities/lesson_progress_entity.dart';
+import '../../../lessons/presentation/controllers/purchased_course_presentation.dart';
 
-enum CourseAccessAction { login, subscribe, access, manageSubscription, unavailable }
+enum CourseAccessAction {
+  login,
+  subscribe,
+  access,
+  manageSubscription,
+  unavailable,
+}
 
 enum CourseAccessErrorAction { retry, signInAgain }
 
@@ -86,7 +97,7 @@ CourseAccessPresentation resolveCourseAccessPresentation({
   if (eligibility.hasAccess) {
     return const CourseAccessPresentation(
       CourseAccessAction.access,
-      'Acessar curso',
+      'Continuar curso',
     );
   }
   if (eligibility.reasonCode == 'PAST_DUE_EXPIRED') {
@@ -99,7 +110,7 @@ CourseAccessPresentation resolveCourseAccessPresentation({
   if (eligibility.canPurchase) {
     return CourseAccessPresentation(
       CourseAccessAction.subscribe,
-      isFree ? 'Liberar acesso gratuito' : 'Assinar curso',
+      isFree ? 'Começar curso' : 'Assinar este curso',
     );
   }
   return CourseAccessPresentation(
@@ -163,9 +174,8 @@ class _CourseDetailContent extends StatelessWidget {
               title: 'Detalhes do curso',
               leading: IconButton(
                 tooltip: 'Voltar ao catálogo',
-                onPressed: () => context.canPop()
-                    ? context.pop()
-                    : context.go('/courses'),
+                onPressed: () =>
+                    context.canPop() ? context.pop() : context.go('/courses'),
                 icon: const Icon(Icons.arrow_back_rounded),
               ),
             ),
@@ -205,13 +215,26 @@ class _CourseDetailContent extends StatelessWidget {
   }
 }
 
-class _CourseHero extends StatelessWidget {
+class _CourseHero extends ConsumerWidget {
   final Course course;
 
   const _CourseHero({required this.course});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authenticated = ref.watch(authNotifierProvider).user != null;
+    final eligibility = authenticated
+        ? ref.watch(checkoutEligibilityProvider(course.id)).valueOrNull
+        : null;
+    final hasAccess = eligibility?.hasAccess ?? false;
+
+    PurchasedCourseSummary? summary;
+    if (hasAccess) {
+      final progressList =
+          ref.watch(courseProgressListProvider(course.id)).valueOrNull ?? [];
+      summary = summarizePurchasedCourse(course, progressList);
+    }
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: LayoutBuilder(
@@ -225,11 +248,18 @@ class _CourseHero extends StatelessWidget {
             child: const Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.ondemand_video_outlined, color: Colors.white, size: 64),
+                Icon(
+                  Icons.ondemand_video_outlined,
+                  color: Colors.white,
+                  size: 64,
+                ),
                 SizedBox(height: LawrenceSpacing.sm),
                 Text(
                   'Prévia ainda não disponível',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
             ),
@@ -253,15 +283,41 @@ class _CourseHero extends StatelessWidget {
                       label: course.level,
                       icon: Icons.signal_cellular_alt_rounded,
                     ),
+                    if (course.estimatedDurationMinutes != null &&
+                        course.estimatedDurationMinutes! > 0)
+                      AppStatusBadge(
+                        label: _formatDuration(
+                          course.estimatedDurationMinutes!,
+                        ),
+                        icon: Icons.schedule_outlined,
+                      ),
                   ],
                 ),
                 const SizedBox(height: LawrenceSpacing.md),
-                Text(
-                  course.title,
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    color: LawrenceColors.brandNavy,
-                    fontWeight: FontWeight.w800,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        course.title,
+                        style: Theme.of(context).textTheme.headlineLarge
+                            ?.copyWith(
+                              color: LawrenceColors.brandNavy,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                    ),
+                    if (hasAccess) ...[
+                      const SizedBox(width: LawrenceSpacing.sm),
+                      IconButton(
+                        icon: const Icon(Icons.more_vert),
+                        tooltip: 'Mais opções',
+                        onPressed: () {
+                          // TODO: Implement more options
+                        },
+                      ),
+                    ],
+                  ],
                 ),
                 if (course.summary.trim().isNotEmpty) ...[
                   const SizedBox(height: LawrenceSpacing.sm),
@@ -272,12 +328,42 @@ class _CourseHero extends StatelessWidget {
                     ),
                   ),
                 ],
+                if (hasAccess && summary != null) ...[
+                  const SizedBox(height: LawrenceSpacing.lg),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CoutureProgressBar(
+                          value: summary.progress,
+                          semanticLabel: 'Progresso em ${course.title}',
+                        ),
+                      ),
+                      const SizedBox(width: LawrenceSpacing.md),
+                      Text(
+                        '${(summary.progress * 100).toInt()}% concluído',
+                        style: const TextStyle(
+                          color: LawrenceColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           );
           return compact
-              ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [visual, details])
-              : Row(children: [visual, Expanded(child: details)]);
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [visual, details],
+                )
+              : Row(
+                  children: [
+                    visual,
+                    Expanded(child: details),
+                  ],
+                );
         },
       ),
     );
@@ -303,9 +389,18 @@ class _CourseOverview extends StatelessWidget {
               spacing: LawrenceSpacing.xl,
               runSpacing: LawrenceSpacing.md,
               children: [
-                _Fact(icon: Icons.view_module_outlined, label: '${course.modules.length} módulos'),
-                _Fact(icon: Icons.play_lesson_outlined, label: '${course.lessonCount} aulas'),
-                _Fact(icon: Icons.signal_cellular_alt_rounded, label: 'Nível ${course.level}'),
+                _Fact(
+                  icon: Icons.view_module_outlined,
+                  label: '${course.modules.length} módulos',
+                ),
+                _Fact(
+                  icon: Icons.play_lesson_outlined,
+                  label: '${course.lessonCount} aulas',
+                ),
+                _Fact(
+                  icon: Icons.signal_cellular_alt_rounded,
+                  label: 'Nível ${course.level}',
+                ),
               ],
             ),
           ),
@@ -334,13 +429,26 @@ class _Fact extends StatelessWidget {
   }
 }
 
-class _Curriculum extends StatelessWidget {
+class _Curriculum extends ConsumerWidget {
   final Course course;
 
   const _Curriculum({required this.course});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authenticated = ref.watch(authNotifierProvider).user != null;
+    final eligibility = authenticated
+        ? ref.watch(checkoutEligibilityProvider(course.id)).valueOrNull
+        : null;
+    final hasAccess = eligibility?.hasAccess ?? false;
+
+    Map<String, LessonProgressEntity>? progressByLesson;
+    if (hasAccess) {
+      final progressList =
+          ref.watch(courseProgressListProvider(course.id)).valueOrNull ?? [];
+      progressByLesson = {for (final item in progressList) item.lessonId: item};
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -354,33 +462,204 @@ class _Curriculum extends StatelessWidget {
             ),
           )
         else
-          Card(
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              children: [
-                for (var index = 0; index < course.modules.length; index++)
-                  ExpansionTile(
-                    title: Text(
-                      'Módulo ${index + 1}: ${course.modules[index].title}',
-                      style: const TextStyle(
-                        color: LawrenceColors.textPrimary,
-                        fontWeight: FontWeight.w700,
+          hasAccess
+              ? Column(
+                  children: [
+                    for (var index = 0; index < course.modules.length; index++)
+                      _EnrolledModuleCard(
+                        module: course.modules[index],
+                        course: course,
+                        progressByLesson: progressByLesson ?? {},
                       ),
-                    ),
-                    subtitle: Text('${course.modules[index].lessons.length} aulas'),
+                  ],
+                )
+              : Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
                     children: [
-                      for (final lesson in course.modules[index].lessons)
-                        ListTile(
-                          leading: const Icon(Icons.lock_outline_rounded),
-                          title: Text(lesson.title),
-                          subtitle: const Text('Disponível após liberar o acesso'),
+                      for (
+                        var index = 0;
+                        index < course.modules.length;
+                        index++
+                      )
+                        ExpansionTile(
+                          title: Text(
+                            'Módulo ${index + 1}: ${course.modules[index].title}',
+                            style: const TextStyle(
+                              color: LawrenceColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '${course.modules[index].lessons.length} aulas',
+                          ),
+                          children: [
+                            for (final lesson in course.modules[index].lessons)
+                              ListTile(
+                                leading: const Icon(Icons.lock_outline_rounded),
+                                title: Text(lesson.title),
+                                subtitle: const Text(
+                                  'Disponível após liberar o acesso',
+                                ),
+                              ),
+                          ],
                         ),
                     ],
                   ),
-              ],
-            ),
-          ),
+                ),
       ],
+    );
+  }
+}
+
+class _EnrolledModuleCard extends StatelessWidget {
+  final Module module;
+  final Course course;
+  final Map<String, LessonProgressEntity> progressByLesson;
+
+  const _EnrolledModuleCard({
+    required this.module,
+    required this.course,
+    required this.progressByLesson,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final completedLessons = module.lessons
+        .where((l) => progressByLesson[l.id]?.completed == true)
+        .length;
+    final totalLessons = module.lessons.length;
+    final totalDuration = module.lessons.fold(
+      0,
+      (sum, l) => sum + (l.estimatedDurationMinutes ?? 0),
+    );
+
+    final nextLessonIndex = module.lessons.indexWhere(
+      (l) => progressByLesson[l.id]?.completed != true,
+    );
+    final isModuleCompleted = nextLessonIndex == -1;
+    final isModuleStarted =
+        completedLessons > 0 ||
+        module.lessons.any(
+          (l) => (progressByLesson[l.id]?.progressPercentage ?? 0) > 0,
+        );
+
+    final nextLesson = isModuleCompleted
+        ? null
+        : module.lessons[nextLessonIndex];
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: .24),
+        ),
+      ),
+      margin: const EdgeInsets.only(bottom: LawrenceSpacing.md),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          collapsedBackgroundColor: LawrenceColors.canvasParchment,
+          backgroundColor: LawrenceColors.canvas,
+          tilePadding: const EdgeInsets.symmetric(
+            horizontal: LawrenceSpacing.lg,
+            vertical: LawrenceSpacing.sm,
+          ),
+          title: Row(
+            children: [
+              Expanded(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: LawrenceSpacing.lg,
+                  runSpacing: LawrenceSpacing.sm,
+                  children: [
+                    Text(
+                      module.title,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: LawrenceColors.textPrimary,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    if (!isModuleCompleted && nextLesson != null)
+                      CouturePrimaryButton(
+                        onPressed: () {
+                          context.go(
+                            '/dashboard/courses/${course.id}/lessons/${nextLesson.id}',
+                          );
+                        },
+                        icon: Icons.play_circle_outline,
+                        label: isModuleStarted
+                            ? 'Continuar'
+                            : 'Ver primeiro vídeo',
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: LawrenceSpacing.md),
+              Text(
+                '$completedLessons / $totalLessons',
+                style: const TextStyle(color: LawrenceColors.textSecondary),
+              ),
+              if (totalDuration > 0) ...[
+                const SizedBox(width: LawrenceSpacing.xs),
+                Text(
+                  _formatDuration(totalDuration),
+                  style: const TextStyle(color: LawrenceColors.textSecondary),
+                ),
+              ],
+            ],
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                LawrenceSpacing.xl,
+                0,
+                LawrenceSpacing.lg,
+                LawrenceSpacing.lg,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final lesson in module.lessons)
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        bottom: LawrenceSpacing.sm,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(
+                              top: 6.0,
+                              right: LawrenceSpacing.sm,
+                            ),
+                            child: Icon(
+                              Icons.circle,
+                              size: 6,
+                              color: LawrenceColors.textSecondary,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              lesson.title,
+                              style: Theme.of(context).textTheme.bodyLarge
+                                  ?.copyWith(
+                                    color: LawrenceColors.textSecondary,
+                                    height: 1.4,
+                                  ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -419,34 +698,53 @@ class _PurchasePanel extends StatelessWidget {
             if (!course.isFree) ...[
               const SizedBox(height: LawrenceSpacing.sm),
               const Text(
-                'Cobrança recorrente por curso. Você pode gerenciar ou cancelar esta assinatura separadamente.',
+                'Cobrança mensal somente deste curso. Cancele quando quiser; seu acesso continua até o fim do período pago.',
                 style: TextStyle(color: LawrenceColors.textSecondary),
               ),
             ],
             const SizedBox(height: LawrenceSpacing.lg),
             _CourseAccessButton(course: course),
             const SizedBox(height: LawrenceSpacing.md),
-            const Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.verified_user_outlined, size: 20, color: LawrenceColors.success),
-                SizedBox(width: LawrenceSpacing.xs),
-                Expanded(
-                  child: Text(
-                    'Pagamento e autorização são validados com segurança antes da liberação.',
-                    style: TextStyle(color: LawrenceColors.textSecondary),
-                  ),
-                ),
-              ],
+            const _PurchaseNote(
+              icon: Icons.lock_outline_rounded,
+              text: 'Pagamento processado com segurança pelo Stripe.',
             ),
             const SizedBox(height: LawrenceSpacing.sm),
-            const Text(
-              'Certificados seguem os critérios de conclusão e aprovação definidos para a plataforma.',
-              style: TextStyle(color: LawrenceColors.textSecondary),
+            const _PurchaseNote(
+              icon: Icons.workspace_premium_outlined,
+              text:
+                  'O certificado é liberado após a conclusão e aprovação exigidas pelo curso.',
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PurchaseNote extends StatelessWidget {
+  const _PurchaseNote({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: LawrenceColors.textSecondary),
+        const SizedBox(width: LawrenceSpacing.xs),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: LawrenceColors.textSecondary,
+              height: 1.4,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -470,61 +768,63 @@ class _CourseAccessButton extends ConsumerWidget {
       );
     }
 
-    return ref.watch(checkoutEligibilityProvider(course.id)).when(
-      loading: () => Semantics(
-        liveRegion: true,
-        label: 'Verificando acesso ao curso',
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (error, _) {
-        final presentation = resolveCourseAccessErrorPresentation(error);
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              presentation.message,
-              style: const TextStyle(color: LawrenceColors.danger),
+    return ref
+        .watch(checkoutEligibilityProvider(course.id))
+        .when(
+          loading: () => Semantics(
+            liveRegion: true,
+            label: 'Confirmando sua assinatura',
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (error, _) {
+            final presentation = resolveCourseAccessErrorPresentation(error);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  presentation.message,
+                  style: const TextStyle(color: LawrenceColors.danger),
+                ),
+                const SizedBox(height: LawrenceSpacing.sm),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    if (presentation.action ==
+                        CourseAccessErrorAction.signInAgain) {
+                      await ref.read(authNotifierProvider.notifier).signOut();
+                      if (!context.mounted) return;
+                      context.go(
+                        Uri(
+                          path: '/login',
+                          queryParameters: {
+                            'redirect': '/courses/${course.slug}',
+                          },
+                        ).toString(),
+                      );
+                      return;
+                    }
+                    await ref
+                        .read(checkoutEligibilityProvider(course.id).notifier)
+                        .checkEligibility();
+                  },
+                  icon: Icon(
+                    presentation.action == CourseAccessErrorAction.signInAgain
+                        ? Icons.login_rounded
+                        : Icons.refresh_rounded,
+                  ),
+                  label: Text(presentation.actionLabel),
+                ),
+              ],
+            );
+          },
+          data: (eligibility) => _ActionButton(
+            presentation: resolveCourseAccessPresentation(
+              authenticated: true,
+              isFree: course.isFree,
+              eligibility: eligibility,
             ),
-            const SizedBox(height: LawrenceSpacing.sm),
-            OutlinedButton.icon(
-              onPressed: () async {
-                if (presentation.action ==
-                    CourseAccessErrorAction.signInAgain) {
-                  await ref.read(authNotifierProvider.notifier).signOut();
-                  if (!context.mounted) return;
-                  context.go(
-                    Uri(
-                      path: '/login',
-                      queryParameters: {
-                        'redirect': '/courses/${course.slug}',
-                      },
-                    ).toString(),
-                  );
-                  return;
-                }
-                await ref
-                    .read(checkoutEligibilityProvider(course.id).notifier)
-                    .checkEligibility();
-              },
-              icon: Icon(
-                presentation.action == CourseAccessErrorAction.signInAgain
-                    ? Icons.login_rounded
-                    : Icons.refresh_rounded,
-              ),
-              label: Text(presentation.actionLabel),
-            ),
-          ],
+            course: course,
+          ),
         );
-      },
-      data: (eligibility) => _ActionButton(
-        presentation: resolveCourseAccessPresentation(
-          authenticated: true,
-          isFree: course.isFree,
-          eligibility: eligibility,
-        ),
-        course: course,
-      ),
-    );
   }
 }
 
@@ -536,6 +836,10 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lessons = [for (final module in course.modules) ...module.lessons];
+    final learningPath = lessons.isEmpty
+        ? '/dashboard/courses/${course.id}'
+        : '/dashboard/courses/${course.id}/lessons/${lessons.first.id}';
     final VoidCallback? action = switch (presentation.action) {
       CourseAccessAction.login => () => context.go(
         Uri(
@@ -543,9 +847,14 @@ class _ActionButton extends StatelessWidget {
           queryParameters: {'redirect': '/courses/${course.slug}'},
         ).toString(),
       ),
-      CourseAccessAction.subscribe => () => context.push('/checkout/${course.id}'),
-      CourseAccessAction.access => () => context.go('/dashboard/courses/${course.id}'),
-      CourseAccessAction.manageSubscription => () => context.go('/dashboard/subscriptions'),
+      CourseAccessAction.subscribe =>
+        course.isFree
+            ? () => context.go(learningPath)
+            : () => context.push('/checkout/${course.id}'),
+      CourseAccessAction.access => () => context.go(learningPath),
+      CourseAccessAction.manageSubscription => () => context.go(
+        '/dashboard/subscriptions',
+      ),
       CourseAccessAction.unavailable => null,
     };
     return Column(
@@ -562,4 +871,12 @@ class _ActionButton extends StatelessWidget {
       ],
     );
   }
+}
+
+String _formatDuration(int minutes) {
+  final hours = minutes ~/ 60;
+  final remaining = minutes % 60;
+  if (hours == 0) return '${remaining}min';
+  if (remaining == 0) return '${hours}h';
+  return '${hours}h ${remaining}min';
 }

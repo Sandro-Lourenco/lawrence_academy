@@ -34,7 +34,7 @@ class DashboardHeader extends StatelessWidget {
                     letterSpacing: 1.2,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
-                    color: LawrenceColors.accentGold,
+                    color: LawrenceColors.actionPrimary,
                   ),
                 ),
               ],

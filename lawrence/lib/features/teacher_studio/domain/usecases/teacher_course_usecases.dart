@@ -1,5 +1,6 @@
 import '../../../../features/courses/domain/entities/course.dart';
 import '../entities/upload_file_payload.dart';
+import '../entities/teacher_course_student.dart';
 import '../repositories/teacher_course_repository.dart';
 
 class TeacherCourseUseCases {
@@ -13,6 +14,10 @@ class TeacherCourseUseCases {
 
   Future<Course> getCourse(String courseId) {
     return _repository.getTeacherCourse(courseId);
+  }
+
+  Future<List<TeacherCourseStudent>> listCourseStudents(String courseId) {
+    return _repository.getCourseStudents(courseId);
   }
 
   Future<Course> createCourse(

@@ -1,7 +1,41 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val releaseProperties = Properties()
+val releasePropertiesFile = rootProject.file("key.properties")
+if (releasePropertiesFile.exists()) {
+    releasePropertiesFile.inputStream().use(releaseProperties::load)
+}
+
+fun releaseSetting(propertyName: String, environmentName: String): String? =
+    releaseProperties.getProperty(propertyName)
+        ?: System.getenv(environmentName)?.takeIf { it.isNotBlank() }
+
+val releaseStorePath = releaseSetting("storeFile", "LAWRENCE_KEYSTORE_PATH")
+val releaseStorePassword = releaseSetting("storePassword", "LAWRENCE_KEYSTORE_PASSWORD")
+val releaseKeyAlias = releaseSetting("keyAlias", "LAWRENCE_KEY_ALIAS")
+val releaseKeyPassword = releaseSetting("keyPassword", "LAWRENCE_KEY_PASSWORD")
+val hasReleaseSigning = listOf(
+    releaseStorePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+).all { !it.isNullOrBlank() }
+val requestsProductionRelease = gradle.startParameter.taskNames.any {
+    it.contains("production", ignoreCase = true) &&
+        it.contains("release", ignoreCase = true)
+}
+
+if (requestsProductionRelease && !hasReleaseSigning) {
+    throw GradleException(
+        "Production release signing is required. Configure android/key.properties " +
+            "or the LAWRENCE_KEYSTORE_* environment variables.",
+    )
 }
 
 android {
@@ -38,10 +72,22 @@ android {
         }
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(requireNotNull(releaseStorePath))
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Production signing is supplied by the release pipeline. Test APKs
-            // use the isolated stagingDebug variant and the standard debug key.
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 }

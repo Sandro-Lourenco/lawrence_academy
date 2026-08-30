@@ -7,9 +7,13 @@ import '../../../../design_system/tokens/lawrence_theme.dart';
 import '../../../../design_system/widgets/state_widgets.dart';
 import '../../../../design_system/widgets/status_badge.dart';
 import '../../../../design_system/widgets/student_page_scaffold.dart';
+import '../../../../design_system/widgets/couture_primary_button.dart';
 import '../../domain/entities/activity.dart';
+import '../../../tasks/domain/entities/task_submission.dart';
 import '../controllers/activities_controller.dart';
 import '../widgets/activity_status_presentation.dart';
+import '../../../../app/providers/service_repositories.dart';
+import 'package:uuid/uuid.dart';
 
 final activityDetailProvider = Provider.family<AsyncValue<Activity?>, String>((
   ref,
@@ -42,12 +46,20 @@ class _ActivityDetailPageState extends ConsumerState<ActivityDetailPage> {
 
   // Upload state
   String? _uploadedFileName;
-  bool _isUploading = false;
-  double _uploadProgress = 0.0;
+  final bool _isUploading = false;
+  final double _uploadProgress = 0.0;
 
   // Submission state
   bool _isSubmitting = false;
   bool _hasSubmitted = false;
+  TaskSubmission? _submission;
+  late final String _idempotencyKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _idempotencyKey = const Uuid().v4();
+  }
 
   @override
   void dispose() {
@@ -57,22 +69,61 @@ class _ActivityDetailPageState extends ConsumerState<ActivityDetailPage> {
 
   Future<void> _submitActivity(Activity activity) async {
     setState(() => _isSubmitting = true);
-    // Simulate network submission
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-
-    setState(() {
-      _isSubmitting = false;
-      _hasSubmitted = true;
-    });
-
-    // Show success banner following Nielsen's usability heuristics (visibility of status)
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Atividade submetida com sucesso!'),
-        backgroundColor: LawrenceColors.success,
-      ),
-    );
+    try {
+      final option = switch (activity.type) {
+        ActivityType.quiz =>
+          _selectedQuizIndex == null
+              ? null
+              : activity.options.keys.elementAt(_selectedQuizIndex!),
+        ActivityType.trueFalse =>
+          _selectedTrueFalse == null
+              ? null
+              : (_selectedTrueFalse! ? 'true' : 'false'),
+        _ => null,
+      };
+      final submission = await ref
+          .read(taskRepositoryProvider)
+          .submitTask(
+            activity.id,
+            selectedOption: option,
+            textAnswer: activity.type == ActivityType.essay
+                ? _essayController.text.trim()
+                : null,
+            idempotencyKey: _idempotencyKey,
+          );
+      if (!mounted) return;
+      setState(() {
+        _isSubmitting = false;
+        _hasSubmitted = true;
+        _submission = submission;
+      });
+      ref.invalidate(activitiesNotifierProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            submission.isCorrect == true
+                ? 'Resposta correta! Excelente trabalho.'
+                : submission.isCorrect == false
+                ? 'Resposta incorreta. Confira a alternativa correta abaixo.'
+                : 'Atividade submetida com sucesso!',
+          ),
+          backgroundColor: submission.isCorrect == false
+              ? LawrenceColors.danger
+              : LawrenceColors.success,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível enviar. Sua resposta foi mantida; tente novamente.',
+          ),
+          backgroundColor: LawrenceColors.danger,
+        ),
+      );
+    }
   }
 
   @override
@@ -149,9 +200,41 @@ class _ActivityDetailPageState extends ConsumerState<ActivityDetailPage> {
           body: LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 900;
+              final mobile = constraints.maxWidth < 700;
               final overview = _buildOverview(activity, status, deadline);
               final workspace = _buildWorkspace(activity);
 
+              if (mobile) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(0, 4, 0, 18),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: LawrenceColors.borderMist),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          AppStatusBadge(
+                            label: status.label,
+                            icon: status.icon,
+                            tone: status.tone,
+                          ),
+                          const Spacer(),
+                          Text(
+                            deadline,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: LawrenceSpacing.lg),
+                    workspace,
+                  ],
+                );
+              }
               if (!wide) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -259,9 +342,17 @@ class _ActivityDetailPageState extends ConsumerState<ActivityDetailPage> {
   }
 
   Widget _buildWorkspace(Activity activity) {
-    if (_hasSubmitted ||
-        activity.status == ActivityStatus.submitted ||
-        activity.status == ActivityStatus.graded) {
+    final choiceActivity =
+        activity.type == ActivityType.quiz ||
+        activity.type == ActivityType.trueFalse;
+    final hasChoiceResult =
+        choiceActivity &&
+        (_submission?.status == 'graded' ||
+            activity.status == ActivityStatus.graded);
+    if (!hasChoiceResult &&
+        (_hasSubmitted ||
+            activity.status == ActivityStatus.submitted ||
+            activity.status == ActivityStatus.graded)) {
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(LawrenceSpacing.lg),
@@ -302,13 +393,13 @@ class _ActivityDetailPageState extends ConsumerState<ActivityDetailPage> {
     Widget innerWorkspace;
     switch (activity.type) {
       case ActivityType.quiz:
-        innerWorkspace = _buildQuizWorkspace();
+        innerWorkspace = _buildQuizWorkspace(activity);
         break;
       case ActivityType.trueFalse:
-        innerWorkspace = _buildTrueFalseWorkspace();
+        innerWorkspace = _buildTrueFalseWorkspace(activity);
         break;
       case ActivityType.essay:
-        innerWorkspace = _buildEssayWorkspace();
+        innerWorkspace = _buildEssayWorkspace(activity);
         break;
       case ActivityType.upload:
         innerWorkspace = _buildUploadWorkspace();
@@ -319,50 +410,45 @@ class _ActivityDetailPageState extends ConsumerState<ActivityDetailPage> {
         break;
     }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(LawrenceSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Área de Entrega',
-              style: Theme.of(context).textTheme.headlineMedium,
+    final mobile = MediaQuery.sizeOf(context).width < 700;
+    final content = Padding(
+      padding: EdgeInsets.all(mobile ? 0 : LawrenceSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            activity.type == ActivityType.quiz ||
+                    activity.type == ActivityType.trueFalse
+                ? 'Selecione uma alternativa'
+                : 'Área de entrega',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: LawrenceColors.textSecondary,
+              fontStyle: FontStyle.italic,
             ),
-            const SizedBox(height: LawrenceSpacing.xs),
-            const Text(
-              'Responda com atenção antes de submeter.',
-              style: TextStyle(color: LawrenceColors.textSecondary),
+          ),
+          const SizedBox(height: LawrenceSpacing.lg),
+          innerWorkspace,
+          const SizedBox(height: LawrenceSpacing.xl),
+          const Divider(),
+          const SizedBox(height: LawrenceSpacing.md),
+          SizedBox(
+            width: mobile ? double.infinity : null,
+            child: CouturePrimaryButton(
+              label: 'PRÓXIMA ATIVIDADE',
+              icon: Icons.arrow_forward_rounded,
+              loading: _isSubmitting,
+              onPressed:
+                  _isSubmitting || !_canSubmit(activity) || hasChoiceResult
+                  ? null
+                  : () => _submitActivity(activity),
             ),
-            const SizedBox(height: LawrenceSpacing.lg),
-            innerWorkspace,
-            const SizedBox(height: LawrenceSpacing.xl),
-            const Divider(),
-            const SizedBox(height: LawrenceSpacing.md),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.icon(
-                onPressed: _isSubmitting || !_canSubmit(activity)
-                    ? null
-                    : () => _submitActivity(activity),
-                icon: _isSubmitting
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.send_rounded),
-                label: Text(
-                  _isSubmitting ? 'Enviando...' : 'Submeter Atividade',
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+    if (mobile) return content;
+    return Card(
+      child: Padding(padding: EdgeInsets.zero, child: content),
     );
   }
 
@@ -381,18 +467,19 @@ class _ActivityDetailPageState extends ConsumerState<ActivityDetailPage> {
     }
   }
 
-  Widget _buildQuizWorkspace() {
-    final options = [
-      'Alternativa A: Introdução teórica e prática inicial.',
-      'Alternativa B: Foco no acabamento fino e costura invisível.',
-      'Alternativa C: Métodos de modelagem plana avançada.',
-      'Alternativa D: Organização de ateliê e marketing básico.',
-    ];
+  Widget _buildQuizWorkspace(Activity activity) {
+    final options = activity.options.entries.toList(growable: false);
+    final selectedKey =
+        _submission?.selectedOption ??
+        activity.selectedOption ??
+        (_selectedQuizIndex == null ? null : options[_selectedQuizIndex!].key);
+    final correctKey = _submission?.correctOption ?? activity.correctOption;
+    final hasResult = correctKey != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Questão 1:\nQual dos seguintes conceitos é fundamental para o desenvolvimento da modelagem plana sob medida?',
+        Text(
+          activity.description ?? activity.title,
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -400,23 +487,53 @@ class _ActivityDetailPageState extends ConsumerState<ActivityDetailPage> {
           ),
         ),
         const SizedBox(height: LawrenceSpacing.md),
-        for (int i = 0; i < options.length; i++)
-          RadioListTile<int>(
-            value: i,
-            groupValue: _selectedQuizIndex,
-            title: Text(options[i]),
-            onChanged: (val) => setState(() => _selectedQuizIndex = val),
+        for (int i = 0; i < options.length; i++) ...[
+          _AnswerOptionTile(
+            letter: String.fromCharCode(65 + i),
+            text: options[i].value.toString(),
+            selected: selectedKey == options[i].key,
+            correct: hasResult && correctKey == options[i].key,
+            incorrect:
+                hasResult &&
+                selectedKey == options[i].key &&
+                correctKey != options[i].key,
+            enabled: !hasResult,
+            onTap: () => setState(() => _selectedQuizIndex = i),
+          ),
+          const SizedBox(height: 14),
+        ],
+        if (hasResult)
+          _AnswerResultBanner(
+            correct: selectedKey == correctKey,
+            correctAnswer: _correctAnswerLabel(options, correctKey),
           ),
       ],
     );
   }
 
-  Widget _buildTrueFalseWorkspace() {
+  String _correctAnswerLabel(
+    List<MapEntry<String, dynamic>> options,
+    String? correctKey,
+  ) {
+    final index = options.indexWhere((entry) => entry.key == correctKey);
+    if (index < 0) return 'Alternativa informada pelo professor';
+    return '${String.fromCharCode(65 + index)} — ${options[index].value}';
+  }
+
+  Widget _buildTrueFalseWorkspace(Activity activity) {
+    final selected =
+        _submission?.selectedOption ??
+        activity.selectedOption ??
+        (_selectedTrueFalse == null
+            ? null
+            : (_selectedTrueFalse! ? 'true' : 'false'));
+    final correct = _submission?.correctOption ?? activity.correctOption;
+    final hasResult = correct != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Classifique a afirmação como Verdadeira ou Falsa:\n"A costura francesa é ideal para tecidos pesados como jeans e brim estruturado."',
+        Text(
+          activity.description ?? activity.title,
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -424,28 +541,42 @@ class _ActivityDetailPageState extends ConsumerState<ActivityDetailPage> {
           ),
         ),
         const SizedBox(height: LawrenceSpacing.md),
-        RadioListTile<bool>(
-          value: true,
-          groupValue: _selectedTrueFalse,
-          title: const Text('Verdadeiro (V)'),
-          onChanged: (val) => setState(() => _selectedTrueFalse = val),
+        _AnswerOptionTile(
+          letter: 'V',
+          text: 'Verdadeiro',
+          selected: selected == 'true',
+          correct: hasResult && correct == 'true',
+          incorrect: hasResult && selected == 'true' && correct != 'true',
+          enabled: !hasResult,
+          onTap: () => setState(() => _selectedTrueFalse = true),
         ),
-        RadioListTile<bool>(
-          value: false,
-          groupValue: _selectedTrueFalse,
-          title: const Text('Falso (F)'),
-          onChanged: (val) => setState(() => _selectedTrueFalse = val),
+        const SizedBox(height: 14),
+        _AnswerOptionTile(
+          letter: 'F',
+          text: 'Falso',
+          selected: selected == 'false',
+          correct: hasResult && correct == 'false',
+          incorrect: hasResult && selected == 'false' && correct != 'false',
+          enabled: !hasResult,
+          onTap: () => setState(() => _selectedTrueFalse = false),
         ),
+        if (hasResult) ...[
+          const SizedBox(height: LawrenceSpacing.lg),
+          _AnswerResultBanner(
+            correct: selected == correct,
+            correctAnswer: correct == 'true' ? 'V — Verdadeiro' : 'F — Falso',
+          ),
+        ],
       ],
     );
   }
 
-  Widget _buildEssayWorkspace() {
+  Widget _buildEssayWorkspace(Activity activity) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Enunciado da Redação:\nDescreva as principais diferenças e aplicações práticas entre a costura inglesa e a costura francesa no acabamento de roupas finas.',
+        Text(
+          activity.description ?? activity.title,
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -538,7 +669,7 @@ class _ActivityDetailPageState extends ConsumerState<ActivityDetailPage> {
           )
         else
           InkWell(
-            onTap: _startFakeUpload,
+            onTap: null,
             borderRadius: BorderRadius.circular(LawrenceRadii.card),
             child: Container(
               width: double.infinity,
@@ -581,25 +712,168 @@ class _ActivityDetailPageState extends ConsumerState<ActivityDetailPage> {
       ],
     );
   }
+}
 
-  void _startFakeUpload() async {
-    setState(() {
-      _isUploading = true;
-      _uploadProgress = 0.0;
-    });
+class _AnswerOptionTile extends StatelessWidget {
+  const _AnswerOptionTile({
+    required this.letter,
+    required this.text,
+    required this.selected,
+    required this.correct,
+    required this.incorrect,
+    required this.enabled,
+    required this.onTap,
+  });
 
-    for (int i = 0; i <= 10; i++) {
-      await Future.delayed(const Duration(milliseconds: 150));
-      if (!mounted) return;
-      setState(() {
-        _uploadProgress = i / 10.0;
-      });
-    }
+  final String letter;
+  final String text;
+  final bool selected;
+  final bool correct;
+  final bool incorrect;
+  final bool enabled;
+  final VoidCallback onTap;
 
-    setState(() {
-      _isUploading = false;
-      _uploadedFileName = 'exercicio_costura_reta.png';
-    });
+  @override
+  Widget build(BuildContext context) {
+    final mobile = MediaQuery.sizeOf(context).width < 700;
+    final accent = correct
+        ? LawrenceColors.success
+        : incorrect
+        ? LawrenceColors.danger
+        : selected
+        ? Theme.of(context).colorScheme.primary
+        : LawrenceColors.brandNavy;
+    final surface = correct
+        ? LawrenceColors.successSurface
+        : incorrect
+        ? LawrenceColors.dangerSurface
+        : selected
+        ? LawrenceColors.surfaceSubtle
+        : LawrenceColors.brandNavy;
+    final foreground = correct || incorrect || selected
+        ? LawrenceColors.brandNavy
+        : Colors.white;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: 'Alternativa $letter. $text',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          child: AnimatedContainer(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
+            constraints: BoxConstraints(minHeight: mobile ? 84 : 112),
+            decoration: BoxDecoration(
+              color: surface,
+              border: Border(
+                left: BorderSide(color: accent, width: 10),
+                top: BorderSide(color: accent.withValues(alpha: .28)),
+                right: BorderSide(color: accent.withValues(alpha: .28)),
+                bottom: BorderSide(color: accent.withValues(alpha: .28)),
+              ),
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: mobile ? 64 : 112,
+                  child: Center(
+                    child: Text(
+                      letter,
+                      style: TextStyle(
+                        color: foreground.withValues(alpha: .72),
+                        fontFamily: 'Georgia',
+                        fontSize: mobile ? 38 : 54,
+                        fontWeight: FontWeight.w300,
+                      ),
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: mobile ? 84 : 112,
+                  color: accent.withValues(alpha: .22),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: mobile ? 16 : 24,
+                      vertical: mobile ? 14 : 20,
+                    ),
+                    child: Text(
+                      text,
+                      style: TextStyle(
+                        color: foreground,
+                        fontSize: mobile ? 16 : 18,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                if (correct || incorrect)
+                  Padding(
+                    padding: EdgeInsets.only(right: mobile ? 12 : 24),
+                    child: Icon(
+                      correct
+                          ? Icons.check_circle_rounded
+                          : Icons.cancel_rounded,
+                      color: accent,
+                      size: 34,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AnswerResultBanner extends StatelessWidget {
+  const _AnswerResultBanner({
+    required this.correct,
+    required this.correctAnswer,
+  });
+
+  final bool correct;
+  final String correctAnswer;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = correct ? LawrenceColors.success : LawrenceColors.danger;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: LawrenceSpacing.md),
+      padding: const EdgeInsets.all(LawrenceSpacing.xl),
+      color: correct
+          ? LawrenceColors.successSurface
+          : LawrenceColors.dangerSurface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            correct ? 'RESPOSTA CORRETA' : 'RESPOSTA INCORRETA',
+            style: TextStyle(
+              color: tone,
+              fontSize: 30,
+              fontWeight: FontWeight.w900,
+              letterSpacing: .5,
+            ),
+          ),
+          const SizedBox(height: LawrenceSpacing.sm),
+          Text(
+            correct
+                ? 'Muito bem. Você pode continuar o percurso.'
+                : 'A alternativa correta é: $correctAnswer',
+            style: const TextStyle(fontSize: 18, height: 1.45),
+          ),
+        ],
+      ),
+    );
   }
 }
 

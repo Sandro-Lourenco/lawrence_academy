@@ -74,9 +74,9 @@ class LessonProgressController extends StateNotifier<AsyncValue<void>> {
         completed: completed,
       );
 
-      // Tenta sincronizar de forma assíncrona
+      // Aguarda a confirmação remota antes de liberar conclusão/certificado.
       final syncUseCase = _ref.read(syncLessonProgressUseCaseProvider);
-      syncUseCase.execute().catchError((_) {});
+      await syncUseCase.execute();
     });
   }
 

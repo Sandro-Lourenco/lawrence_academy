@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../tokens/lawrence_theme.dart';
+import 'couture_progress_bar.dart';
 
 class SemanticProgressIndicator extends StatelessWidget {
   final double value;
   final String label;
   final String? supportingText;
-  final Color color;
+  final Color? color;
 
   const SemanticProgressIndicator({
     super.key,
     required this.value,
     required this.label,
     this.supportingText,
-    this.color = LawrenceColors.actionPrimary,
+    this.color,
   });
 
   @override
@@ -33,37 +34,29 @@ class SemanticProgressIndicator extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(
-                    color: LawrenceColors.textPrimary,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
               Text(
                 '$percentage%',
-                style: const TextStyle(
-                  color: LawrenceColors.textPrimary,
+                style: TextStyle(
+                  color: color ?? Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
           const SizedBox(height: LawrenceSpacing.xs),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(LawrenceRadii.pill),
-            child: LinearProgressIndicator(
-              minHeight: 8,
-              value: normalizedValue,
-              color: color,
-              backgroundColor: LawrenceColors.borderMist,
-            ),
-          ),
+          CoutureProgressBar(value: normalizedValue, semanticLabel: label),
           if (supportingText != null) ...[
             const SizedBox(height: LawrenceSpacing.xs),
             Text(
               supportingText!,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: LawrenceColors.textSecondary,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],

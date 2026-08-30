@@ -20,22 +20,27 @@ class LearningOverviewSection extends StatelessWidget {
     final completedLessons = progress.where((item) => item.completed).length;
     final totalLessons = courses.fold<int>(
       0,
-      (total, course) => total + course.modules.fold<int>(
-        0,
-        (moduleTotal, module) => moduleTotal + module.lessons.length,
-      ),
+      (total, course) =>
+          total +
+          course.modules.fold<int>(
+            0,
+            (moduleTotal, module) => moduleTotal + module.lessons.length,
+          ),
     );
     final overallProgress = progress.isEmpty
         ? 0.0
         : progress
-                .map((item) => item.progressPercentage)
-                .fold<double>(0, (sum, value) => sum + value) /
-            progress.length;
+                  .map((item) => item.progressPercentage)
+                  .fold<double>(0, (sum, value) => sum + value) /
+              progress.length;
     final studiedMinutes = progress.fold<int>(
       0,
       (total, item) => total + (item.watchedSeconds ~/ 60),
     );
-    final pendingLessons = (totalLessons - completedLessons).clamp(0, totalLessons);
+    final pendingLessons = (totalLessons - completedLessons).clamp(
+      0,
+      totalLessons,
+    );
 
     return Semantics(
       container: true,
@@ -46,16 +51,17 @@ class LearningOverviewSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const StudentSectionHeader(title: 'Seu progresso'),
+          const StudentSectionHeader(title: 'Balanço desta edição'),
           const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
               final columns = constraints.maxWidth >= 900
                   ? 4
                   : constraints.maxWidth >= 520
-                      ? 2
-                      : 1;
-              final width = (constraints.maxWidth - (columns - 1) * 12) / columns;
+                  ? 2
+                  : 1;
+              final width =
+                  (constraints.maxWidth - (columns - 1) * 12) / columns;
               return Wrap(
                 spacing: 12,
                 runSpacing: 12,
@@ -72,7 +78,9 @@ class LearningOverviewSection extends StatelessWidget {
                     icon: Icons.task_alt_rounded,
                     label: 'Aulas concluídas',
                     value: '$completedLessons',
-                    helper: totalLessons == 0 ? 'Nenhuma aula disponível' : 'de $totalLessons aulas',
+                    helper: totalLessons == 0
+                        ? 'Nenhuma aula disponível'
+                        : 'de $totalLessons aulas',
                   ),
                   _MetricCard(
                     width: width,
@@ -88,7 +96,9 @@ class LearningOverviewSection extends StatelessWidget {
                     icon: Icons.assignment_outlined,
                     label: 'Próximos passos',
                     value: '$pendingLessons',
-                    helper: pendingLessons == 1 ? 'aula pendente' : 'aulas pendentes',
+                    helper: pendingLessons == 1
+                        ? 'aula pendente'
+                        : 'aulas pendentes',
                   ),
                 ],
               );
@@ -121,9 +131,17 @@ class _MetricCard extends StatelessWidget {
       width: width,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: LawrenceColors.canvas,
-          borderRadius: BorderRadius.circular(LawrenceRadii.card),
-          border: Border.all(color: LawrenceColors.borderMist),
+          color: Theme.of(context).colorScheme.surface.withValues(alpha: .86),
+          border: const Border(
+            top: BorderSide(color: LawrenceColors.brandNavy, width: 2),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: LawrenceColors.brandNavy.withValues(alpha: .07),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -135,7 +153,6 @@ class _MetricCard extends StatelessWidget {
                   height: 44,
                   decoration: BoxDecoration(
                     color: LawrenceColors.surfaceSubtle,
-                    borderRadius: BorderRadius.circular(LawrenceRadii.control),
                   ),
                   child: Icon(icon, color: LawrenceColors.actionPrimary),
                 ),
@@ -149,16 +166,16 @@ class _MetricCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       value,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: LawrenceColors.textPrimary,
-                          ),
+                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        fontWeight: FontWeight.w400,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                     ),
                     Text(
                       helper,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: LawrenceColors.textSecondary,
-                          ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),

@@ -10,6 +10,8 @@ abstract class IAuthRepository {
     required String password,
   });
 
+  Future<bool> signInWithGoogle();
+
   Future<AuthResponse> signUp({
     required String email,
     required String password,
@@ -19,4 +21,5 @@ abstract class IAuthRepository {
 
   Future<void> signOut();
   Future<void> resetPassword({required String email});
+  Future<void> updatePassword({required String password});
 }

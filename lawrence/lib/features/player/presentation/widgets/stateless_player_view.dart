@@ -1,6 +1,9 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import '../../../../design_system/tokens/lawrence_theme.dart';
+import '../../../../design_system/widgets/couture_primary_button.dart';
 import '../controllers/player_controller.dart';
 
 class StatelessPlayerView extends StatelessWidget {
@@ -171,63 +174,138 @@ class _PlayerControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black45,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          VideoProgressIndicator(
-            controller,
-            allowScrubbing: true,
-            colors: const VideoProgressColors(
-              playedColor: LawrenceColors.primary,
-              bufferedColor: Colors.white24,
-              backgroundColor: Colors.white10,
-            ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                tooltip: controller.value.isPlaying ? 'Pausar' : 'Reproduzir',
-                icon: Icon(
-                  controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
-                  color: Colors.white,
-                ),
-                onPressed: onPlayPause,
-              ),
-              Row(
-                children: [
-                  ValueListenableBuilder(
-                    valueListenable: controller,
-                    builder: (context, VideoPlayerValue value, child) {
-                      return Text(
-                        "${_formatDuration(value.position)} / ${_formatDuration(value.duration)}",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      );
-                    },
-                  ),
-                  IconButton(
-                    tooltip: isFullscreen
-                        ? 'Sair da tela cheia'
-                        : 'Entrar em tela cheia',
-                    onPressed: onFullscreen,
-                    icon: Icon(
-                      isFullscreen
-                          ? Icons.fullscreen_exit_rounded
-                          : Icons.fullscreen_rounded,
-                    ),
-                    color: Colors.white,
-                  ),
+    return RepaintBoundary(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(LawrenceRadii.control),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: const Color(0xB8141A22),
+                borderRadius: BorderRadius.circular(LawrenceRadii.control),
+                border: Border.all(color: Colors.white.withValues(alpha: .24)),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x55000000), blurRadius: 24),
                 ],
               ),
-            ],
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 8, 6),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    VideoProgressIndicator(
+                      controller,
+                      allowScrubbing: true,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      colors: const VideoProgressColors(
+                        playedColor: LawrenceColors.actionOnDark,
+                        bufferedColor: Colors.white38,
+                        backgroundColor: Colors.white24,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          tooltip: controller.value.isPlaying
+                              ? 'Pausar (Espaço)'
+                              : 'Reproduzir (Espaço)',
+                          icon: Icon(
+                            controller.value.isPlaying
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                          ),
+                          color: Colors.white,
+                          onPressed: onPlayPause,
+                        ),
+                        IconButton(
+                          tooltip: controller.value.volume == 0
+                              ? 'Ativar som'
+                              : 'Silenciar',
+                          onPressed: () => controller.setVolume(
+                            controller.value.volume == 0 ? 1 : 0,
+                          ),
+                          icon: Icon(
+                            controller.value.volume == 0
+                                ? Icons.volume_off_rounded
+                                : Icons.volume_up_rounded,
+                          ),
+                          color: Colors.white,
+                        ),
+                        ValueListenableBuilder(
+                          valueListenable: controller,
+                          builder: (context, VideoPlayerValue value, child) {
+                            return Text(
+                              '${_formatDuration(value.position)} / ${_formatDuration(value.duration)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            );
+                          },
+                        ),
+                        const Spacer(),
+                        PopupMenuButton<double>(
+                          tooltip: 'Velocidade de reprodução',
+                          initialValue: controller.value.playbackSpeed,
+                          onSelected: controller.setPlaybackSpeed,
+                          color: const Color(0xEE18202A),
+                          iconColor: Colors.white,
+                          itemBuilder: (context) => [
+                            for (final speed in const <double>[
+                              .5,
+                              .75,
+                              1,
+                              1.25,
+                              1.5,
+                              1.75,
+                              2,
+                            ])
+                              PopupMenuItem(
+                                value: speed,
+                                child: Text(
+                                  '$speed×',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ),
+                          ],
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              minWidth: 48,
+                              minHeight: 48,
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${controller.value.playbackSpeed}×',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: isFullscreen
+                              ? 'Sair da tela cheia'
+                              : 'Entrar em tela cheia',
+                          onPressed: onFullscreen,
+                          icon: Icon(
+                            isFullscreen
+                                ? Icons.fullscreen_exit_rounded
+                                : Icons.fullscreen_rounded,
+                          ),
+                          color: Colors.white,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -257,30 +335,62 @@ class _PlayerMessage extends StatelessWidget {
       liveRegion: true,
       label: '$title. $message',
       child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(LawrenceSpacing.lg),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: tone, size: 48),
-              const SizedBox(height: LawrenceSpacing.md),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430),
+          child: Container(
+            margin: const EdgeInsets.all(LawrenceSpacing.lg),
+            padding: const EdgeInsets.all(LawrenceSpacing.xl),
+            decoration: BoxDecoration(
+              color: LawrenceColors.brandNavy.withValues(alpha: .72),
+              border: Border.all(color: Colors.white.withValues(alpha: .14)),
+              boxShadow: const [
+                BoxShadow(color: Color(0x66000000), blurRadius: 32),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: tone.withValues(alpha: .14),
+                    border: Border.all(color: tone.withValues(alpha: .7)),
+                  ),
+                  child: Icon(icon, color: tone, size: 28),
                 ),
-              ),
-              const SizedBox(height: LawrenceSpacing.xs),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white70),
-              ),
-              const SizedBox(height: LawrenceSpacing.md),
-              FilledButton(onPressed: onAction, child: Text(actionLabel)),
-            ],
+                const SizedBox(height: LawrenceSpacing.md),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'Georgia',
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: LawrenceSpacing.xs),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70, height: 1.45),
+                ),
+                const SizedBox(height: LawrenceSpacing.xs),
+                const Text(
+                  'Seu progresso foi preservado.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: LawrenceColors.darkTextPrimary),
+                ),
+                const SizedBox(height: LawrenceSpacing.lg),
+                CouturePrimaryButton(
+                  label: actionLabel,
+                  icon: Icons.refresh_rounded,
+                  onPressed: onAction,
+                ),
+              ],
+            ),
           ),
         ),
       ),

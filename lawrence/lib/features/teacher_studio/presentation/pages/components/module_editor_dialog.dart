@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../../design_system/tokens/lawrence_theme.dart';
+import '../../widgets/studio_cinematic_background.dart';
 
 class ModuleEditorDialog extends StatefulWidget {
   final String? initialTitle;
@@ -22,67 +22,32 @@ class ModuleEditorDialog extends StatefulWidget {
     String? description,
     String? status,
   }) {
-    final isMobile = MediaQuery.of(context).size.width < 600;
-
-    if (isMobile) {
-      return showModalBottomSheet<Map<String, dynamic>>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (c) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: LawrenceColors.canvas,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 10,
-                  offset: Offset(0, -2),
-                ),
-              ],
+    return showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierColor: Colors.transparent,
+      barrierDismissible: false,
+      builder: (c) => StudioModalBackdrop(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              24,
+              16,
+              24 + MediaQuery.viewInsetsOf(c).bottom,
             ),
-            padding: const EdgeInsets.all(24),
-            child: ModuleEditorDialog(
-              initialTitle: title,
-              initialOrder: order,
-              initialDescription: description,
-              initialStatus: status,
+            child: StudioModalPanel(
+              width: 440,
+              child: ModuleEditorDialog(
+                initialTitle: title,
+                initialOrder: order,
+                initialDescription: description,
+                initialStatus: status,
+              ),
             ),
           ),
         ),
-      );
-    } else {
-      return showDialog<Map<String, dynamic>>(
-        context: context,
-        builder: (c) => Dialog(
-          backgroundColor: Colors.transparent,
-          child: Container(
-            width: 400,
-            decoration: BoxDecoration(
-              color: LawrenceColors.canvas,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: LawrenceColors.borderMist),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 16,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.all(32),
-            child: ModuleEditorDialog(
-              initialTitle: title,
-              initialOrder: order,
-              initialDescription: description,
-              initialStatus: status,
-            ),
-          ),
-        ),
-      );
-    }
+      ),
+    );
   }
 
   @override
@@ -101,7 +66,7 @@ class _ModuleEditorDialogState extends State<ModuleEditorDialog> {
     super.initState();
     _titleController = TextEditingController(text: widget.initialTitle ?? '');
     _orderController = TextEditingController(
-      text: widget.initialOrder?.toString() ?? '0',
+      text: ((widget.initialOrder ?? 0) + 1).toString(),
     );
     _descriptionController = TextEditingController(
       text: widget.initialDescription ?? '',
@@ -121,7 +86,7 @@ class _ModuleEditorDialogState extends State<ModuleEditorDialog> {
     if (_formKey.currentState!.validate()) {
       Navigator.of(context).pop({
         'title': _titleController.text.trim(),
-        'order_index': int.tryParse(_orderController.text) ?? 0,
+        'order_index': (int.tryParse(_orderController.text) ?? 1) - 1,
         'description': _descriptionController.text.trim(),
         'status': _status,
       });
@@ -130,106 +95,151 @@ class _ModuleEditorDialogState extends State<ModuleEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: _formKey,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.initialTitle == null ? "Novo Módulo" : "Editar Módulo",
-            style: const TextStyle(
-              fontSize: 20,
-              color: LawrenceColors.textPrimary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 24),
-          TextFormField(
-            controller: _titleController,
-            style: const TextStyle(color: LawrenceColors.textPrimary),
-            decoration: const InputDecoration(
-              labelText: "Título do Módulo",
-              labelStyle: TextStyle(color: LawrenceColors.textSecondary),
-              border: OutlineInputBorder(),
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: LawrenceColors.primary, width: 2),
-              ),
-            ),
-            validator: (v) =>
-                v == null || v.trim().isEmpty ? "Título é obrigatório" : null,
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _descriptionController,
-            maxLines: 3,
-            maxLength: 1000,
-            style: const TextStyle(color: LawrenceColors.textPrimary),
-            decoration: const InputDecoration(
-              labelText: 'Descrição do módulo',
-              labelStyle: TextStyle(color: LawrenceColors.textSecondary),
-              hintText:
-                  'Ex.: Fundamentos, ferramentas e preparação para os primeiros moldes.',
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _orderController,
-            style: const TextStyle(color: LawrenceColors.textPrimary),
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: "Ordem (Ex: 0, 1, 2)",
-              labelStyle: TextStyle(color: LawrenceColors.textSecondary),
-              border: OutlineInputBorder(),
-            ),
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) return "Ordem é obrigatória";
-              if (int.tryParse(v) == null) return "Deve ser numérico";
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            initialValue: _status,
-            decoration: const InputDecoration(
-              labelText: 'Estado do módulo',
-              labelStyle: TextStyle(color: LawrenceColors.textSecondary),
-            ),
-            items: const [
-              DropdownMenuItem(value: 'draft', child: Text('Em construção')),
-              DropdownMenuItem(
-                value: 'ready',
-                child: Text('Pronto para revisão'),
-              ),
-            ],
-            onChanged: (value) => _status = value ?? 'draft',
-          ),
-          const SizedBox(height: 32),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+    return Theme(
+      data: _modalTheme(context),
+      child: Material(
+        color: Colors.transparent,
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text(
-                  "Cancelar",
-                  style: TextStyle(color: LawrenceColors.textSecondary),
+              Text(
+                widget.initialTitle == null ? "Novo Módulo" : "Editar Módulo",
+                style: const TextStyle(
+                  fontSize: 20,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(width: 16),
-              ElevatedButton(
-                onPressed: _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: LawrenceColors.primary,
-                  foregroundColor: Colors.white,
+              const SizedBox(height: 24),
+              TextFormField(
+                controller: _titleController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: "Título do Módulo",
+                  labelStyle: TextStyle(color: Color(0xFFB8C1DD)),
+                  border: OutlineInputBorder(),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFFA63B5E), width: 2),
+                  ),
                 ),
-                child: Text(
-                  widget.initialTitle == null ? "Criar" : "Salvar",
-                  style: const TextStyle(color: Colors.white),
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? "Título é obrigatório"
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _descriptionController,
+                maxLines: 3,
+                maxLength: 1000,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Descrição do módulo',
+                  labelStyle: TextStyle(color: Color(0xFFB8C1DD)),
+                  hintText:
+                      'Ex.: Fundamentos, ferramentas e preparação para os primeiros moldes.',
                 ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _orderController,
+                style: const TextStyle(color: Colors.white),
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: "Ordem (começa em 1)",
+                  labelStyle: TextStyle(color: Color(0xFFB8C1DD)),
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return "Ordem é obrigatória";
+                  }
+                  if (int.tryParse(v) == null) return "Deve ser numérico";
+                  if (int.parse(v) < 1) return "A ordem deve começar em 1";
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: _status,
+                decoration: const InputDecoration(
+                  labelText: 'Estado do módulo',
+                  labelStyle: TextStyle(color: Color(0xFFB8C1DD)),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'draft',
+                    child: Text('Em construção'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'ready',
+                    child: Text('Pronto para revisão'),
+                  ),
+                ],
+                onChanged: (value) => _status = value ?? 'draft',
+              ),
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text(
+                      "Cancelar",
+                      style: TextStyle(color: Color(0xFFB8C1DD)),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  FilledButton(
+                    onPressed: _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6B1328),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text(
+                      widget.initialTitle == null ? "Criar" : "Salvar",
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  ThemeData _modalTheme(BuildContext context) {
+    final base = Theme.of(context);
+    return base.copyWith(
+      brightness: Brightness.dark,
+      colorScheme: base.colorScheme.copyWith(
+        brightness: Brightness.dark,
+        primary: const Color(0xFFA63B5E),
+        surface: const Color(0xFF2C111B),
+        onSurface: Colors.white,
+      ),
+      textTheme: base.textTheme.apply(
+        bodyColor: Colors.white,
+        displayColor: Colors.white,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xB20A1022),
+        labelStyle: const TextStyle(color: Color(0xFFB8C1DD)),
+        hintStyle: const TextStyle(color: Color(0xFF7885A5)),
+        counterStyle: const TextStyle(color: Color(0xFF8F9AB7)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0x406B4A55)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0xFFA63B5E), width: 2),
+        ),
       ),
     );
   }

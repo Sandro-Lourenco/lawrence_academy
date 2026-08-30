@@ -1,95 +1,81 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../../design_system/tokens/lawrence_theme.dart';
+import '../../../../design_system/widgets/state_widgets.dart';
+import '../../../../design_system/widgets/student_page_scaffold.dart';
 import '../providers/certificate_providers.dart';
 import '../widgets/certificate_card.dart';
-import '../../../../design_system/widgets/state_widgets.dart';
-import '../../../../design_system/tokens/lawrence_theme.dart';
 
 class CertificatesPage extends ConsumerWidget {
   const CertificatesPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final certificatesAsyncValue = ref.watch(certificatesListProvider);
+    final certificates = ref.watch(certificatesListProvider);
+    Future<void> refresh() async => ref.invalidate(certificatesListProvider);
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
+    return StudentPageScaffold(
+      title: 'Certificados',
+      subtitle: 'Documentos verificáveis das formações que você concluiu.',
+      maxContentWidth: 980,
+      onRefresh: refresh,
+      body: certificates.when(
+        loading: () => const Column(
+          children: [
+            AppSkeletonState(width: double.infinity, height: 132),
+            SizedBox(height: LawrenceSpacing.md),
+            AppSkeletonState(width: double.infinity, height: 132),
+          ],
         ),
-        slivers: [
-          SliverAppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            floating: true,
-            title: Text(
-              'Meus Certificados',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: LawrenceTheme.surfaceTile1,
-                fontFamily: 'Outfit',
-              ),
-            ),
-          ),
-          certificatesAsyncValue.when(
-            data: (certificates) {
-              if (certificates.isEmpty) {
-                return SliverFillRemaining(
-                  child: AppEmptyState(
-                    title: 'Nenhum certificado ainda',
-                    description:
-                        'Conclua seus cursos para conquistar e exibir seus certificados aqui.',
-                    icon: Icons.workspace_premium_outlined,
-                    actionLabel: 'Explorar Cursos',
-                    onActionPressed: () {
-                      context.go('/courses');
-                    },
+        error: (_, _) => AppErrorState(
+          title: 'Não foi possível carregar',
+          message: 'Tente novamente para consultar seus certificados.',
+          onRetry: refresh,
+        ),
+        data: (items) {
+          if (items.isEmpty) {
+            return AppEmptyState(
+              title: 'Sua coleção começa com uma conclusão',
+              description:
+                  'Ao concluir uma formação, o certificado verificável aparece aqui.',
+              icon: Icons.workspace_premium_outlined,
+              actionLabel: 'Ver meus cursos',
+              onActionPressed: () => context.go('/dashboard/courses'),
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Semantics(
+                header: true,
+                child: Text(
+                  '${items.length} ${items.length == 1 ? 'curso concluído' : 'cursos concluídos'}',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: LawrenceColors.textPrimary,
                   ),
-                );
-              }
-              return SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final cert = certificates[index];
-                    return CertificateCard(
-                      certificate: cert,
-                      onView: () {
-                        context.push(
-                          '/dashboard/certificates/${cert.id}',
-                          extra: cert,
-                        );
-                      },
-                    );
-                  }, childCount: certificates.length),
-                ),
-              );
-            },
-            loading: () => const SliverFillRemaining(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0),
-                child: AppSkeletonState(
-                  width: double.infinity,
-                  height: 100,
-                  borderRadius: 16,
                 ),
               ),
-            ),
-            error: (err, stack) => SliverFillRemaining(
-              child: AppErrorState(
-                title: 'Erro ao carregar',
-                message: 'Não foi possível carregar seus certificados.',
-                onRetry: () => ref.refresh(certificatesListProvider),
+              const SizedBox(height: LawrenceSpacing.xs),
+              const Text(
+                'Cada formação abaixo possui um certificado nominal e um código público de validação.',
+                style: TextStyle(color: LawrenceColors.textSecondary),
               ),
-            ),
-          ),
-        ],
+              const SizedBox(height: LawrenceSpacing.lg),
+              for (final certificate in items) ...[
+                CertificateCard(
+                  certificate: certificate,
+                  onView: () => context.push(
+                    '/dashboard/certificates/${certificate.id}',
+                    extra: certificate,
+                  ),
+                ),
+                const SizedBox(height: LawrenceSpacing.md),
+              ],
+            ],
+          );
+        },
       ),
     );
   }

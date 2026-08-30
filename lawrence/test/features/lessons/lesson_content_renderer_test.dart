@@ -9,28 +9,30 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          body: LessonContentRenderer(
-            isPreview: true,
-            blocks: [
-              LessonContentBlock(
-                id: 'activity',
-                type: 'activity',
-                orderIndex: 2,
-                content: {
-                  'question': 'Qual medida vem primeiro?',
-                  'items': ['Cintura', 'Quadril'],
-                },
-              ),
-              LessonContentBlock(
-                id: 'learn-more',
-                type: 'learn_more',
-                orderIndex: 1,
-                content: {
-                  'title': 'Saiba mais sobre folgas',
-                  'text': 'A folga varia conforme o tecido.',
-                },
-              ),
-            ],
+          body: SingleChildScrollView(
+            child: LessonContentRenderer(
+              isPreview: true,
+              blocks: [
+                LessonContentBlock(
+                  id: 'activity',
+                  type: 'activity',
+                  orderIndex: 2,
+                  content: {
+                    'question': 'Qual medida vem primeiro?',
+                    'items': ['Cintura', 'Quadril'],
+                  },
+                ),
+                LessonContentBlock(
+                  id: 'learn-more',
+                  type: 'learn_more',
+                  orderIndex: 1,
+                  content: {
+                    'title': 'Saiba mais sobre folgas',
+                    'text': 'A folga varia conforme o tecido.',
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),

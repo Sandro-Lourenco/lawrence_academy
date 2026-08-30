@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseAuthDataSource {
@@ -16,12 +17,34 @@ class SupabaseAuthDataSource {
     return _client.auth.signInWithPassword(email: email, password: password);
   }
 
+  Future<bool> signInWithGoogle() {
+    final String redirectTo = kIsWeb
+        ? '${Uri.base.origin}/login-callback'
+        : 'lawrence://login-callback';
+    return _client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: redirectTo,
+      // On Android the external browser is required so the OAuth callback can
+      // be handed back to the app through the registered deep link.
+      authScreenLaunchMode: kIsWeb
+          ? LaunchMode.platformDefault
+          : LaunchMode.externalApplication,
+    );
+  }
+
   Future<AuthResponse> signUp({
     required String email,
     required String password,
     required Map<String, dynamic> data,
   }) {
-    return _client.auth.signUp(email: email, password: password, data: data);
+    return _client.auth.signUp(
+      email: email,
+      password: password,
+      data: data,
+      emailRedirectTo: kIsWeb
+          ? '${Uri.base.origin}/login-callback'
+          : 'lawrence://login-callback',
+    );
   }
 
   Future<void> signOut() {
@@ -29,6 +52,15 @@ class SupabaseAuthDataSource {
   }
 
   Future<void> resetPassword({required String email}) {
-    return _client.auth.resetPasswordForEmail(email);
+    return _client.auth.resetPasswordForEmail(
+      email,
+      redirectTo: kIsWeb
+          ? '${Uri.base.origin}/reset-password'
+          : 'lawrence://login-callback?redirect=/reset-password',
+    );
+  }
+
+  Future<UserResponse> updatePassword({required String password}) {
+    return _client.auth.updateUser(UserAttributes(password: password));
   }
 }

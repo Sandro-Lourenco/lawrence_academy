@@ -46,7 +46,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Entrar na Plataforma'), findsOneWidget);
+    expect(find.text('ENTRAR NO ATELIÊ'), findsOneWidget);
     expect(find.text('Catálogo de Cursos'), findsNothing);
   });
 }

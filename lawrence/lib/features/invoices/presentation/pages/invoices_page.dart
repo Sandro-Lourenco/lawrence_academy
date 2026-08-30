@@ -5,6 +5,7 @@ import '../../../../design_system/tokens/lawrence_theme.dart';
 import '../controllers/invoices_controller.dart';
 import 'package:intl/intl.dart';
 import '../../../../design_system/widgets/state_widgets.dart';
+import '../../../../design_system/widgets/student_page_scaffold.dart';
 import '../../../../core/error/global_error_handler.dart';
 
 class InvoicesPage extends ConsumerWidget {
@@ -14,40 +15,28 @@ class InvoicesPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final invoicesState = ref.watch(invoicesControllerProvider);
 
-    return Scaffold(
-      backgroundColor: LawrenceColors.canvasParchment,
-      appBar: AppBar(
-        title: const Text(
-          'Faturas e Recibos',
-          style: TextStyle(fontWeight: FontWeight.bold),
+    return StudentPageScaffold(
+      title: 'Faturas e recibos',
+      subtitle: 'Seu histórico financeiro, organizado e transparente.',
+      actions: [
+        IconButton(
+          tooltip: 'Atualizar faturas',
+          icon: const Icon(Icons.refresh),
+          onPressed: () =>
+              ref.read(invoicesControllerProvider.notifier).refresh(),
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        foregroundColor: LawrenceColors.textPrimary,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () =>
-                ref.read(invoicesControllerProvider.notifier).refresh(),
-          ),
-        ],
-      ),
+      ],
+      onRefresh: () => ref.read(invoicesControllerProvider.notifier).refresh(),
       body: invoicesState.when(
         data: (invoices) {
           if (invoices.isEmpty) {
             return _buildEmptyState();
           }
-          return RefreshIndicator(
-            onRefresh: () =>
-                ref.read(invoicesControllerProvider.notifier).refresh(),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16.0),
-              itemCount: invoices.length,
-              itemBuilder: (context, index) {
-                final invoice = invoices[index];
-                return _buildInvoiceCard(invoice, context);
-              },
-            ),
+          return Column(
+            children: [
+              for (final invoice in invoices)
+                _buildInvoiceCard(invoice, context),
+            ],
           );
         },
         loading: () => const AppLoadingState(message: 'Carregando faturas...'),
@@ -74,7 +63,7 @@ class InvoicesPage extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(LawrenceTheme.radiusMd),
         border: Border.all(color: LawrenceColors.borderMist),
       ),
@@ -95,20 +84,25 @@ class InvoicesPage extends ConsumerWidget {
         ),
         title: Text(
           'Fatura de $dateStr',
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: LawrenceColors.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4.0),
           child: Text(
             '${invoice.currency} ${invoice.amountPaid.toStringAsFixed(2)}',
-            style: const TextStyle(color: LawrenceColors.textSecondary),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
         trailing: IconButton(
-          icon: const Icon(Icons.download, color: LawrenceColors.primary),
+          icon: Icon(
+            Icons.download_outlined,
+            color: Theme.of(context).colorScheme.primary,
+          ),
           onPressed: () async {
             final url = invoice.invoicePdf ?? invoice.hostedInvoiceUrl;
             if (url != null && url.isNotEmpty) {

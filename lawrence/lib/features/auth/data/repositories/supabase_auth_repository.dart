@@ -25,6 +25,9 @@ class SupabaseAuthRepository implements IAuthRepository {
   }
 
   @override
+  Future<bool> signInWithGoogle() => _dataSource.signInWithGoogle();
+
+  @override
   Future<sb.AuthResponse> signUp({
     required String email,
     required String password,
@@ -46,5 +49,10 @@ class SupabaseAuthRepository implements IAuthRepository {
   @override
   Future<void> resetPassword({required String email}) {
     return _dataSource.resetPassword(email: email);
+  }
+
+  @override
+  Future<void> updatePassword({required String password}) async {
+    await _dataSource.updatePassword(password: password);
   }
 }

@@ -1,178 +1,309 @@
+import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../domain/entities/certificate.dart';
-import '../../../../design_system/tokens/lawrence_theme.dart';
-import '../../../../shared/widgets/liquid_glass_card.dart';
+import 'package:share_plus/share_plus.dart';
 
-class CertificateDetailPage extends StatelessWidget {
+import '../../../../app/providers/service_repositories.dart';
+import '../../../../design_system/tokens/lawrence_theme.dart';
+import '../../domain/entities/certificate.dart';
+import '../widgets/lawrence_certificate_preview.dart';
+
+class CertificateDetailPage extends ConsumerStatefulWidget {
+  const CertificateDetailPage({super.key, required this.certificate});
+
   final Certificate certificate;
 
-  const CertificateDetailPage({super.key, required this.certificate});
+  @override
+  ConsumerState<CertificateDetailPage> createState() =>
+      _CertificateDetailPageState();
+}
+
+class _CertificateDetailPageState extends ConsumerState<CertificateDetailPage> {
+  bool _downloading = false;
+
+  Certificate get certificate => widget.certificate;
+
+  Uri get _verificationUri => ref
+      .read(certificateRepositoryProvider)
+      .verificationUri(certificate.validationCode);
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final courseName =
-        certificate.metadata['course_name'] ?? 'Curso ${certificate.courseId}';
-    final issueDate = certificate.issuedAt.toLocal().toString().split('.')[0];
-
     return Scaffold(
-      backgroundColor: LawrenceTheme.canvasParchment, // Fundo base
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverAppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(
-                Icons.arrow_back_ios,
-                color: LawrenceTheme.surfaceTile1,
-                size: 20,
-              ),
-              onPressed: () => context.pop(),
-            ),
-            title: Text(
-              'Detalhes do Certificado',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: LawrenceTheme.surfaceTile1,
-                fontFamily: 'Outfit',
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 24.0,
-              ),
-              child: Column(
+      backgroundColor: LawrenceColors.canvas,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final desktop = constraints.maxWidth >= 980;
+            final preview = _CertificatePanel(
+              certificate: certificate,
+              verificationUri: _verificationUri,
+              onBack: () => context.pop(),
+            );
+            final actions = _CertificateActions(
+              certificate: certificate,
+              downloading: _downloading,
+              onDownload: _downloadPdf,
+              onShare: _shareAchievement,
+              onCopy: _copyVerificationLink,
+              onCourse: () =>
+                  context.go('/dashboard/courses/${certificate.courseId}'),
+            );
+            if (desktop) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  LiquidGlassCard(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.verified,
-                          size: 72,
-                          color: LawrenceTheme.success,
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Certificado de Conclusão',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: LawrenceTheme.primary,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
-                            fontFamily: 'Outfit',
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          courseName,
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: LawrenceTheme.surfaceTile1,
-                            fontFamily: 'Outfit',
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 32),
-                        const Divider(color: LawrenceTheme.borderMist),
-                        const SizedBox(height: 24),
-                        _buildInfoRow(context, 'Emitido em', issueDate),
-                        const SizedBox(height: 16),
-                        _buildInfoRow(
-                          context,
-                          'Código de Validação',
-                          certificate.validationCode,
-                          isCode: true,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: null,
-                          icon: const Icon(Icons.download_rounded),
-                          label: const Text('PDF em breve'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: LawrenceTheme.primary,
-                            side: const BorderSide(
-                              color: LawrenceTheme.primary,
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: null,
-                          icon: const Icon(Icons.share_rounded),
-                          label: const Text('Compartilhar em breve'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: LawrenceTheme.primary,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  Expanded(flex: 7, child: preview),
+                  Expanded(flex: 3, child: actions),
                 ],
-              ),
-            ),
-          ),
-        ],
+              );
+            }
+            return CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(child: preview),
+                SliverToBoxAdapter(child: actions),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildInfoRow(
-    BuildContext context,
-    String label,
-    String value, {
-    bool isCode = false,
-  }) {
-    final theme = Theme.of(context);
-    return Column(
-      children: [
-        Text(
-          label.toUpperCase(),
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: LawrenceTheme.textSecondary,
-            letterSpacing: 1.5,
-            fontWeight: FontWeight.w700,
-            fontFamily: 'Outfit',
-          ),
+  Future<void> _downloadPdf() async {
+    if (_downloading || certificate.isRevoked) return;
+    setState(() => _downloading = true);
+    try {
+      final bytes = await ref
+          .read(certificateRepositoryProvider)
+          .downloadCertificatePdf(certificate.id);
+      if (bytes.isEmpty) throw StateError('O arquivo retornado está vazio.');
+      await FileSaver.instance.saveFile(
+        name: 'certificado-${certificate.validationCode.toLowerCase()}',
+        bytes: bytes,
+        fileExtension: 'pdf',
+        mimeType: MimeType.pdf,
+      );
+      if (mounted) _showMessage('Certificado salvo com sucesso.');
+    } catch (_) {
+      if (mounted) {
+        _showMessage(
+          'Não foi possível baixar o certificado. Tente novamente.',
+          error: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  Future<void> _shareAchievement(BuildContext buttonContext) async {
+    final box = buttonContext.findRenderObject() as RenderBox?;
+    await SharePlus.instance.share(
+      ShareParams(
+        title: 'Certificado Lawrence Academy',
+        subject: 'Minha conclusão na Lawrence Academy',
+        text:
+            'Concluí o curso ${certificate.courseName} na Lawrence Academy. '
+            'Valide o certificado: $_verificationUri',
+        sharePositionOrigin: box == null
+            ? null
+            : box.localToGlobal(Offset.zero) & box.size,
+      ),
+    );
+  }
+
+  Future<void> _copyVerificationLink() async {
+    await Clipboard.setData(ClipboardData(text: _verificationUri.toString()));
+    if (mounted) _showMessage('Link de validação copiado.');
+  }
+
+  void _showMessage(String message, {bool error = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: error ? LawrenceColors.danger : LawrenceColors.primary,
+      ),
+    );
+  }
+}
+
+class _CertificatePanel extends StatelessWidget {
+  const _CertificatePanel({
+    required this.certificate,
+    required this.verificationUri,
+    required this.onBack,
+  });
+
+  final Certificate certificate;
+  final Uri verificationUri;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final desktop = MediaQuery.sizeOf(context).width >= 980;
+    return ColoredBox(
+      color: const Color(0xFFE9E4DC),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          desktop ? 42 : 18,
+          20,
+          desktop ? 42 : 18,
+          desktop ? 36 : 28,
         ),
-        const SizedBox(height: 8),
-        SelectableText(
-          value,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: isCode ? FontWeight.bold : FontWeight.w600,
-            color: LawrenceTheme.surfaceTile1,
-            letterSpacing: isCode ? 2.0 : 0,
-            fontFamily: isCode ? 'Courier' : 'Outfit',
-          ),
-          textAlign: TextAlign.center,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            OutlinedButton.icon(
+              onPressed: onBack,
+              icon: const Icon(Icons.arrow_back_rounded, size: 18),
+              label: const Text('Voltar aos certificados'),
+            ),
+            SizedBox(height: desktop ? 34 : 24),
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 880),
+                child: LawrenceCertificatePreview(
+                  certificate: certificate,
+                  userName: certificate.studentName,
+                  verificationUri: verificationUri,
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
+    );
+  }
+}
+
+class _CertificateActions extends StatelessWidget {
+  const _CertificateActions({
+    required this.certificate,
+    required this.downloading,
+    required this.onDownload,
+    required this.onShare,
+    required this.onCopy,
+    required this.onCourse,
+  });
+
+  final Certificate certificate;
+  final bool downloading;
+  final VoidCallback onDownload;
+  final Future<void> Function(BuildContext context) onShare;
+  final VoidCallback onCopy;
+  final VoidCallback onCourse;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: LawrenceColors.surfaceBlack,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'CONQUISTA VERIFICÁVEL',
+              style: TextStyle(
+                color: LawrenceColors.goldHighlight,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.8,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              certificate.courseName,
+              style: const TextStyle(
+                color: LawrenceColors.canvas,
+                fontFamily: 'Georgia',
+                fontSize: 32,
+                height: 1.12,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              certificate.isRevoked
+                  ? 'Este certificado foi revogado e não pode ser compartilhado ou baixado.'
+                  : 'O PDF contém os dados oficiais da conclusão, código único e QR Code para validação pública.',
+              style: const TextStyle(
+                color: LawrenceColors.canvasParchment,
+                fontSize: 15,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 30),
+            FilledButton.icon(
+              onPressed: certificate.isRevoked || downloading
+                  ? null
+                  : onDownload,
+              icon: downloading
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.download_rounded),
+              label: Text(
+                downloading ? 'GERANDO PDF...' : 'BAIXAR CERTIFICADO EM PDF',
+              ),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(54),
+                backgroundColor: LawrenceColors.goldMid,
+                foregroundColor: LawrenceColors.onGold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Builder(
+              builder: (buttonContext) => OutlinedButton.icon(
+                onPressed: certificate.isRevoked
+                    ? null
+                    : () => onShare(buttonContext),
+                icon: const Icon(Icons.ios_share_rounded),
+                label: const Text('COMPARTILHAR CONQUISTA'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  foregroundColor: LawrenceColors.canvas,
+                  side: const BorderSide(color: LawrenceColors.canvasParchment),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: certificate.isRevoked ? null : onCopy,
+              icon: const Icon(Icons.link_rounded),
+              label: const Text('COPIAR LINK DE VALIDAÇÃO'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                foregroundColor: LawrenceColors.canvas,
+                side: const BorderSide(color: LawrenceColors.canvasParchment),
+              ),
+            ),
+            const SizedBox(height: 22),
+            Text(
+              'Código ${certificate.validationCode}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: LawrenceColors.canvasParchment,
+                fontSize: 12,
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: onCourse,
+              icon: const Icon(Icons.menu_book_outlined),
+              label: const Text('Revisitar o curso'),
+              style: TextButton.styleFrom(
+                foregroundColor: LawrenceColors.goldHighlight,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

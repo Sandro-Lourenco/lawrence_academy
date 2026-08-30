@@ -7,6 +7,7 @@ import '../../../../../design_system/tokens/lawrence_theme.dart';
 import '../../../../courses/domain/entities/course.dart';
 import '../../../domain/entities/upload_file_payload.dart';
 import '../../controllers/course_wizard_controller.dart';
+import '../../widgets/studio_cinematic_background.dart';
 
 final _lessonBlocksProvider = FutureProvider.autoDispose
     .family<List<LessonBlock>, String>(
@@ -40,7 +41,10 @@ class LessonBlocksEditorDialog extends ConsumerWidget {
       ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
     return Dialog.fullscreen(
       child: Scaffold(
+        backgroundColor: const Color(0xFF070B18),
         appBar: AppBar(
+          backgroundColor: const Color(0xF20A1022),
+          foregroundColor: Colors.white,
           title: Text(
             lesson == null ? 'Conteúdo da aula' : 'Conteúdo • ${lesson.title}',
           ),
@@ -63,57 +67,85 @@ class LessonBlocksEditorDialog extends ConsumerWidget {
             ),
           ],
         ),
-        body: SafeArea(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900),
-            child: ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                const Text(
-                  'Construa a sequência com blocos seguros e consistentes. HTML livre não é permitido.',
-                  style: TextStyle(color: LawrenceColors.textSecondary),
+        body: DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF071022), Color(0xFF172153), Color(0xFF120D2D)],
+            ),
+          ),
+          child: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 900),
+                child: ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    const Text(
+                      'Construa a sequência com blocos seguros e consistentes. HTML livre não é permitido.',
+                      style: TextStyle(color: Color(0xFFB8C1DD)),
+                    ),
+                    const SizedBox(height: 20),
+                    if (blocksState.isLoading)
+                      const Center(child: CircularProgressIndicator()),
+                    if (blocksState.hasError)
+                      _BlocksError(
+                        onRetry: () =>
+                            ref.invalidate(_lessonBlocksProvider(lessonId)),
+                      ),
+                    if (!blocksState.isLoading &&
+                        !blocksState.hasError &&
+                        blocks.isEmpty)
+                      const _EmptyBlocks(),
+                    for (var index = 0; index < blocks.length; index++)
+                      _BlockCard(
+                        block: blocks[index],
+                        index: index,
+                        onEdit: () => _openEditor(
+                          context,
+                          ref,
+                          blocks[index],
+                          blocks.length,
+                        ),
+                        onDuplicate: () async {
+                          if (blocks[index].blockType == 'activity') {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Crie uma nova atividade para gerar uma validação e tentativas independentes.',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+                          await ref
+                              .read(courseWizardControllerProvider.notifier)
+                              .duplicateLessonBlock(lessonId, blocks[index].id);
+                          ref.invalidate(_lessonBlocksProvider(lessonId));
+                        },
+                        onDelete: () => _delete(context, ref, blocks[index]),
+                        onMoveUp: index == 0
+                            ? null
+                            : () =>
+                                  _swap(ref, blocks[index], blocks[index - 1]),
+                        onMoveDown: index == blocks.length - 1
+                            ? null
+                            : () =>
+                                  _swap(ref, blocks[index], blocks[index + 1]),
+                      ),
+                    const SizedBox(height: 20),
+                    FilledButton.icon(
+                      onPressed: lesson == null
+                          ? null
+                          : () =>
+                                _openEditor(context, ref, null, blocks.length),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Adicionar bloco'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 20),
-                if (blocksState.isLoading)
-                  const Center(child: CircularProgressIndicator()),
-                if (blocksState.hasError)
-                  _BlocksError(
-                    onRetry: () =>
-                        ref.invalidate(_lessonBlocksProvider(lessonId)),
-                  ),
-                if (!blocksState.isLoading &&
-                    !blocksState.hasError &&
-                    blocks.isEmpty)
-                  const _EmptyBlocks(),
-                for (var index = 0; index < blocks.length; index++)
-                  _BlockCard(
-                    block: blocks[index],
-                    index: index,
-                    onEdit: () =>
-                        _openEditor(context, ref, blocks[index], blocks.length),
-                    onDuplicate: () async {
-                      await ref
-                          .read(courseWizardControllerProvider.notifier)
-                          .duplicateLessonBlock(lessonId, blocks[index].id);
-                      ref.invalidate(_lessonBlocksProvider(lessonId));
-                    },
-                    onDelete: () => _delete(context, ref, blocks[index]),
-                    onMoveUp: index == 0
-                        ? null
-                        : () => _swap(ref, blocks[index], blocks[index - 1]),
-                    onMoveDown: index == blocks.length - 1
-                        ? null
-                        : () => _swap(ref, blocks[index], blocks[index + 1]),
-                  ),
-                const SizedBox(height: 20),
-                FilledButton.icon(
-                  onPressed: lesson == null
-                      ? null
-                      : () => _openEditor(context, ref, null, blocks.length),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Adicionar bloco'),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -127,18 +159,18 @@ class LessonBlocksEditorDialog extends ConsumerWidget {
     LessonBlock? block,
     int order,
   ) async {
-    final data = await _BlockEditorDialog.show(
+    final saved = await _BlockEditorDialog.show(
       context,
       block: block,
       order: order,
+      onSave: (data) => ref
+          .read(courseWizardControllerProvider.notifier)
+          .saveLessonBlock(lessonId, data, blockId: block?.id),
       onUpload: (file) => ref
           .read(courseWizardControllerProvider.notifier)
           .uploadLessonAsset(lessonId: lessonId, file: file),
     );
-    if (data != null &&
-        await ref
-            .read(courseWizardControllerProvider.notifier)
-            .saveLessonBlock(lessonId, data, blockId: block?.id)) {
+    if (saved == true) {
       ref.invalidate(_lessonBlocksProvider(lessonId));
     }
   }
@@ -194,21 +226,32 @@ class _BlockEditorDialog extends StatefulWidget {
   const _BlockEditorDialog({
     this.block,
     required this.order,
+    required this.onSave,
     required this.onUpload,
   });
   final LessonBlock? block;
   final int order;
+  final Future<bool> Function(Map<String, dynamic> data) onSave;
   final Future<Map<String, String>> Function(UploadFilePayload file) onUpload;
-  static Future<Map<String, dynamic>?> show(
+  static Future<bool?> show(
     BuildContext context, {
     LessonBlock? block,
     required int order,
+    required Future<bool> Function(Map<String, dynamic> data) onSave,
     required Future<Map<String, String>> Function(UploadFilePayload file)
     onUpload,
-  }) => showDialog<Map<String, dynamic>>(
+  }) => showDialog<bool>(
     context: context,
-    builder: (_) =>
-        _BlockEditorDialog(block: block, order: order, onUpload: onUpload),
+    barrierDismissible: false,
+    barrierColor: Colors.transparent,
+    builder: (_) => StudioModalBackdrop(
+      child: _BlockEditorDialog(
+        block: block,
+        order: order,
+        onSave: onSave,
+        onUpload: onUpload,
+      ),
+    ),
   );
   @override
   State<_BlockEditorDialog> createState() => _BlockEditorDialogState();
@@ -223,14 +266,26 @@ class _BlockEditorDialogState extends State<_BlockEditorDialog> {
   late final TextEditingController _url;
   late final TextEditingController _alt;
   late final TextEditingController _items;
+  late final TextEditingController _maxAttempts;
+  late final TextEditingController _passingScore;
+  int? _correctItemIndex;
   String? _storagePath, _filename, _contentType;
   bool _uploading = false;
+  bool _saving = false;
+  String? _saveError;
   @override
   void initState() {
     super.initState();
     final c = widget.block?.content ?? const {};
     _type = widget.block?.blockType ?? 'text';
-    _activityType = c['activity_type']?.toString() ?? 'single_choice';
+    final storedActivityType =
+        c['activity_type']?.toString() ?? 'single_choice';
+    _activityType = switch (storedActivityType) {
+      'short_answer' => 'essay',
+      'multiple_choice' => 'single_choice',
+      'single_choice' || 'true_false' || 'essay' => storedActivityType,
+      _ => 'single_choice',
+    };
     _title = TextEditingController(text: c['title']?.toString() ?? '');
     _text = TextEditingController(
       text: c['text']?.toString() ?? c['question']?.toString() ?? '',
@@ -239,6 +294,13 @@ class _BlockEditorDialogState extends State<_BlockEditorDialog> {
     _alt = TextEditingController(text: c['alt_text']?.toString() ?? '');
     _items = TextEditingController(
       text: (c['items'] as List? ?? const []).join('\n'),
+    );
+    _correctItemIndex = (c['correct_index'] as num?)?.toInt();
+    _maxAttempts = TextEditingController(
+      text: (c['max_attempts'] as num?)?.toInt().toString() ?? '3',
+    );
+    _passingScore = TextEditingController(
+      text: (c['passing_score'] as num?)?.toString() ?? '7',
     );
     _storagePath = c['storage_path']?.toString();
     _filename = c['filename']?.toString();
@@ -252,133 +314,34 @@ class _BlockEditorDialogState extends State<_BlockEditorDialog> {
     _url.dispose();
     _alt.dispose();
     _items.dispose();
+    _maxAttempts.dispose();
+    _passingScore.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.block == null ? 'Adicionar bloco' : 'Editar bloco'),
-    content: SizedBox(
-      width: 620,
-      child: Form(
-        key: _form,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                initialValue: _type,
-                decoration: const InputDecoration(labelText: 'Tipo de bloco'),
-                items: _types.entries
-                    .map(
-                      (e) =>
-                          DropdownMenuItem(value: e.key, child: Text(e.value)),
-                    )
-                    .toList(),
-                onChanged: (v) => setState(() => _type = v ?? 'text'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _title,
-                maxLength: 200,
-                decoration: const InputDecoration(labelText: 'Título'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _text,
-                maxLines: 6,
-                maxLength: 20000,
-                decoration: InputDecoration(
-                  labelText: _type == 'activity' ? 'Enunciado' : 'Texto',
-                  helperText: _type == 'learn_more'
-                      ? 'Use texto, referência e link; a apresentação do aluno será padronizada.'
-                      : null,
-                ),
-                validator: (v) =>
-                    [
-                          'text',
-                          'heading',
-                          'notice',
-                          'tip',
-                          'summary',
-                          'learn_more',
-                          'activity',
-                        ].contains(_type) &&
-                        (v ?? '').trim().isEmpty
-                    ? 'Informe o conteúdo'
-                    : null,
-              ),
-              if ([
-                'image',
-                'pdf',
-                'download',
-                'audio',
-                'video',
-                'learn_more',
-              ].contains(_type)) ...[
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _url,
-                  maxLength: 2000,
-                  decoration: const InputDecoration(
-                    labelText: 'URL segura do arquivo ou referência',
-                  ),
-                  validator: (v) {
-                    if ((v ?? '').isEmpty) return null;
-                    final uri = Uri.tryParse(v!);
-                    return uri == null || !['https'].contains(uri.scheme)
-                        ? 'Use uma URL HTTPS válida'
-                        : null;
-                  },
-                ),
-              ],
-              if (['image', 'gallery', 'learn_more'].contains(_type)) ...[
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _alt,
-                  maxLength: 240,
-                  decoration: const InputDecoration(
-                    labelText: 'Texto alternativo',
-                  ),
-                ),
-              ],
-              if ([
-                'image',
-                'gallery',
-                'pdf',
-                'download',
-                'audio',
-                'material',
-              ].contains(_type)) ...[
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: _uploading ? null : _pickAsset,
-                  icon: _uploading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.upload_file),
-                  label: Text(
-                    _filename == null
-                        ? 'Enviar arquivo privado'
-                        : 'Substituir $_filename',
-                  ),
-                ),
-                const Text(
-                  'JPG, PNG, WebP, PDF, MP3, M4A, WAV, OGG, ZIP ou DOCX • até 100 MB',
-                  style: TextStyle(color: LawrenceColors.textSecondary),
-                ),
-              ],
-              if (_type == 'activity') ...[
-                const SizedBox(height: 12),
+  Widget build(BuildContext context) => Theme(
+    data: studioTheme(context),
+    child: AlertDialog(
+      backgroundColor: const Color(0xE62C111B),
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: BorderSide(color: Colors.white.withValues(alpha: .22)),
+      ),
+      title: Text(widget.block == null ? 'Adicionar bloco' : 'Editar bloco'),
+      content: SizedBox(
+        width: 620,
+        child: Form(
+          key: _form,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 DropdownButtonFormField<String>(
-                  initialValue: _activityType,
-                  decoration: const InputDecoration(
-                    labelText: 'Tipo de atividade',
-                  ),
-                  items: _activityTypes.entries
+                  initialValue: _type,
+                  decoration: const InputDecoration(labelText: 'Tipo de bloco'),
+                  items: _types.entries
                       .map(
                         (e) => DropdownMenuItem(
                           value: e.key,
@@ -386,79 +349,352 @@ class _BlockEditorDialogState extends State<_BlockEditorDialog> {
                         ),
                       )
                       .toList(),
-                  onChanged: (v) =>
-                      setState(() => _activityType = v ?? 'single_choice'),
+                  onChanged: (v) => setState(() => _type = v ?? 'text'),
                 ),
-                if ([
-                  'single_choice',
-                  'multiple_choice',
-                ].contains(_activityType)) ...[
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _items,
-                    maxLines: 5,
-                    decoration: const InputDecoration(
-                      labelText: 'Alternativas',
-                      helperText: 'Uma alternativa por linha',
-                    ),
-                    validator: (v) =>
-                        (v ?? '')
-                                .trim()
-                                .split('\n')
-                                .where((e) => e.trim().isNotEmpty)
-                                .length <
-                            2
-                        ? 'Informe pelo menos duas alternativas'
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _title,
+                  maxLength: 200,
+                  decoration: const InputDecoration(labelText: 'Título'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _text,
+                  maxLines: 6,
+                  maxLength: 20000,
+                  decoration: InputDecoration(
+                    labelText: _type == 'activity' ? 'Enunciado' : 'Texto',
+                    helperText: _type == 'learn_more'
+                        ? 'Use texto, referência e link; a apresentação do aluno será padronizada.'
                         : null,
                   ),
-                ],
-                const SizedBox(height: 8),
-                const Text(
-                  'Pontuação, tentativas, prazo e impacto no certificado aguardam decisão de produto.',
-                  style: TextStyle(color: LawrenceColors.textSecondary),
+                  validator: (v) =>
+                      [
+                            'text',
+                            'heading',
+                            'notice',
+                            'tip',
+                            'summary',
+                            'learn_more',
+                            'activity',
+                          ].contains(_type) &&
+                          (v ?? '').trim().isEmpty
+                      ? 'Informe o conteúdo'
+                      : null,
                 ),
+                if ([
+                  'image',
+                  'pdf',
+                  'download',
+                  'audio',
+                  'video',
+                  'learn_more',
+                ].contains(_type)) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _url,
+                    maxLength: 2000,
+                    decoration: const InputDecoration(
+                      labelText: 'URL segura do arquivo ou referência',
+                    ),
+                    validator: (v) {
+                      if ((v ?? '').isEmpty) return null;
+                      final uri = Uri.tryParse(v!);
+                      return uri == null || !['https'].contains(uri.scheme)
+                          ? 'Use uma URL HTTPS válida'
+                          : null;
+                    },
+                  ),
+                ],
+                if (['image', 'gallery', 'learn_more'].contains(_type)) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _alt,
+                    maxLength: 240,
+                    decoration: const InputDecoration(
+                      labelText: 'Texto alternativo',
+                    ),
+                  ),
+                ],
+                if ([
+                  'image',
+                  'gallery',
+                  'pdf',
+                  'download',
+                  'audio',
+                  'material',
+                ].contains(_type)) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _uploading ? null : _pickAsset,
+                    icon: _uploading
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.upload_file),
+                    label: Text(
+                      _filename == null
+                          ? 'Enviar arquivo privado'
+                          : 'Substituir $_filename',
+                    ),
+                  ),
+                  const Text(
+                    'JPG, PNG, WebP, PDF, MP3, M4A, WAV, OGG, ZIP ou DOCX • até 100 MB',
+                    style: TextStyle(color: LawrenceColors.textSecondary),
+                  ),
+                ],
+                if (_type == 'activity') ...[
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: _activityType,
+                    decoration: const InputDecoration(
+                      labelText: 'Tipo de atividade',
+                    ),
+                    items: _activityTypes.entries
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e.key,
+                            child: Text(e.value),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) =>
+                        setState(() => _activityType = v ?? 'single_choice'),
+                  ),
+                  if (_activityType == 'single_choice') ...[
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _items,
+                      maxLines: 5,
+                      decoration: const InputDecoration(
+                        labelText: 'Alternativas',
+                        helperText: 'Uma alternativa por linha',
+                      ),
+                      validator: (v) =>
+                          (v ?? '')
+                                  .trim()
+                                  .split('\n')
+                                  .where((e) => e.trim().isNotEmpty)
+                                  .length <
+                              2
+                          ? 'Informe pelo menos duas alternativas'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _items,
+                      builder: (context, value, _) => _AlternativesPreview(
+                        items: value.text
+                            .split('\n')
+                            .map((item) => item.trim())
+                            .where((item) => item.isNotEmpty)
+                            .toList(),
+                        multiple: false,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _items,
+                      builder: (context, value, _) {
+                        final alternatives = value.text
+                            .split('\n')
+                            .map((item) => item.trim())
+                            .where((item) => item.isNotEmpty)
+                            .toList();
+                        return DropdownButtonFormField<int>(
+                          value:
+                              _correctItemIndex != null &&
+                                  _correctItemIndex! < alternatives.length
+                              ? _correctItemIndex
+                              : null,
+                          decoration: const InputDecoration(
+                            labelText: 'Alternativa correta',
+                            helperText:
+                                'Obrigatória para validar a resposta do aluno',
+                          ),
+                          items: [
+                            for (
+                              var index = 0;
+                              index < alternatives.length;
+                              index++
+                            )
+                              DropdownMenuItem(
+                                value: index,
+                                child: Text(
+                                  '${String.fromCharCode(65 + index)} — ${alternatives[index]}',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          validator: (_) =>
+                              alternatives.isNotEmpty &&
+                                  _correctItemIndex == null
+                              ? 'Selecione a alternativa correta'
+                              : null,
+                          onChanged: (value) =>
+                              setState(() => _correctItemIndex = value),
+                        );
+                      },
+                    ),
+                  ],
+                  if (_activityType == 'true_false') ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<int>(
+                      initialValue: _correctItemIndex,
+                      decoration: const InputDecoration(
+                        labelText: 'Resposta correta',
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 0, child: Text('Verdadeiro')),
+                        DropdownMenuItem(value: 1, child: Text('Falso')),
+                      ],
+                      validator: (value) =>
+                          value == null ? 'Selecione a resposta correta' : null,
+                      onChanged: (value) =>
+                          setState(() => _correctItemIndex = value),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _maxAttempts,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Máximo de tentativas',
+                          ),
+                          validator: (value) {
+                            final parsed = int.tryParse(value ?? '');
+                            return parsed == null || parsed < 1 || parsed > 20
+                                ? 'Use um valor de 1 a 20'
+                                : null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _passingScore,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Nota mínima',
+                            suffixText: '/ 10',
+                          ),
+                          validator: (value) {
+                            final parsed = double.tryParse(
+                              (value ?? '').replaceAll(',', '.'),
+                            );
+                            return parsed == null || parsed < 0 || parsed > 10
+                                ? 'Use uma nota de 0 a 10'
+                                : null;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'As respostas serão registradas e validadas no servidor. A nota mínima participa da conclusão do curso.',
+                    style: TextStyle(color: LawrenceColors.textSecondary),
+                  ),
+                ],
+                if (_saveError != null) ...[
+                  const SizedBox(height: 16),
+                  Semantics(
+                    liveRegion: true,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: LawrenceColors.danger.withValues(alpha: .16),
+                        border: Border.all(color: LawrenceColors.danger),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _saveError!,
+                        style: const TextStyle(color: Color(0xFFFFC2C7)),
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
+      actions: [
+        TextButton(
+          onPressed: _uploading || _saving
+              ? null
+              : () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _uploading || _saving ? null : _save,
+          child: _saving
+              ? const SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Salvar bloco'),
+        ),
+      ],
     ),
-    actions: [
-      TextButton(
-        onPressed: _uploading ? null : () => Navigator.pop(context),
-        child: const Text('Cancelar'),
-      ),
-      FilledButton(
-        onPressed: _uploading
-            ? null
-            : () {
-                if (!_form.currentState!.validate()) return;
-                Navigator.pop(context, {
-                  'block_type': _type,
-                  'order_index': widget.block?.orderIndex ?? widget.order,
-                  'status': 'draft',
-                  'content': {
-                    'title': _title.text.trim(),
-                    'text': _type == 'activity' ? '' : _text.text.trim(),
-                    'question': _type == 'activity' ? _text.text.trim() : null,
-                    'url': _url.text.trim(),
-                    'storage_path': _storagePath,
-                    'filename': _filename,
-                    'content_type': _contentType,
-                    'alt_text': _alt.text.trim(),
-                    'activity_type': _type == 'activity' ? _activityType : null,
-                    'items': _items.text
-                        .split('\n')
-                        .map((e) => e.trim())
-                        .where((e) => e.isNotEmpty)
-                        .toList(),
-                  },
-                });
-              },
-        child: const Text('Salvar bloco'),
-      ),
-    ],
   );
+
+  Map<String, dynamic> _payload() => {
+    'block_type': _type,
+    'order_index': widget.block?.orderIndex ?? widget.order,
+    'status': 'draft',
+    'content': {
+      'title': _title.text.trim(),
+      'text': _type == 'activity' ? '' : _text.text.trim(),
+      'question': _type == 'activity' ? _text.text.trim() : null,
+      'url': _url.text.trim(),
+      'storage_path': _storagePath,
+      'filename': _filename,
+      'content_type': _contentType,
+      'alt_text': _alt.text.trim(),
+      'activity_type': _type == 'activity' ? _activityType : null,
+      'items': _items.text
+          .split('\n')
+          .map((item) => item.trim())
+          .where((item) => item.isNotEmpty)
+          .toList(),
+      'correct_index': _type == 'activity' ? _correctItemIndex : null,
+      'max_attempts': _type == 'activity'
+          ? int.tryParse(_maxAttempts.text)
+          : null,
+      'passing_score': _type == 'activity'
+          ? double.tryParse(_passingScore.text.replaceAll(',', '.'))
+          : null,
+      'task_id': widget.block?.content['task_id'],
+    },
+  };
+
+  Future<void> _save() async {
+    if (!_form.currentState!.validate()) return;
+    setState(() {
+      _saving = true;
+      _saveError = null;
+    });
+    final saved = await widget.onSave(_payload());
+    if (!mounted) return;
+    if (saved) {
+      Navigator.pop(context, true);
+      return;
+    }
+    setState(() {
+      _saving = false;
+      _saveError =
+          'Não foi possível confirmar a gravação. Nada foi descartado: revise a conexão e tente salvar novamente.';
+    });
+  }
 
   Future<void> _pickAsset() async {
     final result = await FilePicker.platform.pickFiles(
@@ -536,16 +772,92 @@ const _types = {
   'learn_more': 'Saiba mais',
   'activity': 'Atividade',
 };
+
+class _AlternativesPreview extends StatelessWidget {
+  const _AlternativesPreview({required this.items, required this.multiple});
+
+  final List<String> items;
+  final bool multiple;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return const Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'Digite as alternativas para visualizar A, B, C e D.',
+          style: TextStyle(color: LawrenceColors.textSecondary, fontSize: 12),
+        ),
+      );
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF181315),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x406B4A55)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            multiple
+                ? 'PRÉVIA · O ALUNO PODERÁ MARCAR MAIS DE UMA'
+                : 'PRÉVIA · O ALUNO MARCARÁ UMA ALTERNATIVA',
+            style: const TextStyle(
+              color: Color(0xFFA63B5E),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: .8,
+            ),
+          ),
+          const SizedBox(height: 10),
+          for (var index = 0; index < items.length; index++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    multiple
+                        ? Icons.check_box_outline_blank
+                        : Icons.radio_button_unchecked,
+                    color: const Color(0xFFA63B5E),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 9),
+                  Container(
+                    width: 24,
+                    height: 24,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6B1328).withValues(alpha: .2),
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                    child: Text(
+                      String.fromCharCode(65 + index),
+                      style: const TextStyle(
+                        color: Color(0xFFC8C2FF),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(child: Text(items[index])),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 const _activityTypes = {
   'single_choice': 'Marcar uma alternativa',
-  'multiple_choice': 'Múltiplas respostas',
   'true_false': 'Verdadeiro ou falso',
-  'short_answer': 'Resposta curta',
   'essay': 'Dissertativa',
-  'photo_upload': 'Upload de foto',
-  'pdf_upload': 'Upload de PDF',
-  'practical': 'Atividade prática',
-  'project': 'Projeto',
 };
 
 class _BlockCard extends StatelessWidget {
@@ -564,15 +876,31 @@ class _BlockCard extends StatelessWidget {
   final VoidCallback? onMoveUp, onMoveDown;
   @override
   Widget build(BuildContext context) => Card(
+    color: const Color(0xCC2C111B),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+      side: const BorderSide(color: Color(0x33A63B5E)),
+    ),
     child: ListTile(
-      leading: CircleAvatar(child: Text('${index + 1}')),
-      title: Text(_types[block.blockType] ?? block.blockType),
+      leading: CircleAvatar(
+        backgroundColor: const Color(0xFF6B1328),
+        foregroundColor: Colors.white,
+        child: Text('${index + 1}'),
+      ),
+      title: Text(
+        _types[block.blockType] ?? block.blockType,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
       subtitle: Text(
         block.content['title']?.toString().isNotEmpty == true
             ? block.content['title'].toString()
             : (block.content['text']?.toString() ?? 'Bloco sem resumo'),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
+        style: const TextStyle(color: Color(0xFFB8C1DD)),
       ),
       trailing: PopupMenuButton<String>(
         onSelected: (v) {

@@ -57,6 +57,7 @@ class CourseWizardController
   Timer? _autosaveTimer;
   Map<String, dynamic>? _pendingAutosavePayload;
   bool _autosaveRunning = false;
+  bool _videoRefreshRunning = false;
   int _draftRevision = 0;
 
   @override
@@ -101,7 +102,7 @@ class CourseWizardController
   }) {
     if (!state.hasValue) return;
     _draftRevision += 1;
-    _pendingAutosavePayload = Map<String, dynamic>.from(partialData);
+    _pendingAutosavePayload = {...?_pendingAutosavePayload, ...partialData};
     state = AsyncValue.data(
       state.value!.copyWith(hasUnsavedChanges: true, error: null),
     );
@@ -332,6 +333,7 @@ class CourseWizardController
           summary: state.value!.course!.summary,
           description: state.value!.course!.description,
           requirements: state.value!.course!.requirements,
+          prerequisiteCourses: state.value!.course!.prerequisiteCourses,
           courseType: state.value!.course!.courseType,
           subtitle: state.value!.course!.subtitle,
           language: state.value!.course!.language,
@@ -354,6 +356,14 @@ class CourseWizardController
           availability: state.value!.course!.availability,
           scheduledPublishAt: state.value!.course!.scheduledPublishAt,
           isFeatured: state.value!.course!.isFeatured,
+          coverImagePath: state.value!.course!.coverImagePath,
+          coverAltText: state.value!.course!.coverAltText,
+          coverFocalX: state.value!.course!.coverFocalX,
+          coverFocalY: state.value!.course!.coverFocalY,
+          trailerHlsPath: state.value!.course!.trailerHlsPath,
+          trailerSourceType: state.value!.course!.trailerSourceType,
+          trailerExternalVideoId: state.value!.course!.trailerExternalVideoId,
+          trailerStatus: state.value!.course!.trailerStatus,
           authoringRevision: state.value!.course!.authoringRevision,
           modules: currentModules,
         );
@@ -398,6 +408,7 @@ class CourseWizardController
           summary: state.value!.course!.summary,
           description: state.value!.course!.description,
           requirements: state.value!.course!.requirements,
+          prerequisiteCourses: state.value!.course!.prerequisiteCourses,
           courseType: state.value!.course!.courseType,
           subtitle: state.value!.course!.subtitle,
           language: state.value!.course!.language,
@@ -420,6 +431,14 @@ class CourseWizardController
           availability: state.value!.course!.availability,
           scheduledPublishAt: state.value!.course!.scheduledPublishAt,
           isFeatured: state.value!.course!.isFeatured,
+          coverImagePath: state.value!.course!.coverImagePath,
+          coverAltText: state.value!.course!.coverAltText,
+          coverFocalX: state.value!.course!.coverFocalX,
+          coverFocalY: state.value!.course!.coverFocalY,
+          trailerHlsPath: state.value!.course!.trailerHlsPath,
+          trailerSourceType: state.value!.course!.trailerSourceType,
+          trailerExternalVideoId: state.value!.course!.trailerExternalVideoId,
+          trailerStatus: state.value!.course!.trailerStatus,
           authoringRevision: state.value!.course!.authoringRevision,
           modules: currentModules,
         );
@@ -452,6 +471,7 @@ class CourseWizardController
           summary: state.value!.course!.summary,
           description: state.value!.course!.description,
           requirements: state.value!.course!.requirements,
+          prerequisiteCourses: state.value!.course!.prerequisiteCourses,
           courseType: state.value!.course!.courseType,
           subtitle: state.value!.course!.subtitle,
           language: state.value!.course!.language,
@@ -474,6 +494,14 @@ class CourseWizardController
           availability: state.value!.course!.availability,
           scheduledPublishAt: state.value!.course!.scheduledPublishAt,
           isFeatured: state.value!.course!.isFeatured,
+          coverImagePath: state.value!.course!.coverImagePath,
+          coverAltText: state.value!.course!.coverAltText,
+          coverFocalX: state.value!.course!.coverFocalX,
+          coverFocalY: state.value!.course!.coverFocalY,
+          trailerHlsPath: state.value!.course!.trailerHlsPath,
+          trailerSourceType: state.value!.course!.trailerSourceType,
+          trailerExternalVideoId: state.value!.course!.trailerExternalVideoId,
+          trailerStatus: state.value!.course!.trailerStatus,
           authoringRevision: state.value!.course!.authoringRevision,
           modules: currentModules,
         );
@@ -636,7 +664,8 @@ class CourseWizardController
   }
 
   Future<void> _refreshCourseForVideoStatus() async {
-    if (_courseId == null || !state.hasValue) return;
+    if (_courseId == null || !state.hasValue || _videoRefreshRunning) return;
+    _videoRefreshRunning = true;
     final requestedCourseId = _courseId;
     final courseAtRequest = state.value!.course;
     try {
@@ -651,6 +680,8 @@ class CourseWizardController
       state = AsyncValue.data(state.value!.copyWith(course: refreshed));
     } catch (_) {
       // A atualização automática é complementar; mantém a edição disponível.
+    } finally {
+      _videoRefreshRunning = false;
     }
   }
 
@@ -700,15 +731,29 @@ class CourseWizardController
     );
     try {
       final usecases = ref.read(teacherCourseUseCasesProvider);
+      final blockData = Map<String, dynamic>.from(data);
+      if (blockData['content'] is Map) {
+        blockData['content'] = Map<String, dynamic>.from(
+          blockData['content'] as Map,
+        );
+      }
+      if (blockData['block_type'] == 'activity') {
+        await _syncFormalActivity(lessonId, blockData);
+      }
       if (blockId == null) {
         await usecases.createLessonBlock(
           _courseId!,
           lessonId,
-          data,
+          blockData,
           idempotencyKey: _intentKey(operation),
         );
       } else {
-        await usecases.updateLessonBlock(_courseId!, lessonId, blockId, data);
+        await usecases.updateLessonBlock(
+          _courseId!,
+          lessonId,
+          blockId,
+          blockData,
+        );
       }
       final refreshed = await usecases.getCourse(_courseId!);
       state = AsyncValue.data(
@@ -732,6 +777,86 @@ class CourseWizardController
     } finally {
       _mutationsInFlight.remove(operation);
     }
+  }
+
+  Future<void> _syncFormalActivity(
+    String lessonId,
+    Map<String, dynamic> blockData,
+  ) async {
+    final content = Map<String, dynamic>.from(
+      blockData['content'] as Map? ?? const <String, dynamic>{},
+    );
+    final question = content['question']?.toString().trim() ?? '';
+    final configuredTitle = content['title']?.toString().trim() ?? '';
+    final title = configuredTitle.length >= 3
+        ? configuredTitle
+        : question.length >= 3
+        ? question.substring(0, question.length > 120 ? 120 : question.length)
+        : 'Atividade da aula';
+    final activityType = content['activity_type']?.toString();
+    final taskType = switch (activityType) {
+      'essay' => 'essay',
+      'true_false' => 'true_false',
+      _ => 'multiple_choice',
+    };
+    final items = (content['items'] as List? ?? const <dynamic>[])
+        .map((item) => item.toString().trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
+    final options = switch (taskType) {
+      'true_false' => <String, dynamic>{'true': 'Verdadeiro', 'false': 'Falso'},
+      'multiple_choice' => <String, dynamic>{
+        for (var index = 0; index < items.length; index++)
+          String.fromCharCode(65 + index): items[index],
+      },
+      _ => <String, dynamic>{},
+    };
+    final correctIndex = (content['correct_index'] as num?)?.toInt();
+    final correctOption = switch (taskType) {
+      'true_false' =>
+        correctIndex == null
+            ? null
+            : correctIndex == 0
+            ? 'true'
+            : correctIndex == 1
+            ? 'false'
+            : null,
+      'multiple_choice' =>
+        correctIndex == null || correctIndex < 0 || correctIndex >= items.length
+            ? null
+            : String.fromCharCode(65 + correctIndex),
+      _ => null,
+    };
+    final maxAttempts = (content['max_attempts'] as num?)?.toInt() ?? 3;
+    final passingScore = (content['passing_score'] as num?)?.toDouble() ?? 7.0;
+    final repository = ref.read(taskRepositoryProvider);
+    final taskId = content['task_id']?.toString();
+    if (taskId == null || taskId.isEmpty) {
+      final task = await repository.createTask(
+        courseId: _courseId!,
+        lessonId: lessonId,
+        title: title,
+        taskType: taskType,
+        description: question,
+        options: options,
+        correctOption: correctOption,
+        maxAttempts: maxAttempts,
+        passingScore: passingScore,
+      );
+      content['task_id'] = task.id;
+    } else {
+      await repository.updateTask(
+        taskId,
+        title: title,
+        taskType: taskType,
+        description: question,
+        options: options,
+        correctOption: correctOption,
+        maxAttempts: maxAttempts,
+        passingScore: passingScore,
+      );
+    }
+    blockData['content'] = content;
   }
 
   Future<List<LessonBlock>> listLessonBlocks(String lessonId) async {

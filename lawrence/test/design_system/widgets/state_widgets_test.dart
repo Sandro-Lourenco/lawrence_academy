@@ -60,7 +60,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Ops! Algo deu errado'), findsOneWidget);
+      expect(find.text('Não foi possível continuar'), findsOneWidget);
       expect(find.text('Server connection failed'), findsOneWidget);
       expect(find.byIcon(Icons.error_outline_rounded), findsOneWidget);
     });
@@ -80,20 +80,21 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('Tentar Novamente'));
+      await tester.tap(find.text('Tentar novamente'));
       expect(retried, true);
     });
   });
 
   group('AppLoadingState Widget Tests', () {
-    testWidgets('should render progress indicator', (
+    testWidgets('should render structured skeleton without generic spinner', (
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
         const MaterialApp(home: Scaffold(body: AppLoadingState())),
       );
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(AppSkeletonState), findsNWidgets(3));
     });
 
     testWidgets('should render message when provided', (

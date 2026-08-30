@@ -23,7 +23,7 @@ class ProjectDetailPage extends ConsumerWidget {
     return project.when(
       loading: () => StudentPageScaffold(
         title: 'Detalhes do projeto',
-        leading: _BackButton(onPressed: () => context.go('/dashboard/projects')),
+        leading: _BackButton(onPressed: () => context.go('/dashboard/activities')),
         body: const SizedBox(
           height: 420,
           child: AppLoadingState(message: 'Carregando projeto'),
@@ -31,7 +31,7 @@ class ProjectDetailPage extends ConsumerWidget {
       ),
       error: (_, _) => StudentPageScaffold(
         title: 'Detalhes do projeto',
-        leading: _BackButton(onPressed: () => context.go('/dashboard/projects')),
+        leading: _BackButton(onPressed: () => context.go('/dashboard/activities')),
         body: SizedBox(
           height: 420,
           child: AppErrorState(
@@ -47,7 +47,7 @@ class ProjectDetailPage extends ConsumerWidget {
           ? StudentPageScaffold(
               title: 'Projeto indisponível',
               leading: _BackButton(
-                onPressed: () => context.go('/dashboard/projects'),
+                onPressed: () => context.go('/dashboard/activities'),
               ),
               body: SizedBox(
                 height: 420,
@@ -56,8 +56,8 @@ class ProjectDetailPage extends ConsumerWidget {
                   description:
                       'Este projeto não está disponível para a sua conta ou deixou de existir.',
                   icon: Icons.lock_outline_rounded,
-                  actionLabel: 'Voltar aos projetos',
-                  onActionPressed: () => context.go('/dashboard/projects'),
+                  actionLabel: 'Voltar às atividades',
+                  onActionPressed: () => context.go('/dashboard/activities'),
                 ),
               ),
             )
@@ -77,7 +77,7 @@ class _ProjectDetailContent extends StatelessWidget {
     return StudentPageScaffold(
       title: project.title,
       subtitle: project.courseName,
-      leading: _BackButton(onPressed: () => context.go('/dashboard/projects')),
+      leading: _BackButton(onPressed: () => context.go('/dashboard/activities')),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 900;
@@ -271,7 +271,7 @@ class _BackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      tooltip: 'Voltar aos projetos',
+      tooltip: 'Voltar às atividades',
       onPressed: onPressed,
       icon: const Icon(Icons.arrow_back_rounded),
     );

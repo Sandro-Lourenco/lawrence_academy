@@ -1,17 +1,52 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/activity.dart';
+import '../../../../app/providers/service_repositories.dart';
+import '../../../tasks/domain/entities/task.dart';
 
 typedef ActivitiesLoader = Future<List<Activity>> Function();
 
-/// Fonte temporária e explicitamente vazia enquanto o contrato de leitura de
-/// atividades do aluno não existe na API canônica.
-///
-/// A aplicação não deve inventar projetos para preencher a interface. Quando o
-/// endpoint for aprovado, este provider poderá receber o use case da feature sem
-/// alterar a camada de apresentação.
 final activitiesLoaderProvider = Provider<ActivitiesLoader>(
-  (ref) => () async => const <Activity>[],
+  (ref) => () async {
+    final tasks = await ref.read(taskRepositoryProvider).getMyActivities();
+    return tasks.map(_activityFromTask).toList(growable: false);
+  },
 );
+
+Activity _activityFromTask(Task task) {
+  final submission = task.latestSubmission;
+  final status = switch (submission?.status) {
+    'draft' => ActivityStatus.inProgress,
+    'pending_review' => ActivityStatus.submitted,
+    'graded' => ActivityStatus.graded,
+    _ => ActivityStatus.pending,
+  };
+  final type = switch (task.type) {
+    'multiple_choice' => ActivityType.quiz,
+    'true_false' => ActivityType.trueFalse,
+    'essay' => ActivityType.essay,
+    _ => ActivityType.essay,
+  };
+  return Activity(
+    id: task.id,
+    title: task.title,
+    courseName: task.courseName ?? 'Curso',
+    teacherName: task.teacherName ?? 'Lawrence Academy',
+    type: type,
+    status: status,
+    grade: submission?.score,
+    feedback: submission?.teacherFeedback,
+    courseId: task.courseId,
+    lessonId: task.lessonId,
+    description: task.description,
+    options: task.options,
+    maxAttempts: task.maxAttempts,
+    attemptsUsed: task.attemptsUsed,
+    selectedOption: submission?.selectedOption,
+    textAnswer: submission?.textAnswer,
+    correctOption: submission?.correctOption,
+    isCorrect: submission?.isCorrect,
+  );
+}
 
 class ActivitiesState {
   final List<Activity> activities;

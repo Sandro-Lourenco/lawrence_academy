@@ -35,4 +35,5 @@ class CourseRepository implements ICourseRepository {
     if (data == null) return null;
     return Course.fromJson(data);
   }
+
 }

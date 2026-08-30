@@ -14,17 +14,13 @@ class EventsBanner extends StatelessWidget {
       child: InkWell(
         key: const Key('dashboard-events-link'),
         onTap: () => context.go('/dashboard/events'),
-        borderRadius: BorderRadius.circular(LawrenceRadii.control),
-        child: Ink(
+        borderRadius: BorderRadius.zero,
+        child: Container(
           padding: const EdgeInsets.all(LawrenceSpacing.lg),
           decoration: BoxDecoration(
             color: LawrenceColors.brandNavy,
-            borderRadius: BorderRadius.circular(LawrenceRadii.control),
             border: const Border(
-              left: BorderSide(
-                color: LawrenceColors.actionPrimary,
-                width: 5,
-              ),
+              left: BorderSide(color: LawrenceColors.actionPrimary, width: 5),
             ),
           ),
           child: LayoutBuilder(
@@ -35,7 +31,7 @@ class EventsBanner extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
-                    'EVENTOS LAWRENCE',
+                    'AGENDA CULTURAL · CADERNO DE ENCONTROS',
                     style: TextStyle(
                       color: LawrenceColors.actionOnDark,
                       letterSpacing: 1,
@@ -45,16 +41,19 @@ class EventsBanner extends StatelessWidget {
                   ),
                   const SizedBox(height: LawrenceSpacing.xs),
                   Text(
-                    'Lives, workshops e encontros no YouTube',
+                    'A escola continua ao vivo.',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                   const SizedBox(height: LawrenceSpacing.xs),
                   const Text(
-                    'Consulte a agenda e participe das próximas transmissões.',
-                    style: TextStyle(color: Color(0xFFDCE6F8), fontSize: 15),
+                    'Consulte a agenda de conversas, workshops e encontros.',
+                    style: TextStyle(
+                      color: LawrenceColors.canvasParchment,
+                      fontSize: 15,
+                    ),
                   ),
                 ],
               );
@@ -65,7 +64,7 @@ class EventsBanner extends StatelessWidget {
                   side: const BorderSide(color: Colors.white),
                 ),
                 icon: const Icon(Icons.event_outlined),
-                label: const Text('Ver eventos'),
+                label: const Text('ABRIR AGENDA'),
               );
               return compact
                   ? Column(

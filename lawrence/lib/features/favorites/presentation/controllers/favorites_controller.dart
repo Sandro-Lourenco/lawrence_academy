@@ -1,55 +1,43 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/entities/favorite_item.dart';
+
+import '../../../../core/offline/local_cache.dart';
 import '../../../courses/presentation/controllers/catalog_controller.dart';
+import '../../domain/entities/favorite_item.dart';
 
-class FavoritesNotifier extends StateNotifier<AsyncValue<List<FavoriteItem>>> {
-  final Ref ref;
+const _favoriteCourseIdsKey = 'favorite_course_ids';
 
-  FavoritesNotifier(this.ref) : super(const AsyncValue.loading()) {
-    loadFavorites();
+class FavoritesNotifier extends AsyncNotifier<List<FavoriteItem>> {
+  @override
+  Future<List<FavoriteItem>> build() async {
+    final courses = await ref.watch(catalogNotifierProvider.future);
+    final rawIds = LocalCache.getBox(
+      LocalCache.settingsBox,
+    ).get(_favoriteCourseIdsKey, defaultValue: const <String>[]);
+    final ids = (rawIds as List).map((value) => value.toString()).toSet();
+    return [
+      for (final course in courses)
+        if (ids.contains(course.id))
+          FavoriteItem(
+            id: course.id,
+            course: course,
+            favoritedAt: DateTime.now(),
+          ),
+    ];
   }
 
-  Future<void> loadFavorites() async {
-    state = const AsyncValue.loading();
-    try {
-      // Mock delay for realistic feel
-      await Future.delayed(const Duration(milliseconds: 800));
-
-      final coursesAsync = ref.read(catalogNotifierProvider);
-
-      coursesAsync.whenData((allCourses) {
-        if (allCourses.isEmpty) {
-          state = const AsyncValue.data([]);
-          return;
-        }
-
-        // Simulating that the first 2 courses are favorites
-        final mockFavorites = allCourses
-            .take(2)
-            .map(
-              (c) => FavoriteItem(
-                id: c.id,
-                course: c,
-                favoritedAt: DateTime.now(),
-              ),
-            )
-            .toList();
-
-        state = AsyncValue.data(mockFavorites);
-      });
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
-  }
-
-  void toggleFavorite(String courseId) {
-    // Logic to add/remove from local state or backend
+  Future<void> toggleFavorite(String courseId) async {
+    final previous = state.valueOrNull ?? const <FavoriteItem>[];
+    final ids = previous.map((item) => item.id).toSet();
+    if (!ids.add(courseId)) ids.remove(courseId);
+    await LocalCache.getBox(
+      LocalCache.settingsBox,
+    ).put(_favoriteCourseIdsKey, ids.toList(growable: false));
+    ref.invalidateSelf();
+    await future;
   }
 }
 
 final favoritesNotifierProvider =
-    StateNotifierProvider<FavoritesNotifier, AsyncValue<List<FavoriteItem>>>((
-      ref,
-    ) {
-      return FavoritesNotifier(ref);
-    });
+    AsyncNotifierProvider<FavoritesNotifier, List<FavoriteItem>>(
+      FavoritesNotifier.new,
+    );

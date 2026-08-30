@@ -37,6 +37,12 @@ dependencies:
   cached_network_image: ^3.4.1
   file_picker: 10.3.10
   web: ^1.1.1
+  google_fonts: ^6.2.1
+  flutter_animate: ^4.5.2
+  flutter_svg: ^2.3.0
+  file_saver: ^0.4.0
+  share_plus: ^12.0.2
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:
@@ -49,7 +55,15 @@ flutter:
   uses-material-design: true
   assets:
     - assets/brand/logo-lawrence.png
+    - assets/brand/lawrence-footer-signature.svg
     - assets/images/landing_hero.webp
+    - assets/images/hero_sewing.jpg
     - assets/images/pattern_drafting.webp
     - assets/images/atelier_sewing.webp
     - assets/images/creator-lawrence.jpeg
+    - assets/images/10-anos-dourado.svg
+    - assets/images/couture_atelier_hero.webp
+    - assets/images/couture_draping_portrait.webp
+    - assets/images/couture_pattern_table.webp
+    - assets/images/maison_lawrence_hero.webp
+    - assets/images/login_atelier_editorial.webp

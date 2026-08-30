@@ -9,24 +9,24 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   group('signInErrorMessage', () {
-    test('identifies invalid credentials without mentioning an expired link', () {
-      final message = signInErrorMessage(
-        const AuthException(
-          'Invalid login credentials',
-          code: 'invalid_credentials',
-        ),
-      );
+    test(
+      'identifies invalid credentials without mentioning an expired link',
+      () {
+        final message = signInErrorMessage(
+          const AuthException(
+            'Invalid login credentials',
+            code: 'invalid_credentials',
+          ),
+        );
 
-      expect(message, contains('E-mail ou senha incorretos'));
-      expect(message, isNot(contains('link')));
-    });
+        expect(message, contains('E-mail ou senha incorretos'));
+        expect(message, isNot(contains('link')));
+      },
+    );
 
     test('keeps email confirmation guidance specific', () {
       final message = signInErrorMessage(
-        const AuthException(
-          'Email not confirmed',
-          code: 'email_not_confirmed',
-        ),
+        const AuthException('Email not confirmed', code: 'email_not_confirmed'),
       );
 
       expect(message, contains('Confirme seu e-mail'));
@@ -136,6 +136,9 @@ class _FakeAuthRepository implements IAuthRepository {
   }
 
   @override
+  Future<bool> signInWithGoogle() async => true;
+
+  @override
   Future<AuthResponse> signUp({
     required String email,
     required String password,
@@ -147,6 +150,9 @@ class _FakeAuthRepository implements IAuthRepository {
 
   @override
   Future<void> resetPassword({required String email}) async {}
+
+  @override
+  Future<void> updatePassword({required String password}) async {}
 
   @override
   Future<void> signOut() async {}

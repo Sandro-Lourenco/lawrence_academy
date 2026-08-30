@@ -1,10 +1,10 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../design_system/tokens/lawrence_theme.dart';
 import '../../../../design_system/widgets/liquid_glass_card.dart';
 import '../../../../design_system/widgets/state_widgets.dart';
+import '../../../../design_system/widgets/student_page_scaffold.dart';
 import '../controllers/favorites_controller.dart';
 
 class FavoritesPage extends ConsumerWidget {
@@ -14,27 +14,9 @@ class FavoritesPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final favoritesAsync = ref.watch(favoritesNotifierProvider);
 
-    return Scaffold(
-      backgroundColor: LawrenceColors.canvasParchment,
-      appBar: AppBar(
-        title: const Text(
-          "MINHA BIBLIOTECA",
-          style: TextStyle(
-            letterSpacing: 2,
-            fontSize: 12,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.white.withOpacity(0.72),
-        elevation: 0,
-        flexibleSpace: ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(color: Colors.transparent),
-          ),
-        ),
-      ),
+    return StudentPageScaffold(
+      title: 'Biblioteca',
+      subtitle: 'Cursos e aulas que você guardou para revisitar.',
       body: favoritesAsync.when(
         loading: () => const AppLoadingState(),
         error: (err, st) =>
@@ -52,7 +34,8 @@ class FavoritesPage extends ConsumerWidget {
           }
 
           return GridView.builder(
-            padding: const EdgeInsets.all(24),
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 400,
               mainAxisSpacing: 16,

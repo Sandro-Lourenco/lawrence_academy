@@ -4,11 +4,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/network/network_client.dart';
 import '../../../../features/courses/domain/entities/course.dart';
 import '../../domain/entities/upload_file_payload.dart';
+import '../../domain/entities/teacher_course_student.dart';
 import 'signed_storage_uploader.dart';
 
 abstract class ITeacherCourseRemoteDataSource {
   Future<List<Course>> getTeacherCourses();
   Future<Course> getTeacherCourse(String courseId);
+  Future<List<TeacherCourseStudent>> getCourseStudents(String courseId);
   Future<Course> createCourse(
     Map<String, dynamic> data, {
     required String idempotencyKey,
@@ -142,6 +144,18 @@ class TeacherCourseRemoteDataSource implements ITeacherCourseRemoteDataSource {
     );
     if (response.data == null) throw Exception("Course not found");
     return Course.fromJson(response.data!);
+  }
+
+  @override
+  Future<List<TeacherCourseStudent>> getCourseStudents(String courseId) async {
+    final response = await _client.get<List<dynamic>>(
+      '/api/v1/teacher/courses/$courseId/students',
+    );
+    return (response.data ?? const [])
+        .map(
+          (item) => TeacherCourseStudent.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
   }
 
   @override

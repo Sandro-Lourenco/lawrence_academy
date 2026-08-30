@@ -22,48 +22,47 @@ class MockCourseRepository implements ICourseRepository {
 }
 
 void main() {
-  testWidgets(
-    'CatalogPage layouts successfully inside a Scrollable parent (PublicLayout context)',
-    (WidgetTester tester) async {
-      final mockCourses = <Course>[
-        Course(
-          id: '1',
-          instructorId: 'teacher-1',
-          title: 'Curso de Costura 1',
-          slug: 'curso-costura-1',
-          category: 'costura',
-          level: 'iniciante',
-          summary: 'Resumo 1',
-          status: 'published',
-          modules: const [],
-        ),
-      ];
+  testWidgets('CatalogPage owns scroll in the public layout context', (
+    WidgetTester tester,
+  ) async {
+    final mockCourses = <Course>[
+      Course(
+        id: '1',
+        instructorId: 'teacher-1',
+        title: 'Curso de Costura 1',
+        slug: 'curso-costura-1',
+        category: 'costura',
+        level: 'iniciante',
+        summary: 'Resumo 1',
+        status: 'published',
+        modules: const [],
+      ),
+    ];
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            courseRepositoryProvider.overrideWithValue(
-              MockCourseRepository(mockCourses),
-            ),
-          ],
-          child: MaterialApp(
-            home: SingleChildScrollView(
-              child: Column(
-                children: const [CatalogPage(embeddedInScrollView: true)],
-              ),
-            ),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          courseRepositoryProvider.overrideWithValue(
+            MockCourseRepository(mockCourses),
           ),
-        ),
-      );
+        ],
+        child: const MaterialApp(home: CatalogPage()),
+      ),
+    );
 
-      await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
 
-      // Verify it rendered successfully without errors
-      expect(find.byType(CatalogPage), findsOneWidget);
-      // O curso aparece no destaque editorial e na grade do catálogo.
-      expect(find.text('Curso de Costura 1'), findsWidgets);
-    },
-  );
+    // Verify it rendered successfully without errors
+    expect(find.byType(CatalogPage), findsOneWidget);
+    // O curso aparece no destaque editorial e na grade do catálogo.
+    expect(find.text('Curso de Costura 1'), findsWidgets);
+    final scrollView = find.byType(SingleChildScrollView).first;
+    final before = tester.getTopLeft(find.text('Cursos').first).dy;
+    await tester.drag(scrollView, const Offset(0, -300));
+    await tester.pumpAndSettle();
+    final after = tester.getTopLeft(find.text('Cursos').first).dy;
+    expect(after, lessThan(before));
+  });
 
   testWidgets(
     'CatalogPage layouts successfully inside a non-scrollable parent (StudentLayout context)',

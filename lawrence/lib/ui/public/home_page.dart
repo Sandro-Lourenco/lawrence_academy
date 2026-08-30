@@ -1,358 +1,355 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import '../../design_system/tokens/liquid_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import '../shared/widgets/golden_editorial_button.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final isMobile = width < 800;
+    final bool isMobile = MediaQuery.of(context).size.width < 768;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // 1. HeroSection: Fundo branco puro, título editorial XL
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 80, horizontal: 24),
-          child: Column(
-            children: [
-              const Text(
-                "A ARTE DA ALTA COSTURA",
-                style: TextStyle(
-                  fontFamily: 'Outfit',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 2.0,
-                  color: LiquidTheme.primary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                "Aprenda Modelagem e Alfaiataria sob Medida",
-                style: TextStyle(
-                  fontFamily: 'Outfit',
-                  fontSize: isMobile ? 32 : 64,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.4,
-                  color: Colors.black,
-                  height: 1.1,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 680),
-                  child: const Text(
-                    "Desenvolva técnica e precisão artesanal em peças estruturadas. Do caimento perfeito em seda à construção de casacos forrados com metodologia profissional de ateliê.",
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.black54,
-                      height: 1.5,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0A84FF), // Azul premium
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 20,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  elevation: 0,
-                ),
-                onPressed: () => context.go('/courses'),
-                child: const Text(
-                  "Explorar Cursos",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 48),
-
-        // 2. ValuePropositionTile: Fundo pergaminho (#F8F9FB) em 3 colunas
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8F9FB),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          padding: const EdgeInsets.all(40),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Nossa Metodologia",
-                style: TextStyle(
-                  fontFamily: 'Outfit',
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 32),
-              isMobile
-                  ? Column(
-                      children: [
-                        _buildPropItem(
-                          "Modelagem Tridimensional",
-                          "Técnicas de moulage e draping aplicadas diretamente ao manequim para criar volumes orgânicos e precisos.",
-                        ),
-                        const SizedBox(height: 24),
-                        _buildPropItem(
-                          "Alfaiataria Clássica",
-                          "Construção de casacos e calças com acabamentos de alfaiataria italiana e reforços de entretela tecida.",
-                        ),
-                        const SizedBox(height: 24),
-                        _buildPropItem(
-                          "Modelagem Industrial",
-                          "Criação, gradação e adaptação de tabelas de medidas universais para produção em pequena e grande escala.",
-                        ),
-                      ],
-                    )
-                  : Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _buildPropItem(
-                            "Modelagem Tridimensional",
-                            "Técnicas de moulage e draping aplicadas diretamente ao manequim para criar volumes orgânicos e precisos.",
-                          ),
-                        ),
-                        const SizedBox(width: 32),
-                        Expanded(
-                          child: _buildPropItem(
-                            "Alfaiataria Clássica",
-                            "Construção de casacos e calças com acabamentos de alfaiataria italiana e reforços de entretela tecida.",
-                          ),
-                        ),
-                        const SizedBox(width: 32),
-                        Expanded(
-                          child: _buildPropItem(
-                            "Modelagem Industrial",
-                            "Criação, gradação e adaptação de tabelas de medidas universais para produção em pequena e grande escala.",
-                          ),
-                        ),
-                      ],
-                    ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 48),
-
-        // 3. FeaturedCoursesSection: Cartões de Destaque
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Cursos em Destaque",
-              style: TextStyle(
-                fontFamily: 'Outfit',
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 24),
-            isMobile
-                ? Column(
-                    children: [
-                      _buildFeatureCard(
-                        context,
-                        "Alfaiataria Feminina Fina",
-                        "Aprenda a estruturar blazers forrados com ombreiras e golas entreteladas.",
-                        "iniciante",
-                      ),
-                      const SizedBox(height: 20),
-                      _buildFeatureCard(
-                        context,
-                        "Moulage e Draping na Seda",
-                        "Manipulação tridimensional de cetins e sedas em cortes enviesados.",
-                        "avancado",
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Expanded(
-                        child: _buildFeatureCard(
-                          context,
-                          "Alfaiataria Feminina Fina",
-                          "Aprenda a estruturar blazers forrados com ombreiras e golas entreteladas.",
-                          "iniciante",
-                        ),
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        child: _buildFeatureCard(
-                          context,
-                          "Moulage e Draping na Seda",
-                          "Manipulação tridimensional de cetins e sedas em cortes enviesados.",
-                          "avancado",
-                        ),
-                      ),
-                    ],
-                  ),
-          ],
-        ),
-
-        const SizedBox(height: 48),
-
-        // 4. SocialProofSection: Depoimentos de alunos e estrelas
-        Container(
-          padding: const EdgeInsets.all(40),
-          decoration: LiquidTheme.glassDecoration(radius: 20),
-          child: Column(
-            children: [
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.star, color: Colors.amber, size: 24),
-                  Icon(Icons.star, color: Colors.amber, size: 24),
-                  Icon(Icons.star, color: Colors.amber, size: 24),
-                  Icon(Icons.star, color: Colors.amber, size: 24),
-                  Icon(Icons.star, color: Colors.amber, size: 24),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                "\"O curso de Alfaiataria mudou completamente a qualidade do meu trabalho. O caimento dos meus blazers finalmente alcançou o padrão de loja fina.\"",
-                style: TextStyle(
-                  fontSize: 16,
-                  fontStyle: FontStyle.italic,
-                  color: Colors.white70,
-                  height: 1.4,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                "Mariana Silveira • Aluna Certificada",
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white60,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ],
+    return Scaffold(
+      backgroundColor: const Color(
+        0xFF000000,
+      ), // Base color starts black for Hero
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(child: _buildHeroSection(isMobile)),
+          SliverToBoxAdapter(child: _buildHistorySection(isMobile)),
+          SliverToBoxAdapter(child: _buildCoursesSection(isMobile)),
+          SliverToBoxAdapter(child: _buildFooterSection()),
+        ],
+      ),
     );
   }
 
-  Widget _buildPropItem(String title, String description) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          description,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Colors.black54,
-            height: 1.4,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFeatureCard(
-    BuildContext context,
-    String title,
-    String summary,
-    String level,
-  ) {
+  Widget _buildHeroSection(bool isMobile) {
     return Container(
-      decoration: LiquidTheme.glassDecoration(radius: 16),
-      padding: const EdgeInsets.all(24),
+      width: double.infinity,
+      color: const Color(0xFF000000),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 24 : 120,
+        vertical: 140,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: LiquidTheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  level.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: LiquidTheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const Icon(
-                Icons.bookmark_border,
-                color: Colors.white54,
-                size: 18,
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
           Text(
-            title,
-            style: const TextStyle(
+                "Um encontro\ncom a arte\nda costura",
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: isMobile ? 64 : 127,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: -3.8,
+                  height: 0.9,
+                  color: Colors.white,
+                ),
+              )
+              .animate()
+              .fadeIn(duration: 1000.ms)
+              .slideY(begin: 0.2, end: 0, curve: Curves.easeOut),
+          const SizedBox(height: 60),
+          GoldenEditorialButton(
+            text: "Cursos",
+            onPressed: () {},
+          ).animate().fadeIn(delay: 500.ms, duration: 800.ms),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistorySection(bool isMobile) {
+    return Container(
+      color: const Color(0xFFF4EFE6), // Light beige background
+      padding: const EdgeInsets.only(top: 185, bottom: 280),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Top part: "10" and "anos de história e tradição"
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 40,
+                  children: [
+                    ShaderMask(
+                      blendMode: BlendMode.srcIn,
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [
+                          Color(0xFFBF953F),
+                          Color(0xFFFCF6BA),
+                          Color(0xFFB38728),
+                          Color(0xFFFBF5B7),
+                          Color(0xFFAA771C),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ).createShader(bounds),
+                      child: Text(
+                        "10",
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: isMobile ? 180 : 380,
+                          fontWeight: FontWeight.w400,
+                          height: 1.0,
+                          letterSpacing: -15,
+                          color: Colors
+                              .white, // Color doesn't matter for ShaderMask srcIn
+                        ),
+                      ),
+                    ).animate().fadeIn(duration: 800.ms).slideX(begin: -0.2),
+                    Text(
+                          "anos de\nhistória\ne tradição",
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: isMobile ? 60 : 130,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.black,
+                            height: 0.9,
+                            letterSpacing: -2,
+                          ),
+                        )
+                        .animate()
+                        .fadeIn(duration: 800.ms, delay: 200.ms)
+                        .slideX(begin: 0.2),
+                  ],
+                ),
+                const SizedBox(
+                  height: 120,
+                ), // Spacing between Hero text and bottom paragraphs
+                isMobile
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  height: 1,
+                                  color: const Color(
+                                    0xFF333333,
+                                  ).withOpacity(0.2),
+                                ),
+                              ),
+                              const SizedBox(width: 20),
+                              Text(
+                                "Desde 2015",
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: const Color(0xFF333333),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 32),
+                          _buildParagraph(
+                            "Ao completar 10 anos de vida, a Lawrence Academy aprofunda o olhar para a arte da costura e inaugura um novo capítulo. Nesta nova fase, o ato de costurar se estende à modelagem, criação, moulage, entre outras inúmeras manifestações artísticas da moda.",
+                          ),
+                          const SizedBox(height: 20),
+                          _buildParagraph(
+                            "A nova Lawrence Academy traz a moda para todos! Disseminando, atualizando e promovendo um verdadeiro intercâmbio para os amantes do design e da alta-costura.",
+                          ),
+                        ],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 4,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    height: 1,
+                                    color: const Color(
+                                      0xFF333333,
+                                    ).withOpacity(0.2),
+                                  ),
+                                ),
+                                const SizedBox(width: 20),
+                                Text(
+                                  "Desde 2015",
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w400,
+                                    color: const Color(0xFF333333),
+                                  ),
+                                ),
+                                const SizedBox(width: 60),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            flex: 6,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildParagraph(
+                                  "Ao completar 10 anos de vida, a Lawrence Academy aprofunda o olhar para a arte da costura e inaugura um novo capítulo. Nesta nova fase, o ato de costurar se estende à modelagem, criação, moulage, entre outras inúmeras manifestações artísticas da moda.",
+                                ),
+                                const SizedBox(height: 20),
+                                _buildParagraph(
+                                  "A nova Lawrence Academy traz a moda para todos! Disseminando, atualizando e promovendo um verdadeiro intercâmbio para os amantes do design e da alta-costura.",
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildParagraph(String text) {
+    return Text(
+      text,
+      style: GoogleFonts.montserrat(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        color: const Color(0xFF333333),
+        height: 1.42,
+      ),
+    );
+  }
+
+  Widget _buildCoursesSection(bool isMobile) {
+    return Container(
+      color: Colors.white,
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 24 : 120,
+        vertical: 120,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Cursos",
+            style: GoogleFonts.playfairDisplay(
+              fontSize: isMobile ? 48 : 80,
+              color: Colors.black87,
+              height: 1.0,
+            ),
+          ).animate().slideX(begin: -0.1, curve: Curves.easeOut).fadeIn(),
+          const SizedBox(height: 60),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final double width = constraints.maxWidth;
+              final bool stackVertical = width < 800;
+
+              return Flex(
+                direction: stackVertical ? Axis.vertical : Axis.horizontal,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: stackVertical ? 0 : 1,
+                    child: _buildCourseCard(
+                      title: "ALFAIATARIA\nFEMININA FINA",
+                      description:
+                          "O curso tem carga horária progressiva e conteúdos que apresentam desafios constantes. A prática exige disciplina e muita determinação.",
+                    ),
+                  ),
+                  SizedBox(
+                    width: stackVertical ? 0 : 60,
+                    height: stackVertical ? 60 : 0,
+                  ),
+                  Expanded(
+                    flex: stackVertical ? 0 : 1,
+                    child: Padding(
+                      padding: EdgeInsets.only(top: stackVertical ? 0 : 80),
+                      child: _buildCourseCard(
+                        title: "MOULAGE E\nDRAPING",
+                        description:
+                            "Aprenda a arte de esculpir roupas diretamente no manequim, explorando volumes e texturas da alta-costura contemporânea.",
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCourseCard({
+    required String title,
+    required String description,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          height: 400,
+          color: const Color(0xFFF0F0F0),
+          child: const Center(
+            child: Icon(Icons.image, color: Colors.black12, size: 48),
+          ),
+        ).animate().fadeIn(duration: 800.ms).slideY(begin: 0.1),
+        const SizedBox(height: 32),
+        Text(
+          title,
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 32,
+            fontWeight: FontWeight.w500,
+            color: Colors.black87,
+            height: 1.1,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          description,
+          style: GoogleFonts.montserrat(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            height: 1.6,
+            color: Colors.black54,
+          ),
+        ),
+        const SizedBox(height: 32),
+        GoldenEditorialButton(text: "CONHEÇA O CURSO", onPressed: () {}),
+      ],
+    );
+  }
+
+  Widget _buildFooterSection() {
+    return Container(
+      color: const Color(0xFF111111),
+      padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 80),
+      child: Column(
+        children: [
+          Text(
+            "LAWRENCE ACADEMY",
+            style: GoogleFonts.montserrat(
               fontSize: 16,
               fontWeight: FontWeight.bold,
+              letterSpacing: 4.0,
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 40),
           Text(
-            summary,
-            style: const TextStyle(
-              fontSize: 12,
+            "(11) 97374-7700\ncontato@lawrenceacademy.com.br",
+            textAlign: TextAlign.center,
+            style: GoogleFonts.montserrat(
+              fontSize: 14,
+              height: 1.8,
               color: Colors.white70,
-              height: 1.4,
             ),
           ),
-          const SizedBox(height: 20),
-          TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: LiquidTheme.secondary,
-              padding: EdgeInsets.zero,
-            ),
-            onPressed: () => context.go('/courses'),
-            child: const Row(
-              children: [
-                Text(
-                  "Ver Detalhes",
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(width: 4),
-                Icon(Icons.arrow_forward, size: 12),
-              ],
-            ),
+          const SizedBox(height: 60),
+          Text(
+            "© 2026 Lawrence Academy. Todos os direitos reservados.",
+            style: GoogleFonts.montserrat(fontSize: 12, color: Colors.white38),
           ),
         ],
       ),

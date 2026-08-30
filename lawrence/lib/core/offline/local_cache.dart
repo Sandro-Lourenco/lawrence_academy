@@ -18,6 +18,8 @@ class LocalCache {
     return Hive.box(name);
   }
 
+  static bool isBoxOpen(String name) => Hive.isBoxOpen(name);
+
   static Future<void> clearAll() async {
     await Hive.box(settingsBox).clear();
     await Hive.box(sessionBox).clear();

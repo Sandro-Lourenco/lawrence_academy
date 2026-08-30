@@ -5,6 +5,7 @@ import '../../../../design_system/tokens/lawrence_theme.dart';
 import '../controllers/subscriptions_controller.dart';
 import '../../domain/entities/subscription_status.dart';
 import '../../../../design_system/widgets/state_widgets.dart';
+import '../../../../design_system/widgets/student_page_scaffold.dart';
 import '../../../../core/error/global_error_handler.dart';
 
 class SubscriptionsPage extends ConsumerWidget {
@@ -14,14 +15,10 @@ class SubscriptionsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final stateAsync = ref.watch(subscriptionsControllerProvider);
 
-    return Scaffold(
-      backgroundColor: LawrenceColors.canvasParchment,
-      appBar: AppBar(
-        title: const Text('My Subscriptions'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        foregroundColor: LawrenceColors.textPrimary,
-      ),
+    return StudentPageScaffold(
+      title: 'Minhas assinaturas',
+      subtitle: 'Planos ativos, cobranças e acesso aos seus cursos.',
+      onRefresh: () async => ref.invalidate(subscriptionsControllerProvider),
       body: stateAsync.when(
         loading: () =>
             const AppLoadingState(message: 'Carregando assinaturas...'),
@@ -33,22 +30,11 @@ class SubscriptionsPage extends ConsumerWidget {
           if (subscriptions.isEmpty) {
             return _buildEmptyState(context);
           }
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(subscriptionsControllerProvider);
-            },
-            color: LawrenceColors.primary,
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16.0),
-              itemCount: subscriptions.length,
-              itemBuilder: (context, index) {
-                return _buildSubscriptionCard(
-                  context,
-                  ref,
-                  subscriptions[index],
-                );
-              },
-            ),
+          return Column(
+            children: [
+              for (final subscription in subscriptions)
+                _buildSubscriptionCard(context, ref, subscription),
+            ],
           );
         },
       ),
@@ -87,13 +73,13 @@ class SubscriptionsPage extends ConsumerWidget {
       statusColor = LawrenceColors.danger;
     } else if (subscription.isTrialing) {
       statusText = 'Em Período de Teste';
-      statusColor = Colors.blue;
+      statusColor = LawrenceColors.info;
     }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(LawrenceTheme.AppRadiusMedium),
         boxShadow: const [
           BoxShadow(
@@ -110,12 +96,12 @@ class SubscriptionsPage extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Curso Assinado', // Na prática, trazer o título do curso
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: LawrenceColors.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               Container(
@@ -141,9 +127,9 @@ class SubscriptionsPage extends ConsumerWidget {
           const SizedBox(height: 16),
           Text(
             'Valor Mensal: ${subscription.currency} ${subscription.monthlyPrice.toStringAsFixed(2)}',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
-              color: LawrenceColors.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 8),
@@ -155,9 +141,9 @@ class SubscriptionsPage extends ConsumerWidget {
                 : (subscription.currentPeriodEnd != null
                       ? 'Próxima cobrança: ${subscription.currentPeriodEnd!.day}/${subscription.currentPeriodEnd!.month}/${subscription.currentPeriodEnd!.year}'
                       : 'Sem data definida'),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: LawrenceColors.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 24),

@@ -4,6 +4,7 @@ import 'router/app_router.dart';
 import '../design_system/tokens/lawrence_theme.dart';
 import '../features/lesson_progress/presentation/controllers/lesson_progress_controller.dart';
 import '../features/auth/presentation/controllers/auth_controller.dart';
+import 'theme_controller.dart';
 
 class LawrenceAcademyApp extends ConsumerWidget {
   const LawrenceAcademyApp({super.key});
@@ -12,6 +13,7 @@ class LawrenceAcademyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     final auth = ref.watch(authNotifierProvider);
+    final themeMode = ref.watch(themeModeProvider);
     if (auth.session != null) {
       ref.watch(lessonProgressSyncCoordinatorProvider);
     }
@@ -19,6 +21,8 @@ class LawrenceAcademyApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'Lawrence Academy',
       theme: LawrenceTheme.lightTheme,
+      darkTheme: LawrenceTheme.darkTheme,
+      themeMode: themeMode,
       debugShowCheckedModeBanner: false,
       routerConfig: router,
     );

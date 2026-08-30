@@ -33,14 +33,14 @@ class LiquidGlassSidebar extends StatelessWidget {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: LawrenceTheme.primary,
+                    color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFD4AF37) : LawrenceTheme.primary,
                     borderRadius: BorderRadius.circular(LawrenceTheme.radiusXs),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Text(
                       'L',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
                       ),
@@ -51,6 +51,7 @@ class LiquidGlassSidebar extends StatelessWidget {
                 Text(
                   'LAWRENCE',
                   style: theme.textTheme.titleLarge?.copyWith(
+                    color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFD4AF37) : theme.textTheme.titleLarge?.color,
                     letterSpacing: 1.5,
                     fontSize: 15,
                     fontWeight: FontWeight.w800,

@@ -40,18 +40,31 @@ class LessonRepository implements ILessonRepository {
   }
 
   @override
-  Future<String> getLessonStreamUrl(String courseId, String lessonId) async {
+  Future<LessonPlaybackSource> getLessonPlaybackSource(
+    String courseId,
+    String lessonId,
+  ) async {
     final response = await _networkClient.get(
       '/api/v1/courses/$courseId/lessons/$lessonId/stream',
     );
-    final signedUrl = response.data['signedUrl'] as String;
-    return _networkClient.resolveUrl(signedUrl);
+    final data = Map<String, dynamic>.from(response.data as Map);
+    if (data['sourceType'] == 'external') {
+      final url = data['url'] as String?;
+      final provider = data['provider'] as String?;
+      if (url == null || provider == null) {
+        throw const FormatException('Fonte externa inválida.');
+      }
+      return LessonPlaybackSource.external(url, provider);
+    }
+    final signedUrl = data['signedUrl'] as String?;
+    if (signedUrl == null) throw const FormatException('Fonte HLS inválida.');
+    return LessonPlaybackSource.hls(_networkClient.resolveUrl(signedUrl));
   }
 
   @override
   Future<bool> checkLessonAccess(String courseId, String lessonId) async {
     try {
-      await getLessonStreamUrl(courseId, lessonId);
+      await getLessonPlaybackSource(courseId, lessonId);
       return true;
     } catch (_) {
       return false;

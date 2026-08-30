@@ -13,13 +13,13 @@ class PublicLayout extends StatelessWidget {
     final isMobile = width < 600;
 
     return Scaffold(
-      backgroundColor: LiquidTheme.background,
+      backgroundColor: const Color(0xFFF4EFE6),
       body: Column(
         children: [
-          // 1. Header: GlobalNavBar preta absoluta (44px)
+          // 1. Header: GlobalNavBar
           Container(
-            height: 44,
-            color: Colors.black,
+            height: 80,
+            color: Colors.transparent,
             padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -47,9 +47,9 @@ class PublicLayout extends StatelessWidget {
                         "LAWRENCE ACADEMY",
                         style: TextStyle(
                           fontFamily: 'Outfit',
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          letterSpacing: 1.0,
+                          letterSpacing: 2.0,
                           color: Colors.white,
                         ),
                       ),
@@ -61,53 +61,17 @@ class PublicLayout extends StatelessWidget {
                 if (!isMobile)
                   Row(
                     children: [
-                      _buildNavLink(context, "Início", '/'),
+                      _buildNavLink(context, "CURSOS", '/courses'),
                       const SizedBox(width: 24),
-                      _buildNavLink(context, "Catálogo", '/courses'),
+                      _buildNavLink(context, "ENTRAR", '/login'),
                       const SizedBox(width: 24),
-                      _buildNavLink(context, "Depoimentos", '/'),
+                      const Icon(Icons.menu, color: Colors.white, size: 24),
                     ],
                   ),
 
                 // Auth CTAs
-                Row(
-                  children: [
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white70,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                      ),
-                      onPressed: () => context.go('/login'),
-                      child: const Text(
-                        "Entrar",
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: LiquidTheme.primary,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        minimumSize: const Size(0, 26),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () => context.go('/register'),
-                      child: const Text(
-                        "Matricular",
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                if (isMobile)
+                  const Icon(Icons.menu, color: Colors.white, size: 24),
               ],
             ),
           ),
@@ -131,7 +95,7 @@ class PublicLayout extends StatelessWidget {
                   // 3. Footer: InstitutionalFooter em pergaminho (#F8F9FB)
                   Container(
                     width: double.infinity,
-                    color: const Color(0xFFF8F9FB),
+                    color: const Color(0xFFF4EFE6), // Matching body
                     padding: const EdgeInsets.symmetric(
                       vertical: 40,
                       horizontal: 24,
@@ -277,8 +241,9 @@ class PublicLayout extends StatelessWidget {
           title,
           style: const TextStyle(
             fontSize: 12,
-            color: Colors.white70,
-            fontWeight: FontWeight.w500,
+            color: Colors.white,
+            letterSpacing: 1.5,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ),

@@ -65,18 +65,14 @@ void main() {
     return ProviderScope(
       overrides: [
         authNotifierProvider.overrideWith(_AnonymousAuthNotifier.new),
-        courseDetailBySlugProvider.overrideWith(
-          (ref, slug) async => course,
-        ),
+        courseDetailBySlugProvider.overrideWith((ref, slug) async => course),
       ],
       child: MaterialApp(
         theme: LawrenceTheme.lightTheme,
         home: MediaQuery(
           data: MediaQueryData(size: size),
           child: const Scaffold(
-            body: SingleChildScrollView(
-              child: PublicCourseDetailPage(slug: 'modelagem-profissional'),
-            ),
+            body: PublicCourseDetailPage(slug: 'modelagem-profissional'),
           ),
         ),
       ),
@@ -93,10 +89,13 @@ void main() {
 
     expect(find.text('Modelagem profissional'), findsOneWidget);
     expect(find.text('8h 30min'), findsOneWidget);
-    expect(find.text('O que você vai aprender'), findsOneWidget);
-    expect(find.text('Para quem é este curso'), findsOneWidget);
+    expect(find.text('O QUE VOCÊ LEVA'), findsOneWidget);
+    expect(find.text('Para quem é'), findsOneWidget);
     expect(find.text('O que você precisa'), findsOneWidget);
-    expect(find.text('Conteúdo do curso'), findsOneWidget);
+    expect(find.text('PROGRAMA DO CURSO'), findsOneWidget);
+    expect(find.text('FILME DE APRESENTAÇÃO · CADERNO 02'), findsOneWidget);
+    expect(find.text('TRAILER EM PREPARAÇÃO'), findsOneWidget);
+    expect(find.text('PERGUNTAS FREQUENTES'), findsOneWidget);
     expect(find.text('Entrar para acessar'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -109,6 +108,33 @@ void main() {
 
     expect(find.text('Modelagem profissional'), findsOneWidget);
     expect(find.text('Entrar para acessar'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('owns scroll and reaches content below the fold', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(pageAt(const Size(1280, 600)));
+    await tester.pumpAndSettle();
+
+    final scroll = find.byKey(
+      const PageStorageKey<String>('public-course-detail'),
+    );
+    expect(scroll, findsOneWidget);
+    final titleBefore = tester
+        .getTopLeft(find.text('Modelagem profissional'))
+        .dy;
+    await tester.drag(scroll, const Offset(0, -500));
+    await tester.pumpAndSettle();
+    final titleAfter = tester
+        .getTopLeft(find.text('Modelagem profissional'))
+        .dy;
+
+    expect(titleAfter, lessThan(titleBefore));
+    final scrollableState = tester.state<ScrollableState>(
+      find.descendant(of: scroll, matching: find.byType(Scrollable)),
+    );
+    expect(scrollableState.position.pixels, greaterThan(0));
     expect(tester.takeException(), isNull);
   });
 
@@ -146,7 +172,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Explorar catálogo').hitTestable(), findsNothing);
+    expect(find.text('CURSOS').hitTestable(), findsNothing);
     expect(find.byTooltip('Abrir menu'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -185,9 +211,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Explorar catálogo').hitTestable(), findsOneWidget);
-    expect(find.text('O que você quer aprender?'), findsOneWidget);
-    expect(find.byTooltip('Abrir menu'), findsNothing);
+    expect(find.text('CURSOS').hitTestable(), findsOneWidget);
+    expect(find.text('ENTRAR'), findsOneWidget);
+    expect(find.byTooltip('Abrir menu'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

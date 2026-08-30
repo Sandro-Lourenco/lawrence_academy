@@ -1,29 +1,45 @@
 // ignore_for_file: constant_identifier_names
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LawrenceColors {
   // Base e superfícies.
-  static const Color canvas = Color(0xFFFFFFFF);
-  static const Color canvasParchment = Color(0xFFF7F9FC);
-  static const Color surfaceSubtle = Color(0xFFF0F4F9);
+  static const Color canvas = Color(0xFFF7F0E8);
+  static const Color canvasParchment = Color(0xFFEDE1D2);
+  static const Color surfaceSubtle = Color(0xFFF1E7DC);
 
   // Marca e ações. actionPrimary possui contraste AA com texto branco.
-  static const Color brandNavy = Color(0xFF08265B);
-  static const Color actionPrimary = Color(0xFF0067D9);
-  static const Color actionPrimaryHover = Color(0xFF0058BC);
-  static const Color actionPrimaryPressed = Color(0xFF004A9F);
-  static const Color focusRing = Color(0xFF005FCC);
-  static const Color actionOnDark = Color(0xFF5BB0FF);
+  static const Color wine = Color(0xFF6B1328);
+  static const Color ruby = Color(0xFF811D3B);
+  static const Color plum = Color(0xFF2C111B);
+  static const Color brandNavy = wine; // Alias legado; a marca não é azul.
+  static const Color actionPrimary = wine;
+  static const Color actionPrimaryHover = ruby;
+  static const Color actionPrimaryPressed = Color(0xFF4B0C1B);
+  static const Color focusRing = Color(0xFFA63B5E);
+  static const Color actionOnDark = Color(0xFFF7F0E8);
 
   // Conteúdo.
-  static const Color textPrimary = Color(0xFF10264F);
-  static const Color textSecondary = Color(0xFF52627C);
-  static const Color textDisabled = Color(0xFF7C879A);
-  static const Color surfaceTile2 = Color(0xFF272729);
-  static const Color surfaceBlack = Color(0xFF000000); // Absolute Black
+  static const Color textPrimary = Color(0xFF181315);
+  static const Color textSecondary = Color(0xFF62565A);
+  static const Color textDisabled = Color(0xFF7A6D71);
+  static const Color surfaceTile2 = plum;
+  static const Color surfaceBlack = Color(0xFF181315);
+
+  // Superfícies autenticadas no modo escuro: neutras, nunca vinho.
+  static const Color darkCanvas = Color(0xFF0C0C0E);
+  static const Color darkSurface = Color(0xFF151518);
+  static const Color darkElevated = Color(0xFF1D1D21);
+  static const Color darkBorder = Color(0xFF34343A);
+  static const Color darkTextPrimary = Color(0xFFF6F3EF);
+  static const Color darkTextSecondary = Color(0xFFBEB8B4);
+  static const Color darkAction = wine;
+  static const Color darkActionHover = Color(0xFFB94A6B);
+  static const Color darkActionPressed = Color(0xFF811D3B);
 
   // Bordas e divisores.
-  static const Color borderMist = Color(0xFFD9E0EA);
+  static const Color borderMist = Color(0xFFD8C8BA);
+  static const Color border = borderMist;
 
   // Contexto de prática e projetos. Não representa erro.
   static const Color practice = Color(0xFFC92C73);
@@ -38,7 +54,29 @@ class LawrenceColors {
   static const Color dangerSurface = Color(0xFFFFEDEA);
   static const Color info = Color(0xFF075E9E);
   static const Color infoSurface = Color(0xFFEAF4FC);
-  static const Color achievement = Color(0xFF8A5A00);
+  static const Color achievement = Color(0xFF7A4F00);
+  static const Color goldHighlight = Color(0xFFE8D2B0);
+  static const Color goldBright = Color(0xFFD4B47E);
+  static const Color goldMid = Color(0xFFB38A4A);
+  static const Color goldDeep = Color(0xFF8C642B);
+  static const Color goldShadow = Color(0xFF68471F);
+  static const Color onGold = brandNavy;
+  static const Color goldSoft = goldDeep;
+  static const Color goldDisabled = Color(0xFFE4E0D6);
+  static const Color onGoldDisabled = Color(0xFF737373);
+  static const List<Color> goldFoilGradient = <Color>[
+    goldHighlight,
+    goldBright,
+    goldMid,
+    goldDeep,
+    goldShadow,
+  ];
+  static const List<double> goldFoilStops = <double>[0, .25, .5, .75, 1];
+
+  // Quartier Latin Red
+  static const Color qlRed = brandNavy;
+  static const Color qlRedHover = actionPrimaryHover;
+  static const Color qlRedPressed = actionPrimaryPressed;
 
   // Aliases legados. Novos componentes devem usar os tokens semânticos acima.
   static const Color primary = actionPrimary;
@@ -71,9 +109,9 @@ class LawrenceSpacing {
 }
 
 class LawrenceRadii {
-  static const double control = 8;
-  static const double card = 16;
-  static const double featured = 24;
+  static const double control = 2;
+  static const double card = 0;
+  static const double featured = 0;
   static const double pill = 999;
 }
 
@@ -124,23 +162,97 @@ class LawrenceTheme {
   static const double AppRadiusLarge = 24.0;
 
   static ThemeData get lightTheme {
+    final textTheme = TextTheme(
+      displayLarge: GoogleFonts.cormorantGaramond(
+        color: LawrenceColors.surfaceBlack,
+        fontSize: 64.0,
+        fontWeight: FontWeight.w400,
+        height: 1.1,
+      ),
+      displayMedium: GoogleFonts.cormorantGaramond(
+        color: LawrenceColors.surfaceBlack,
+        fontSize: 48.0,
+        fontWeight: FontWeight.w400,
+        height: 1.1,
+      ),
+      displaySmall: GoogleFonts.cormorantGaramond(
+        color: LawrenceColors.surfaceBlack,
+        fontSize: 36.0,
+        fontWeight: FontWeight.w400,
+        height: 1.2,
+      ),
+      headlineLarge: GoogleFonts.cormorantGaramond(
+        color: LawrenceColors.surfaceBlack,
+        fontSize: 28.0,
+        fontWeight: FontWeight.w400,
+        height: 1.25,
+      ),
+      headlineMedium: GoogleFonts.cormorantGaramond(
+        color: LawrenceColors.surfaceBlack,
+        fontSize: 22.0,
+        fontWeight: FontWeight.w400,
+        height: 1.3,
+      ),
+      titleLarge: GoogleFonts.inter(
+        color: LawrenceColors.surfaceBlack,
+        fontSize: 17.0,
+        fontWeight: FontWeight.w600,
+      ),
+      bodyLarge: GoogleFonts.inter(
+        color: LawrenceColors.surfaceBlack,
+        fontSize: 17.0,
+        fontWeight: FontWeight.w400,
+      ),
+      bodyMedium: GoogleFonts.inter(
+        color: LawrenceColors.textSecondary,
+        fontSize: 15.0,
+        fontWeight: FontWeight.w400,
+      ),
+      bodySmall: GoogleFonts.inter(
+        color: LawrenceColors.textSecondary,
+        fontSize: 12.0,
+        fontWeight: FontWeight.w400,
+      ),
+    );
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       colorScheme: const ColorScheme.light(
-        primary: LawrenceColors.primary,
-        secondary: LawrenceColors.textPrimary,
+        primary: LawrenceColors.brandNavy,
+        secondary: LawrenceColors.actionPrimaryHover,
         surface: LawrenceColors.canvas,
+        surfaceContainerLowest: Colors.white,
+        surfaceContainerLow: Color(0xFFFCF9F5),
+        surfaceContainer: LawrenceColors.surfaceSubtle,
+        surfaceContainerHigh: LawrenceColors.canvasParchment,
+        surfaceContainerHighest: Color(0xFFE6D9CD),
         error: LawrenceColors.danger,
         onPrimary: LawrenceColors.canvas,
         onSecondary: LawrenceColors.canvas,
-        onSurface: LawrenceColors.textPrimary,
+        onSurface: LawrenceColors.surfaceBlack,
+        onSurfaceVariant: LawrenceColors.textSecondary,
+        outline: LawrenceColors.borderMist,
+        outlineVariant: Color(0xFFE7DDD4),
       ),
-      scaffoldBackgroundColor: LawrenceColors.canvasParchment,
-      fontFamily: 'Inter',
+      scaffoldBackgroundColor: LawrenceColors.canvas,
+      textTheme: textTheme,
       dividerTheme: const DividerThemeData(
         color: LawrenceColors.borderMist,
         thickness: 1,
+      ),
+      appBarTheme: AppBarTheme(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        backgroundColor: LawrenceColors.canvas,
+        foregroundColor: LawrenceColors.textPrimary,
+        surfaceTintColor: Colors.transparent,
+        titleTextStyle: GoogleFonts.inter(
+          color: LawrenceColors.textPrimary,
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+        ),
       ),
       cardTheme: CardThemeData(
         color: LawrenceColors.canvas,
@@ -154,33 +266,72 @@ class LawrenceTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size(48, 48),
-          backgroundColor: LawrenceColors.actionPrimary,
+          backgroundColor: LawrenceColors.brandNavy,
           foregroundColor: LawrenceColors.canvas,
-          disabledBackgroundColor: LawrenceColors.surfaceSubtle,
-          disabledForegroundColor: LawrenceColors.textDisabled,
-          padding: const EdgeInsets.symmetric(
-            horizontal: LawrenceSpacing.lg,
-            vertical: LawrenceSpacing.sm,
-          ),
+          disabledBackgroundColor: LawrenceColors.goldDisabled,
+          disabledForegroundColor: LawrenceColors.onGoldDisabled,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(LawrenceRadii.control),
           ),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          textStyle: GoogleFonts.inter(
+            fontWeight: FontWeight.w600,
+            letterSpacing: .2,
+          ),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          backgroundColor: LawrenceColors.brandNavy,
+          foregroundColor: LawrenceColors.canvas,
+          disabledBackgroundColor: LawrenceColors.goldDisabled,
+          disabledForegroundColor: LawrenceColors.onGoldDisabled,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(LawrenceRadii.control),
+          ),
+          textStyle: GoogleFonts.inter(
+            fontWeight: FontWeight.w700,
+            letterSpacing: .2,
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(48, 48),
-          foregroundColor: LawrenceColors.actionPrimary,
-          side: const BorderSide(color: LawrenceColors.actionPrimary),
-          padding: const EdgeInsets.symmetric(
-            horizontal: LawrenceSpacing.lg,
-            vertical: LawrenceSpacing.sm,
-          ),
+          foregroundColor: LawrenceColors.brandNavy,
+          side: const BorderSide(color: LawrenceColors.brandNavy),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(LawrenceRadii.control),
           ),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          textStyle: GoogleFonts.inter(
+            fontWeight: FontWeight.w600,
+            letterSpacing: .2,
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          foregroundColor: LawrenceColors.brandNavy,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(LawrenceRadii.control),
+          ),
+          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          foregroundColor: LawrenceColors.textPrimary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(LawrenceRadii.control),
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -205,93 +356,368 @@ class LawrenceTheme {
             width: 2,
           ),
         ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(LawrenceRadii.control),
-          borderSide: const BorderSide(color: LawrenceColors.danger),
+      ),
+      searchBarTheme: SearchBarThemeData(
+        elevation: const WidgetStatePropertyAll(0),
+        backgroundColor: const WidgetStatePropertyAll(Colors.white),
+        surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+        side: const WidgetStatePropertyAll(
+          BorderSide(color: LawrenceColors.borderMist),
+        ),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(LawrenceRadii.control),
+          ),
+        ),
+        hintStyle: WidgetStatePropertyAll(
+          GoogleFonts.inter(color: LawrenceColors.textSecondary),
         ),
       ),
-      textTheme: const TextTheme(
-        // Hero XL (64px, bold, tracking negativo -0.4px)
-        displayLarge: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 64.0,
-          fontWeight: FontWeight.bold,
-          height: 1.1,
-          letterSpacing: -0.4,
-          color: LawrenceColors.textPrimary,
+      chipTheme: ChipThemeData(
+        backgroundColor: Colors.white,
+        selectedColor: LawrenceColors.brandNavy,
+        disabledColor: LawrenceColors.surfaceSubtle,
+        labelStyle: GoogleFonts.inter(color: LawrenceColors.textPrimary),
+        secondaryLabelStyle: GoogleFonts.inter(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
         ),
-        // Display L (48px, semibold, tracking negativo -0.32px)
-        displayMedium: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 48.0,
-          fontWeight: FontWeight.w600,
-          height: 1.1,
-          letterSpacing: -0.32,
-          color: LawrenceColors.textPrimary,
+        side: const BorderSide(color: LawrenceColors.borderMist),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(LawrenceRadii.control),
         ),
-        // Display M (36px, semibold, tracking negativo -0.28px)
-        displaySmall: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 36.0,
-          fontWeight: FontWeight.w600,
-          height: 1.2,
-          letterSpacing: -0.28,
-          color: LawrenceColors.textPrimary,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        height: 72,
+        elevation: 0,
+        backgroundColor: LawrenceColors.canvas,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: LawrenceColors.brandNavy.withValues(alpha: .12),
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(LawrenceRadii.control),
         ),
-        // Heading L (28px, semibold, tracking negativo -0.2px)
-        headlineLarge: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 28.0,
-          fontWeight: FontWeight.w600,
-          height: 1.25,
-          letterSpacing: -0.2,
-          color: LawrenceColors.textPrimary,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          return GoogleFonts.inter(
+            color: states.contains(WidgetState.selected)
+                ? LawrenceColors.brandNavy
+                : LawrenceColors.textSecondary,
+            fontSize: 12,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w700
+                : FontWeight.w500,
+          );
+        }),
+      ),
+      navigationRailTheme: NavigationRailThemeData(
+        elevation: 0,
+        backgroundColor: LawrenceColors.canvas,
+        indicatorColor: LawrenceColors.brandNavy.withValues(alpha: .12),
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(LawrenceRadii.control),
         ),
-        // Heading M (22px, semibold, tracking negativo -0.16px)
-        headlineMedium: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 22.0,
-          fontWeight: FontWeight.w600,
-          height: 1.3,
-          letterSpacing: -0.16,
-          color: LawrenceColors.textPrimary,
-        ),
-        // Body L Strong (17px, semibold, tracking negativo -0.374px)
-        titleLarge: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 17.0,
-          fontWeight: FontWeight.w600,
-          height: 1.3,
-          letterSpacing: -0.374,
-          color: LawrenceColors.textPrimary,
-        ),
-        // Body L (17px, regular, tracking -0.374px)
-        bodyLarge: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 17.0,
-          fontWeight: FontWeight.normal,
-          height: 1.3,
-          letterSpacing: -0.374,
-          color: LawrenceColors.textPrimary,
-        ),
-        // Body M (15px, regular, tracking -0.24px)
-        bodyMedium: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 15.0,
-          fontWeight: FontWeight.normal,
-          height: 1.35,
-          letterSpacing: -0.24,
+        selectedIconTheme: const IconThemeData(color: LawrenceColors.brandNavy),
+        unselectedIconTheme: const IconThemeData(
           color: LawrenceColors.textSecondary,
         ),
-        // Caption (12px, regular, tracking 0.0px)
-        bodySmall: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 12.0,
-          fontWeight: FontWeight.normal,
-          height: 1.4,
-          letterSpacing: 0.0,
-          color: LawrenceColors.textSecondary,
+      ),
+      dialogTheme: DialogThemeData(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(LawrenceRadii.card),
+          side: const BorderSide(color: LawrenceColors.borderMist),
         ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        backgroundColor: LawrenceColors.surfaceBlack,
+        contentTextStyle: GoogleFonts.inter(color: Colors.white),
+        actionTextColor: LawrenceColors.goldHighlight,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(LawrenceRadii.control),
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.white,
+        modalBackgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: LawrenceColors.borderMist),
+        ),
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: LawrenceColors.surfaceBlack,
+          borderRadius: BorderRadius.circular(LawrenceRadii.control),
+        ),
+        textStyle: GoogleFonts.inter(color: Colors.white, fontSize: 12),
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: LawrenceColors.brandNavy,
+        linearTrackColor: LawrenceColors.borderMist,
+        circularTrackColor: LawrenceColors.borderMist,
+      ),
+    );
+  }
+
+  static ThemeData get darkTheme {
+    final textTheme = TextTheme(
+      displayLarge: GoogleFonts.cormorantGaramond(
+        color: LawrenceColors.darkTextPrimary,
+        fontSize: 64.0,
+        fontWeight: FontWeight.w400,
+        height: 1.1,
+      ),
+      displayMedium: GoogleFonts.cormorantGaramond(
+        color: LawrenceColors.darkTextPrimary,
+        fontSize: 48.0,
+        fontWeight: FontWeight.w400,
+        height: 1.1,
+      ),
+      displaySmall: GoogleFonts.cormorantGaramond(
+        color: LawrenceColors.darkTextPrimary,
+        fontSize: 36.0,
+        fontWeight: FontWeight.w400,
+        height: 1.2,
+      ),
+      headlineLarge: GoogleFonts.cormorantGaramond(
+        color: LawrenceColors.darkTextPrimary,
+        fontSize: 28.0,
+        fontWeight: FontWeight.w400,
+        height: 1.25,
+      ),
+      headlineMedium: GoogleFonts.cormorantGaramond(
+        color: LawrenceColors.darkTextPrimary,
+        fontSize: 22.0,
+        fontWeight: FontWeight.w400,
+        height: 1.3,
+      ),
+      titleLarge: GoogleFonts.inter(
+        color: LawrenceColors.darkTextPrimary,
+        fontSize: 17.0,
+        fontWeight: FontWeight.w600,
+      ),
+      bodyLarge: GoogleFonts.inter(
+        color: LawrenceColors.darkTextPrimary,
+        fontSize: 17.0,
+        fontWeight: FontWeight.w400,
+      ),
+      bodyMedium: GoogleFonts.inter(
+        color: LawrenceColors.darkTextSecondary,
+        fontSize: 15.0,
+        fontWeight: FontWeight.w400,
+      ),
+      bodySmall: GoogleFonts.inter(
+        color: LawrenceColors.darkTextSecondary,
+        fontSize: 12.0,
+        fontWeight: FontWeight.w400,
+      ),
+    );
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: const ColorScheme.dark(
+        primary: LawrenceColors.darkAction,
+        secondary: LawrenceColors.brandNavy,
+        surface: LawrenceColors.darkSurface,
+        surfaceContainerLowest: LawrenceColors.darkCanvas,
+        surfaceContainerLow: LawrenceColors.darkSurface,
+        surfaceContainer: LawrenceColors.darkElevated,
+        surfaceContainerHigh: Color(0xFF242429),
+        surfaceContainerHighest: LawrenceColors.darkElevated,
+        error: LawrenceColors.danger,
+        onPrimary: LawrenceColors.darkTextPrimary,
+        onSecondary: LawrenceColors.darkTextPrimary,
+        onSurface: LawrenceColors.darkTextPrimary,
+        onSurfaceVariant: LawrenceColors.darkTextSecondary,
+        outline: LawrenceColors.darkBorder,
+        outlineVariant: LawrenceColors.darkBorder,
+      ),
+      scaffoldBackgroundColor: LawrenceColors.darkCanvas,
+      textTheme: textTheme,
+      dividerTheme: const DividerThemeData(
+        color: LawrenceColors.darkBorder,
+        thickness: 1,
+      ),
+      appBarTheme: AppBarTheme(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        backgroundColor: LawrenceColors.darkCanvas,
+        foregroundColor: LawrenceColors.darkTextPrimary,
+        surfaceTintColor: Colors.transparent,
+        titleTextStyle: GoogleFonts.inter(
+          color: LawrenceColors.darkTextPrimary,
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: LawrenceColors.darkSurface,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(0),
+          side: const BorderSide(color: LawrenceColors.darkBorder),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          backgroundColor: LawrenceColors.darkAction,
+          foregroundColor: LawrenceColors.darkTextPrimary,
+          disabledBackgroundColor: LawrenceColors.darkElevated,
+          disabledForegroundColor: LawrenceColors.darkTextSecondary,
+          elevation: 0,
+          shadowColor: Colors.black,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+          textStyle: GoogleFonts.inter(
+            fontWeight: FontWeight.w700,
+            letterSpacing: .3,
+          ),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          backgroundColor: LawrenceColors.darkAction,
+          foregroundColor: LawrenceColors.darkTextPrimary,
+          disabledBackgroundColor: LawrenceColors.darkElevated,
+          disabledForegroundColor: LawrenceColors.darkTextSecondary,
+          elevation: 0,
+          shadowColor: Colors.black,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: const RoundedRectangleBorder(),
+          textStyle: GoogleFonts.inter(
+            fontWeight: FontWeight.w700,
+            letterSpacing: .3,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          foregroundColor: LawrenceColors.darkTextPrimary,
+          side: const BorderSide(color: LawrenceColors.darkBorder),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+          textStyle: GoogleFonts.inter(
+            fontWeight: FontWeight.w500,
+            letterSpacing: .3,
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          foregroundColor: LawrenceColors.darkTextPrimary,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: const RoundedRectangleBorder(),
+          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          foregroundColor: LawrenceColors.darkTextPrimary,
+          shape: const RoundedRectangleBorder(),
+        ),
+      ),
+      inputDecorationTheme: const InputDecorationTheme(
+        filled: true,
+        fillColor: LawrenceColors.darkSurface,
+        labelStyle: TextStyle(color: LawrenceColors.darkTextSecondary),
+        hintStyle: TextStyle(color: LawrenceColors.darkTextSecondary),
+        enabledBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: LawrenceColors.darkBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: LawrenceColors.focusRing, width: 2),
+        ),
+      ),
+      searchBarTheme: SearchBarThemeData(
+        elevation: const WidgetStatePropertyAll(0),
+        backgroundColor: const WidgetStatePropertyAll(
+          LawrenceColors.darkSurface,
+        ),
+        surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+        side: const WidgetStatePropertyAll(
+          BorderSide(color: LawrenceColors.darkBorder),
+        ),
+        shape: const WidgetStatePropertyAll(RoundedRectangleBorder()),
+        hintStyle: WidgetStatePropertyAll(
+          GoogleFonts.inter(color: LawrenceColors.darkTextSecondary),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: LawrenceColors.darkSurface,
+        selectedColor: LawrenceColors.darkAction,
+        disabledColor: LawrenceColors.darkElevated,
+        labelStyle: GoogleFonts.inter(color: LawrenceColors.darkTextPrimary),
+        secondaryLabelStyle: GoogleFonts.inter(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+        ),
+        side: const BorderSide(color: LawrenceColors.darkBorder),
+        shape: const RoundedRectangleBorder(),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        height: 72,
+        elevation: 0,
+        backgroundColor: LawrenceColors.darkSurface,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: LawrenceColors.darkAction.withValues(alpha: .22),
+        indicatorShape: const RoundedRectangleBorder(),
+      ),
+      navigationRailTheme: NavigationRailThemeData(
+        elevation: 0,
+        backgroundColor: LawrenceColors.darkSurface,
+        indicatorColor: LawrenceColors.darkAction.withValues(alpha: .22),
+        indicatorShape: const RoundedRectangleBorder(),
+        selectedIconTheme: const IconThemeData(
+          color: LawrenceColors.darkTextPrimary,
+        ),
+        unselectedIconTheme: const IconThemeData(
+          color: LawrenceColors.darkTextSecondary,
+        ),
+      ),
+      dialogTheme: const DialogThemeData(
+        elevation: 0,
+        backgroundColor: LawrenceColors.darkSurface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: LawrenceColors.darkBorder),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        backgroundColor: LawrenceColors.darkElevated,
+        contentTextStyle: GoogleFonts.inter(
+          color: LawrenceColors.darkTextPrimary,
+        ),
+        actionTextColor: LawrenceColors.darkTextPrimary,
+        shape: const RoundedRectangleBorder(
+          side: BorderSide(color: LawrenceColors.darkBorder),
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: LawrenceColors.darkSurface,
+        modalBackgroundColor: LawrenceColors.darkSurface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: LawrenceColors.darkBorder),
+        ),
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: LawrenceColors.darkAction,
+        linearTrackColor: LawrenceColors.darkBorder,
+        circularTrackColor: LawrenceColors.darkBorder,
       ),
     );
   }

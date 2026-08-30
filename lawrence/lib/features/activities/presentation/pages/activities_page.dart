@@ -17,7 +17,7 @@ class ActivitiesPage extends ConsumerWidget {
     final activitiesAsync = ref.watch(activitiesNotifierProvider);
 
     return Scaffold(
-      backgroundColor: LawrenceColors.canvasParchment,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: activitiesAsync.when(
         loading: () => const AppLoadingState(),
         error: (err, stack) => AppErrorState(
@@ -168,7 +168,7 @@ class ActivitiesPage extends ConsumerWidget {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
-                          color: LawrenceColors.accentGold,
+                          color: LawrenceColors.darkAction,
                         ),
                       ),
                   ],

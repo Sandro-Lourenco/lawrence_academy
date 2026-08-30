@@ -3,6 +3,8 @@ import '../../../../core/error/app_error.dart';
 import '../../../../design_system/tokens/lawrence_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../controllers/course_wizard_controller.dart';
+import '../controllers/teacher_courses_controller.dart';
+import '../widgets/studio_cinematic_background.dart';
 import 'components/module_editor_dialog.dart';
 import 'components/lesson_editor_dialog.dart';
 import 'components/module_lessons_section.dart';
@@ -54,12 +56,24 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
   String _level = 'iniciante';
   String _courseType = 'complete';
   String _language = 'pt-BR';
+  Set<String> _prerequisiteCourseIds = <String>{};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(courseWizardControllerProvider.notifier).init(widget.courseId);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant CourseWizardPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.courseId == widget.courseId) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(courseWizardControllerProvider.notifier).init(widget.courseId);
+      }
     });
   }
 
@@ -96,6 +110,9 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
         _requirementsController.text = state.value!.course!.requirements.join(
           '\n',
         );
+        _prerequisiteCourseIds = state.value!.course!.prerequisiteCourses
+            .map((course) => course.id)
+            .toSet();
         _level = state.value!.course!.level;
         _courseType = state.value!.course!.courseType;
         _language = state.value!.course!.language;
@@ -143,7 +160,7 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
       final shouldPop = await showDialog<bool>(
         context: context,
         builder: (c) => AlertDialog(
-          backgroundColor: LawrenceColors.canvas,
+          backgroundColor: const Color(0xF20A1022),
           title: const Text(
             "Alterações não salvas",
             style: TextStyle(color: LawrenceColors.textPrimary),
@@ -202,28 +219,58 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
       .where((item) => item.isNotEmpty)
       .toList();
 
+  double? _currentMonthlyPrice() => _isFreeCourse
+      ? 0.0
+      : double.tryParse(
+          _monthlyPriceController.text.trim().replaceAll(',', '.'),
+        );
+
   Map<String, dynamic> _basicDraftData() => {
     'title': _titleController.text.trim(),
-    'slug': _slugController.text.trim(),
     'category': _categoryController.text.trim(),
-    'level': _level,
-    'summary': _summaryController.text.trim(),
     'course_type': _courseType,
-    'subtitle': _subtitleController.text.trim(),
-    'language': _language,
-    'estimated_duration_minutes': int.tryParse(_durationController.text.trim()),
     'description': _descriptionController.text.trim(),
     'requirements': _lines(_requirementsController),
-    'learning_objectives': _lines(_learningObjectivesController),
-    'target_audience': _lines(_targetAudienceController),
+    'prerequisite_course_ids': _prerequisiteCourseIds.toList()..sort(),
     'required_materials': _lines(_requiredMaterialsController),
-    'competencies': _lines(_competenciesController),
-    'expected_outcomes': _lines(_expectedOutcomesController),
+    'monthly_price': _currentMonthlyPrice(),
   };
 
-  void _scheduleBasicAutosave() => ref
-      .read(courseWizardControllerProvider.notifier)
-      .scheduleAutosave(_basicDraftData());
+  void _scheduleBasicAutosave() {
+    final payload = _basicDraftData();
+    final controller = ref.read(courseWizardControllerProvider.notifier);
+    if (!_isPlanningPayloadValidForAutosave(payload)) {
+      controller.markUnsavedChanges();
+      return;
+    }
+    controller.scheduleAutosave(payload);
+  }
+
+  bool _isPlanningPayloadValidForAutosave(Map<String, dynamic> payload) {
+    final title = (payload['title'] as String? ?? '').trim();
+    final description = (payload['description'] as String? ?? '').trim();
+    final category = (payload['category'] as String? ?? '').trim();
+    final monthlyPrice = payload['monthly_price'];
+    if (title.length < 3 ||
+        title.length > 120 ||
+        description.length < 10 ||
+        description.length > 5000 ||
+        category.length < 2 ||
+        monthlyPrice is! num ||
+        monthlyPrice < 0 ||
+        monthlyPrice > 1000000) {
+      return false;
+    }
+
+    for (final field in const ['requirements', 'required_materials']) {
+      final items = payload[field] as List<String>? ?? const [];
+      if (items.length > 20 ||
+          items.any((item) => item.length < 2 || item.length > 240)) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   Future<void> _saveOfferSettings() async {
     if (!(_offerFormKey.currentState?.validate() ?? false)) return;
@@ -316,6 +363,7 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
             'status': result.status,
             'estimated_duration_minutes': result.estimatedDurationMinutes,
             'is_required': result.isRequired,
+            if (result.videoUrl != null) 'video_url': result.videoUrl,
           },
           video: video == null
               ? null
@@ -332,9 +380,11 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            video == null
-                ? 'Aula criada com sucesso.'
-                : 'VÃ­deo enviado para processamento.',
+            video != null
+                ? 'Vídeo enviado para processamento.'
+                : result.videoUrl != null
+                ? 'Aula criada com o link do vídeo.'
+                : 'Aula criada com sucesso.',
           ),
         ),
       );
@@ -360,6 +410,11 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
             'status': result.status,
             'estimated_duration_minutes': result.estimatedDurationMinutes,
             'is_required': result.isRequired,
+            if (result.videoUrl != null) 'video_url': result.videoUrl,
+            // O link atual permanece reproduzível enquanto o novo upload é
+            // processado. O worker troca a fonte somente na ativação do HLS.
+            if (result.removeExternalVideo && video == null)
+              'remove_external_video': true,
           },
           video: video == null
               ? null
@@ -376,9 +431,11 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
       SnackBar(
         content: Text(
           success
-              ? (video == null
-                    ? 'Aula atualizada com sucesso.'
-                    : 'Aula atualizada e vídeo enviado para processamento.')
+              ? (video != null
+                    ? 'Aula atualizada e vídeo enviado para processamento.'
+                    : result.videoUrl != null
+                    ? 'Aula atualizada com o novo link.'
+                    : 'Aula atualizada com sucesso.')
               : 'Não foi possível atualizar a aula.',
         ),
       ),
@@ -416,6 +473,30 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
         lessonId: other.id,
         lessonData: {'order_index': lesson.orderIndex},
       );
+    }
+  }
+
+  Future<void> _reorderLessons(
+    Module module,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    final lessons = [...module.lessons]
+      ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+    if (newIndex > oldIndex) newIndex -= 1;
+    if (oldIndex == newIndex || oldIndex < 0 || oldIndex >= lessons.length) {
+      return;
+    }
+    final moved = lessons.removeAt(oldIndex);
+    lessons.insert(newIndex.clamp(0, lessons.length), moved);
+    final controller = ref.read(courseWizardControllerProvider.notifier);
+    for (var index = 0; index < lessons.length; index++) {
+      if (lessons[index].orderIndex == index) continue;
+      final saved = await controller.editLesson(
+        lessonId: lessons[index].id,
+        lessonData: {'order_index': index},
+      );
+      if (!saved || !mounted) break;
     }
   }
 
@@ -518,21 +599,44 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(c, true),
-            child: const Text("Excluir", style: TextStyle(color: LawrenceColors.danger)),
+            child: const Text(
+              "Excluir",
+              style: TextStyle(color: LawrenceColors.danger),
+            ),
           ),
         ],
       ),
     );
     if (conf == true) {
-      await ref
+      final success = await ref
           .read(courseWizardControllerProvider.notifier)
           .deleteModule(moduleId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? 'Módulo arquivado com sucesso.'
+                : 'Não foi possível arquivar o módulo. Tente novamente.',
+          ),
+          backgroundColor: success
+              ? LawrenceColors.success
+              : LawrenceColors.danger,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final asyncState = ref.watch(courseWizardControllerProvider);
+    final availablePrerequisites =
+        ref.watch(teacherCoursesControllerProvider).value?.where((course) {
+          return course.id != widget.courseId &&
+              (course.status == 'published' ||
+                  _prerequisiteCourseIds.contains(course.id));
+        }).toList() ??
+        const <Course>[];
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -546,22 +650,16 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
         appBar: AppBar(
           title: const Text(
             'Studio de autoria',
-            style: TextStyle(
-              color: LawrenceColors.textPrimary,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
-          backgroundColor: LawrenceColors.canvas,
+          backgroundColor: const Color(0xF20A1022),
           elevation: 0,
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(1),
-            child: Container(
-              color: LawrenceColors.borderMist,
-              height: 1,
-            ),
+            child: Container(color: const Color(0x33A63B5E), height: 1),
           ),
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: LawrenceColors.textPrimary),
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () async {
               final shouldPop = await _onWillPop();
               if (shouldPop && context.mounted) {
@@ -570,156 +668,146 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
             },
           ),
         ),
-        backgroundColor: LawrenceColors.canvasParchment,
+        backgroundColor: const Color(0xFF070B18),
         body: asyncState.when(
           loading: () => const Center(
             child: CircularProgressIndicator(color: LawrenceColors.primary),
           ),
           error: (e, st) => Center(
-            child: Text("Erro: $e", style: const TextStyle(color: LawrenceColors.danger)),
+            child: Text(
+              "Erro: $e",
+              style: const TextStyle(color: LawrenceColors.danger),
+            ),
           ),
           data: (state) {
             _syncControllersIfEmpty();
 
-            final isMobile = MediaQuery.of(context).size.width < 600;
             final feedbackError = state.error == null
                 ? null
                 : AppError.fromException(state.error);
 
-            return Column(
-              children: [
-                if (state.hasUnsavedChanges)
-                  Container(
-                    width: double.infinity,
-                    color: Colors.orange.withValues(alpha: 0.2),
-                    padding: const EdgeInsets.all(8),
-                    child: const Text(
-                      "Você tem alterações não salvas",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.orange),
-                    ),
-                  ),
-                if (state.isUploading ||
-                    state.uploadMessage != null ||
-                    state.error != null)
-                  Container(
-                    width: double.infinity,
-                    color: state.error != null
-                        ? LawrenceColors.danger.withValues(alpha: 0.16)
-                        : state.isUploading
-                        ? LawrenceColors.primary.withValues(alpha: 0.2)
-                        : LawrenceColors.success.withValues(alpha: 0.16),
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (state.isUploading)
-                          const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        else
-                          Icon(
-                            feedbackError != null
-                                ? feedbackError.icon
-                                : Icons.check_circle_outline,
-                            color: state.error != null
-                                ? LawrenceColors.danger
-                                : LawrenceColors.success,
+            return StudioCinematicBackground(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final desktop = constraints.maxWidth >= 980;
+                        final content = SingleChildScrollView(
+                          padding: EdgeInsets.fromLTRB(
+                            desktop ? 32 : 18,
+                            24,
+                            desktop ? 40 : 18,
+                            96,
                           ),
-                        const SizedBox(width: 12),
-                        Flexible(
-                          child: Text(
-                            feedbackError == null
-                                ? state.uploadMessage ?? 'Enviando...'
-                                : '${feedbackError.title}: '
-                                      '${feedbackError.message}',
-                            style: TextStyle(
-                              color: state.error != null
-                                  ? LawrenceColors.danger
-                                  : LawrenceColors.textPrimary,
-                              fontWeight: FontWeight.w600,
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 1120),
+                              child: Container(
+                                padding: EdgeInsets.all(desktop ? 28 : 18),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Color(0x8F25305A),
+                                      Color(0x66101830),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(26),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: .16),
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x55000000),
+                                      blurRadius: 36,
+                                      offset: Offset(0, 18),
+                                    ),
+                                    BoxShadow(
+                                      color: Color(0x336655F5),
+                                      blurRadius: 42,
+                                      spreadRadius: -16,
+                                    ),
+                                  ],
+                                ),
+                                child: AnimatedSwitcher(
+                                  duration:
+                                      MediaQuery.disableAnimationsOf(context)
+                                      ? Duration.zero
+                                      : const Duration(milliseconds: 280),
+                                  child: KeyedSubtree(
+                                    key: ValueKey(_currentStep),
+                                    child: _phaseContent(
+                                      state,
+                                      availablePrerequisites,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                        if (state.hasRevisionConflict) ...[
-                          const SizedBox(width: 8),
-                          TextButton.icon(
-                            onPressed: ref
-                                .read(courseWizardControllerProvider.notifier)
-                                .refreshAfterRevisionConflict,
-                            icon: const Icon(Icons.sync),
-                            label: const Text('Atualizar revisão'),
-                          ),
-                        ],
-                        if (!state.isUploading) ...[
-                          const SizedBox(width: 8),
-                          IconButton(
-                            tooltip: 'Fechar mensagem',
-                            onPressed: ref
-                                .read(courseWizardControllerProvider.notifier)
-                                .clearFeedback,
-                            icon: const Icon(Icons.close),
-                          ),
-                        ],
-                      ],
+                        );
+                        if (desktop) {
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              SizedBox(
+                                width: 244,
+                                child: _StudioPhaseRail(
+                                  currentStep: _currentStep,
+                                  courseTitle: state.course?.title,
+                                  hasUnsavedChanges: state.hasUnsavedChanges,
+                                  onStepTapped: (step) =>
+                                      setState(() => _currentStep = step),
+                                ),
+                              ),
+                              const VerticalDivider(width: 1),
+                              Expanded(child: content),
+                            ],
+                          );
+                        }
+                        return Column(
+                          children: [
+                            _CompactPhaseHeader(
+                              currentStep: _currentStep,
+                              onStepTapped: (step) =>
+                                  setState(() => _currentStep = step),
+                            ),
+                            Expanded(child: content),
+                          ],
+                        );
+                      },
                     ),
                   ),
-                Expanded(
-                  child: Stepper(
-                    type: isMobile
-                      ? StepperType.vertical
-                      : StepperType.horizontal,
-                    currentStep: _currentStep,
-                    onStepTapped: (step) => setState(() => _currentStep = step),
-                    controlsBuilder: (context, details) =>
-                        const SizedBox.shrink(), // Custom controls
-                    steps: [
-                      Step(
-                        isActive: _currentStep >= 0,
-                        title: const Text(
-                          "Básico",
-                          style: TextStyle(color: LawrenceColors.textPrimary, fontWeight: FontWeight.bold),
+                  if (state.hasUnsavedChanges ||
+                      state.isSaving ||
+                      state.isUploading ||
+                      state.uploadMessage != null ||
+                      state.error != null)
+                    Positioned(
+                      top: 12,
+                      left: 16,
+                      right: 16,
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: _StudioFeedbackBanner(
+                          error: feedbackError,
+                          isBusy: state.isSaving || state.isUploading,
+                          message: state.uploadMessage,
+                          hasRevisionConflict: state.hasRevisionConflict,
+                          onResolveConflict: ref
+                              .read(courseWizardControllerProvider.notifier)
+                              .refreshAfterRevisionConflict,
+                          onClose: ref
+                              .read(courseWizardControllerProvider.notifier)
+                              .clearFeedback,
                         ),
-                        content: _buildStepBasicInfo(state.isSaving),
                       ),
-                      Step(
-                        isActive: _currentStep >= 1,
-                        title: const Text(
-                          'Oferta',
-                          style: TextStyle(color: LawrenceColors.textPrimary, fontWeight: FontWeight.bold),
-                        ),
-                        content: _buildStepOffer(state),
-                      ),
-                      Step(
-                        isActive: _currentStep >= 2,
-                        title: const Text(
-                          'Mídia',
-                          style: TextStyle(color: LawrenceColors.textPrimary, fontWeight: FontWeight.bold),
-                        ),
-                        content: _buildStepMedia(state),
-                      ),
-                      Step(
-                        isActive: _currentStep >= 3,
-                        title: const Text(
-                          "Currículo",
-                          style: TextStyle(color: LawrenceColors.textPrimary, fontWeight: FontWeight.bold),
-                        ),
-                        content: _buildStepCurriculum(state),
-                      ),
-                      Step(
-                        isActive: _currentStep >= 4,
-                        title: const Text(
-                          "Publicação",
-                          style: TextStyle(color: LawrenceColors.textPrimary, fontWeight: FontWeight.bold),
-                        ),
-                        content: _buildStepPublish(state),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                    ),
+                ],
+              ),
             );
           },
         ),
@@ -727,7 +815,21 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
     );
   }
 
-  Widget _buildStepBasicInfo(bool isSaving) => PlanningPhaseForm(
+  Widget _phaseContent(
+    CourseWizardState state,
+    List<Course> availablePrerequisites,
+  ) => switch (_currentStep) {
+    0 => _buildStepBasicInfo(state.isSaving, availablePrerequisites),
+    1 => _buildStepOffer(state),
+    2 => _buildStepMedia(state),
+    3 => _buildStepCurriculum(state),
+    _ => _buildStepPublish(state),
+  };
+
+  Widget _buildStepBasicInfo(
+    bool isSaving,
+    List<Course> availablePrerequisites,
+  ) => PlanningPhaseForm(
     formKey: _basicFormKey,
     titleController: _titleController,
     slugController: _slugController,
@@ -745,6 +847,8 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
     level: _level,
     courseType: _courseType,
     language: _language,
+    prerequisiteCourseOptions: availablePrerequisites,
+    selectedPrerequisiteCourseIds: _prerequisiteCourseIds,
     isSaving: isSaving,
     onChanged: _scheduleBasicAutosave,
     onCategoryChanged: (value) {
@@ -761,6 +865,24 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
     },
     onLanguageChanged: (value) {
       setState(() => _language = value);
+      _scheduleBasicAutosave();
+    },
+    onPrerequisiteCourseToggled: (courseId, selected) {
+      if (selected && _prerequisiteCourseIds.length >= 20) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Selecione no máximo 20 cursos obrigatórios.'),
+          ),
+        );
+        return;
+      }
+      setState(() {
+        if (selected) {
+          _prerequisiteCourseIds.add(courseId);
+        } else {
+          _prerequisiteCourseIds.remove(courseId);
+        }
+      });
       _scheduleBasicAutosave();
     },
     onSave: _saveBasicInfo,
@@ -819,25 +941,43 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
     onSave: _saveOfferSettings,
   );
 
-  Widget _buildStepMedia(CourseWizardState state) => CourseMediaForm(
-    isUploading: state.isUploading,
-    course: state.course!,
-    onUpload: (PlatformFile file, String type, String mime, String alt) => ref
-        .read(courseWizardControllerProvider.notifier)
-        .uploadCourseMedia(
-          assetType: type,
-          file: UploadFilePayload(
-            filename: file.name,
-            sizeBytes: file.size,
-            contentType: mime,
-            path: file.path,
-            bytes: file.bytes,
+  Widget _buildStepMedia(CourseWizardState state) {
+    final course = state.course;
+    if (course == null) {
+      return _PhasePrerequisite(
+        icon: Icons.image_outlined,
+        title: 'Salve o planejamento primeiro',
+        message:
+            'A imagem-mestre e o trailer precisam estar vinculados a um rascunho. Preencha o nome e salve a primeira fase para liberar as prévias de exportação.',
+        actionLabel: 'Voltar ao planejamento',
+        onPressed: () => setState(() => _currentStep = 0),
+      );
+    }
+    return CourseMediaForm(
+      isUploading: state.isUploading,
+      course: course,
+      onUpload: (PlatformFile file, String type, String mime, String alt) => ref
+          .read(courseWizardControllerProvider.notifier)
+          .uploadCourseMedia(
+            assetType: type,
+            file: UploadFilePayload(
+              filename: file.name,
+              sizeBytes: file.size,
+              contentType: mime,
+              path: file.path,
+              bytes: file.bytes,
+            ),
+            altText: alt,
           ),
-          altText: alt,
-        ),
-    onBack: () => setState(() => _currentStep = 1),
-    onContinue: () => setState(() => _currentStep = 3),
-  );
+      onExternalTrailerChanged: (url, remove) =>
+          ref.read(courseWizardControllerProvider.notifier).saveDraft({
+            'trailer_video_url': ?url,
+            if (remove) 'remove_external_trailer': true,
+          }),
+      onBack: () => setState(() => _currentStep = 1),
+      onContinue: () => setState(() => _currentStep = 3),
+    );
+  }
 
   // ignore: unused_element
   Widget _buildLegacyBasicInfo(bool isSaving) {
@@ -1077,17 +1217,30 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
         style: TextStyle(color: Colors.white60),
       );
     }
-    final modules = state.course!.modules;
+    final isQuickCourse = state.course!.courseType == 'quick';
+    final modules = state.course!.modules
+        .where((module) => isQuickCourse ? module.isSystem : !module.isSystem)
+        .toList();
     final lessons = modules.expand((module) => module.lessons).toList();
+    final totalSeconds = lessons.fold<int>(
+      0,
+      (total, lesson) =>
+          total +
+          (lesson.durationSeconds > 0
+              ? lesson.durationSeconds
+              : (lesson.estimatedDurationMinutes ?? 0) * 60),
+    );
     final readyVideos = lessons
-        .where((lesson) => lesson.hlsStoragePath?.isNotEmpty == true)
+        .where(
+          (lesson) =>
+              lesson.hlsStoragePath?.isNotEmpty == true ||
+              const {'youtube', 'vimeo'}.contains(lesson.videoSourceType),
+        )
         .length;
     final failedVideos = lessons
         .where(
-          (lesson) => const {
-            'failed',
-            'dead_letter',
-          }.contains(lesson.videoJobStatus),
+          (lesson) =>
+              const {'failed', 'dead_letter'}.contains(lesson.videoJobStatus),
         )
         .length;
     final processingVideos = lessons
@@ -1106,7 +1259,16 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
         .length;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF2C111B), Color(0xFF181315)],
+        ),
+        border: Border.all(color: const Color(0x668F2645)),
+        borderRadius: BorderRadius.circular(24),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1116,21 +1278,28 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
             spacing: 16,
             runSpacing: 12,
             children: [
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Grade curricular",
-                    style: TextStyle(
-                      color: LawrenceColors.textPrimary,
+                    isQuickCourse
+                        ? 'Aulas do curso rápido'
+                        : 'Grade curricular',
+                    style: const TextStyle(
+                      color: Colors.white,
                       fontSize: 22,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   SizedBox(height: 4),
                   Text(
-                    'Organize módulos e gerencie cada aula separadamente.',
-                    style: TextStyle(color: LawrenceColors.textSecondary, fontSize: 15),
+                    isQuickCourse
+                        ? 'Adicione as aulas diretamente, sem criar módulos.'
+                        : 'Organize módulos e gerencie cada aula separadamente.',
+                    style: const TextStyle(
+                      color: LawrenceColors.darkTextSecondary,
+                      fontSize: 15,
+                    ),
                   ),
                 ],
               ),
@@ -1147,25 +1316,42 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
                     icon: const Icon(Icons.refresh, size: 20),
                     label: const Text('Atualizar status'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: LawrenceColors.primary,
-                      side: const BorderSide(color: LawrenceColors.primary),
+                      foregroundColor: LawrenceColors.goldHighlight,
+                      side: const BorderSide(color: LawrenceColors.goldMid),
                       minimumSize: const Size(150, 52),
                     ),
                   ),
-                  FilledButton.icon(
-                    onPressed: _createModule,
-                    icon: const Icon(Icons.add, size: 20),
-                    label: const Text("Novo módulo"),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: LawrenceColors.primary,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(160, 52),
+                  if (!isQuickCourse)
+                    FilledButton.icon(
+                      onPressed: _createModule,
+                      icon: const Icon(Icons.add, size: 20),
+                      label: const Text("Novo módulo"),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: LawrenceColors.goldMid,
+                        foregroundColor: LawrenceColors.brandNavy,
+                        minimumSize: const Size(160, 52),
+                      ),
                     ),
-                  ),
+                  if (isQuickCourse && modules.isNotEmpty)
+                    FilledButton.icon(
+                      key: const Key('quick-course-add-lesson'),
+                      onPressed: state.isUploading || state.isSaving
+                          ? null
+                          : () => _createLesson(modules.first),
+                      icon: const Icon(Icons.add, size: 20),
+                      label: const Text('Nova aula'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF6B1328),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(150, 52),
+                      ),
+                    ),
                 ],
               ),
             ],
           ),
+          const SizedBox(height: 20),
+          const _LessonPublishingGuide(),
           if (lessons.isNotEmpty) ...[
             const SizedBox(height: 20),
             Wrap(
@@ -1176,6 +1362,12 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
                   icon: Icons.menu_book_outlined,
                   value: '${lessons.length}',
                   label: lessons.length == 1 ? 'aula' : 'aulas',
+                ),
+                _CurriculumMetric(
+                  icon: Icons.schedule_outlined,
+                  value: _formattedCourseDuration(totalSeconds),
+                  label: 'carga horária',
+                  color: const Color(0xFFA63B5E),
                 ),
                 _CurriculumMetric(
                   icon: Icons.check_circle_outline,
@@ -1202,11 +1394,32 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
           ],
           const SizedBox(height: 24),
           if (modules.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                "Nenhum módulo criado.",
-                style: TextStyle(color: LawrenceColors.textSecondary),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0x99181315),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0x406B4A55)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.hourglass_top_rounded,
+                    color: Color(0xFFD6A4B2),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      isQuickCourse
+                          ? 'Preparando a área interna de aulas. Use “Atualizar status” se ela não aparecer em alguns segundos.'
+                          : 'Crie o primeiro módulo para começar a adicionar aulas.',
+                      style: const TextStyle(
+                        color: LawrenceColors.darkTextSecondary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ListView.builder(
@@ -1217,6 +1430,7 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
               final mod = modules[i];
               return ModuleLessonsSection(
                 module: mod,
+                isQuickCourse: isQuickCourse,
                 isBusy: state.isUploading || state.isSaving,
                 onAddLesson: () => _createLesson(mod),
                 onEditLesson: _editLesson,
@@ -1234,6 +1448,8 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
                 onMoveLessonDown: (lesson) => _moveLesson(mod, lesson, 1),
                 onMoveLessonToModule: (lesson) =>
                     _moveLessonToModule(lesson, modules),
+                onReorderLessons: (oldIndex, newIndex) =>
+                    _reorderLessons(mod, oldIndex, newIndex),
               );
             },
           ),
@@ -1245,17 +1461,27 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
                 onPressed: () => setState(() => _currentStep = 2),
                 child: const Text(
                   "Voltar",
-                  style: TextStyle(color: LawrenceColors.textSecondary),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-              ElevatedButton(
+              FilledButton.icon(
                 onPressed: () => setState(() => _currentStep = 4),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: LawrenceColors.primary,
-                ),
-                child: const Text(
-                  "Continuar",
-                  style: TextStyle(color: Colors.white),
+                icon: const Icon(Icons.arrow_forward, size: 20),
+                label: const Text('Continuar'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: LawrenceColors.goldMid,
+                  foregroundColor: LawrenceColors.brandNavy,
+                  minimumSize: const Size(160, 52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -1295,6 +1521,491 @@ class _CourseWizardPageState extends ConsumerState<CourseWizardPage> {
       child: Text('Salve o rascunho antes de iniciar a revisão.'),
     );
   }
+
+  String _formattedCourseDuration(int seconds) {
+    final hours = seconds ~/ 3600;
+    final minutes = (seconds % 3600) ~/ 60;
+    if (hours == 0) return '${minutes}min';
+    return minutes == 0 ? '${hours}h' : '${hours}h ${minutes}min';
+  }
+}
+
+class _StudioFeedbackBanner extends StatelessWidget {
+  const _StudioFeedbackBanner({
+    required this.error,
+    required this.isBusy,
+    required this.message,
+    required this.hasRevisionConflict,
+    required this.onResolveConflict,
+    required this.onClose,
+  });
+
+  final AppError? error;
+  final bool isBusy;
+  final String? message;
+  final bool hasRevisionConflict;
+  final VoidCallback onResolveConflict;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final isError = error != null;
+    final isSuccess = !isError && !isBusy && message != null;
+    final background = isError
+        ? const Color(0xFF3B0D18)
+        : isBusy
+        ? const Color(0xFF151D45)
+        : isSuccess
+        ? const Color(0xFF0B3327)
+        : const Color(0xFF3A2708);
+    final accent = isError
+        ? const Color(0xFFFF6B7D)
+        : isBusy
+        ? const Color(0xFFB94A6B)
+        : isSuccess
+        ? const Color(0xFF68E0A5)
+        : const Color(0xFFFFC266);
+    final label = isError
+        ? '${error!.title}: ${error!.message}'
+        : isBusy
+        ? 'Salvando alterações…'
+        : message ?? 'Alterações pendentes';
+
+    return Semantics(
+      liveRegion: true,
+      label: label,
+      child: Material(
+        color: Colors.transparent,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: background,
+              border: Border.all(color: accent, width: 1.25),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x66000000),
+                  blurRadius: 24,
+                  offset: Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isBusy)
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.25,
+                        color: accent,
+                      ),
+                    )
+                  else
+                    Icon(
+                      isError
+                          ? error!.icon
+                          : isSuccess
+                          ? Icons.check_circle_outline
+                          : Icons.edit_note_rounded,
+                      color: accent,
+                      size: 22,
+                    ),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        height: 1.35,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (hasRevisionConflict) ...[
+                    const SizedBox(width: 8),
+                    TextButton.icon(
+                      onPressed: onResolveConflict,
+                      style: TextButton.styleFrom(foregroundColor: accent),
+                      icon: const Icon(Icons.sync, size: 18),
+                      label: const Text('Atualizar'),
+                    ),
+                  ],
+                  if (isError || isSuccess) ...[
+                    const SizedBox(width: 4),
+                    IconButton(
+                      tooltip: 'Fechar mensagem',
+                      onPressed: onClose,
+                      color: Colors.white,
+                      icon: const Icon(Icons.close, size: 20),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+const _studioPhases = [
+  ('Planejamento', 'Proposta e informações'),
+  ('Oferta', 'Preço e experiência'),
+  ('Apresentação', 'Capa e trailer'),
+  ('Estrutura', 'Módulos e aulas'),
+  ('Lançamento', 'Prévia e publicação'),
+];
+
+class _PhasePrerequisite extends StatelessWidget {
+  const _PhasePrerequisite({
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.actionLabel,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final String actionLabel;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(32),
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(
+        colors: [Color(0xDD2C111B), Color(0xCC4B0C1B)],
+      ),
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: const Color(0x55A63B5E)),
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: const Color(0xFFA63B5E), size: 42),
+        const SizedBox(height: 18),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 10),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFFB8C1DD), height: 1.5),
+          ),
+        ),
+        const SizedBox(height: 24),
+        FilledButton.icon(
+          onPressed: onPressed,
+          icon: const Icon(Icons.arrow_back),
+          label: Text(actionLabel),
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF6B1328),
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _StudioPhaseRail extends StatelessWidget {
+  const _StudioPhaseRail({
+    required this.currentStep,
+    required this.courseTitle,
+    required this.hasUnsavedChanges,
+    required this.onStepTapped,
+  });
+
+  final int currentStep;
+  final String? courseTitle;
+  final bool hasUnsavedChanges;
+  final ValueChanged<int> onStepTapped;
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: const Color(0xAA0B1124),
+    child: SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 24, 18, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'STUDIO DE AUTORIA',
+              style: TextStyle(
+                color: Color(0xFFA63B5E),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.3,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              courseTitle?.trim().isNotEmpty == true
+                  ? courseTitle!
+                  : 'Novo curso',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                height: 1.2,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  hasUnsavedChanges
+                      ? Icons.sync_rounded
+                      : Icons.cloud_done_outlined,
+                  size: 16,
+                  color: hasUnsavedChanges
+                      ? LawrenceColors.warning
+                      : LawrenceColors.success,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    hasUnsavedChanges
+                        ? 'Salvando alterações…'
+                        : 'Rascunho salvo',
+                    style: const TextStyle(
+                      color: Color(0xFFB8C1DD),
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            for (var index = 0; index < _studioPhases.length; index++)
+              _PhaseRailItem(
+                index: index,
+                title: _studioPhases[index].$1,
+                subtitle: _studioPhases[index].$2,
+                selected: currentStep == index,
+                visited: index < currentStep,
+                onTap: () => onStepTapped(index),
+              ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .07),
+                border: Border.all(color: Colors.white.withValues(alpha: .16)),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.shield_outlined,
+                    color: Color(0xFFA63B5E),
+                    size: 19,
+                  ),
+                  SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      'Você pode navegar livremente. Somente a publicação exige o checklist completo.',
+                      style: TextStyle(
+                        color: Color(0xFFB8C1DD),
+                        fontSize: 11.5,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _PhaseRailItem extends StatelessWidget {
+  const _PhaseRailItem({
+    required this.index,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.visited,
+    required this.onTap,
+  });
+  final int index;
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final bool visited;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    selected: selected,
+    label: 'Fase ${index + 1}: $title',
+    child: Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: selected
+                ? const Color(0xFF6B1328).withValues(alpha: .32)
+                : Colors.transparent,
+            border: Border.all(
+              color: selected
+                  ? const Color(0xFFA63B5E).withValues(alpha: .55)
+                  : Colors.transparent,
+            ),
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? const Color(0xFF6B1328)
+                      : visited
+                      ? LawrenceColors.success.withValues(alpha: .12)
+                      : Colors.white.withValues(alpha: .08),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selected
+                        ? const Color(0xFFA63B5E)
+                        : visited
+                        ? LawrenceColors.success
+                        : LawrenceColors.borderMist,
+                  ),
+                ),
+                child: visited
+                    ? const Icon(
+                        Icons.check,
+                        size: 16,
+                        color: LawrenceColors.success,
+                      )
+                    : Text(
+                        '${index + 1}',
+                        style: TextStyle(
+                          color: selected
+                              ? Colors.white
+                              : const Color(0xFFB8C1DD),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: selected
+                            ? FontWeight.w800
+                            : FontWeight.w600,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: Color(0xFFB8C1DD),
+                        fontSize: 10.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _CompactPhaseHeader extends StatelessWidget {
+  const _CompactPhaseHeader({
+    required this.currentStep,
+    required this.onStepTapped,
+  });
+  final int currentStep;
+  final ValueChanged<int> onStepTapped;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: LawrenceColors.canvas,
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Fase ${currentStep + 1} de ${_studioPhases.length}  •  ${_studioPhases[currentStep].$1}',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              PopupMenuButton<int>(
+                tooltip: 'Escolher fase',
+                onSelected: onStepTapped,
+                itemBuilder: (_) => [
+                  for (var index = 0; index < _studioPhases.length; index++)
+                    PopupMenuItem(
+                      value: index,
+                      child: Text('${index + 1}. ${_studioPhases[index].$1}'),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          LinearProgressIndicator(
+            value: (currentStep + 1) / _studioPhases.length,
+            minHeight: 5,
+            borderRadius: BorderRadius.circular(99),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _CurriculumMetric extends StatelessWidget {
@@ -1333,6 +2044,105 @@ class _CurriculumMetric extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _LessonPublishingGuide extends StatelessWidget {
+  const _LessonPublishingGuide();
+
+  @override
+  Widget build(BuildContext context) {
+    const steps = [
+      (
+        Icons.video_library_outlined,
+        '1. Escolha a fonte',
+        'Envie um arquivo privado ou use um link oficial do YouTube ou Vimeo.',
+      ),
+      (
+        Icons.auto_awesome_motion_outlined,
+        '2. Processamento seguro',
+        'Uploads são validados e convertidos em HLS com qualidade adaptável.',
+      ),
+      (
+        Icons.task_alt_outlined,
+        '3. Confira e publique',
+        'Links ficam prontos na hora; uploads mostram o status até finalizar.',
+      ),
+    ];
+
+    return Semantics(
+      container: true,
+      label: 'Etapas para publicar aulas',
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final itemWidth = constraints.maxWidth >= 920
+              ? (constraints.maxWidth - 24) / 3
+              : constraints.maxWidth >= 580
+              ? (constraints.maxWidth - 12) / 2
+              : constraints.maxWidth;
+          return Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              for (final step in steps)
+                SizedBox(
+                  width: itemWidth,
+                  child: Container(
+                    constraints: const BoxConstraints(minHeight: 112),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0x99181315),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0x406B4A55)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6B1328),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            step.$1,
+                            size: 21,
+                            color: const Color(0xFFF3D7DE),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                step.$2,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                step.$3,
+                                style: const TextStyle(
+                                  color: LawrenceColors.darkTextSecondary,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }

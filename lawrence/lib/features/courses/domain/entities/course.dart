@@ -148,6 +148,7 @@ class Lesson {
   final int? estimatedDurationMinutes;
   final bool isRequired;
   final String? hlsStoragePath;
+  final String videoSourceType;
   final String? videoJobStatus;
   final AISummary aiSummary;
   final List<LessonBlock> blocks;
@@ -164,6 +165,7 @@ class Lesson {
     this.estimatedDurationMinutes,
     this.isRequired = true,
     this.hlsStoragePath,
+    this.videoSourceType = 'upload',
     this.videoJobStatus,
     required this.aiSummary,
     this.blocks = const [],
@@ -182,6 +184,7 @@ class Lesson {
       estimatedDurationMinutes: json['estimated_duration_minutes'] as int?,
       isRequired: json['is_required'] as bool? ?? true,
       hlsStoragePath: json['hls_storage_path'] as String?,
+      videoSourceType: json['video_source_type'] as String? ?? 'upload',
       videoJobStatus: json['video_job_status'] as String?,
       aiSummary: AISummary.fromJson(
         json['ai_summary'] as Map<String, dynamic>?,
@@ -206,6 +209,7 @@ class Lesson {
     'estimated_duration_minutes': estimatedDurationMinutes,
     'is_required': isRequired,
     'hls_storage_path': hlsStoragePath,
+    'video_source_type': videoSourceType,
     'video_job_status': videoJobStatus,
     'ai_summary': aiSummary.toJson(),
   };
@@ -219,6 +223,7 @@ class Module {
   final int orderIndex;
   final String description;
   final String status;
+  final bool isSystem;
   final List<Lesson> lessons;
 
   const Module({
@@ -228,6 +233,7 @@ class Module {
     required this.orderIndex,
     this.description = '',
     this.status = 'draft',
+    this.isSystem = false,
     required this.lessons,
   });
 
@@ -240,6 +246,7 @@ class Module {
       orderIndex: json['order_index'] as int? ?? 0,
       description: json['description'] as String? ?? '',
       status: json['status'] as String? ?? 'draft',
+      isSystem: json['is_system'] as bool? ?? false,
       lessons:
           lessonsJson
               .map((l) => Lesson.fromJson(l as Map<String, dynamic>))
@@ -255,7 +262,55 @@ class Module {
     'order_index': orderIndex,
     'description': description,
     'status': status,
+    'is_system': isSystem,
     'lessons': lessons.map((e) => e.toJson()).toList(),
+  };
+}
+
+/// Referência tipada a um curso que precisa ser concluído anteriormente.
+@immutable
+class CoursePrerequisite {
+  final String id;
+  final String title;
+  final String slug;
+  final String summary;
+  final String category;
+  final String status;
+  final String? thumbnailUrl;
+  final String? coverImagePath;
+
+  const CoursePrerequisite({
+    required this.id,
+    required this.title,
+    required this.slug,
+    this.summary = '',
+    this.category = 'costura',
+    this.status = 'published',
+    this.thumbnailUrl,
+    this.coverImagePath,
+  });
+
+  factory CoursePrerequisite.fromJson(Map<String, dynamic> json) =>
+      CoursePrerequisite(
+        id: json['id'] as String,
+        title: json['title'] as String? ?? '',
+        slug: json['slug'] as String? ?? '',
+        summary: json['summary'] as String? ?? '',
+        category: json['category'] as String? ?? 'costura',
+        status: json['status'] as String? ?? 'published',
+        thumbnailUrl: json['thumbnail_url'] as String?,
+        coverImagePath: json['cover_image_path'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'slug': slug,
+    'summary': summary,
+    'category': category,
+    'status': status,
+    'thumbnail_url': thumbnailUrl,
+    'cover_image_path': coverImagePath,
   };
 }
 
@@ -270,6 +325,7 @@ class Course {
   final String summary;
   final String description;
   final List<String> requirements;
+  final List<CoursePrerequisite> prerequisiteCourses;
   final String courseType;
   final String subtitle;
   final String language;
@@ -295,6 +351,9 @@ class Course {
   final String? coverAltText;
   final double coverFocalX;
   final double coverFocalY;
+  final String? trailerHlsPath;
+  final String trailerSourceType;
+  final String? trailerExternalVideoId;
   final String trailerStatus;
   final int authoringRevision;
   final List<Module> modules;
@@ -309,6 +368,7 @@ class Course {
     required this.summary,
     this.description = '',
     this.requirements = const [],
+    this.prerequisiteCourses = const [],
     this.courseType = 'complete',
     this.subtitle = '',
     this.language = 'pt-BR',
@@ -334,6 +394,9 @@ class Course {
     this.coverAltText,
     this.coverFocalX = 0.5,
     this.coverFocalY = 0.5,
+    this.trailerHlsPath,
+    this.trailerSourceType = 'upload',
+    this.trailerExternalVideoId,
     this.trailerStatus = 'empty',
     this.authoringRevision = 0,
     required this.modules,
@@ -365,6 +428,15 @@ class Course {
               ?.map((requirement) => requirement.toString())
               .toList() ??
           const [],
+      prerequisiteCourses:
+          (json['prerequisite_courses'] as List?)
+              ?.map(
+                (item) => CoursePrerequisite.fromJson(
+                  Map<String, dynamic>.from(item as Map),
+                ),
+              )
+              .toList() ??
+          const [],
       courseType: json['course_type'] as String? ?? 'complete',
       subtitle: json['subtitle'] as String? ?? '',
       language: json['language'] as String? ?? 'pt-BR',
@@ -392,6 +464,9 @@ class Course {
       coverAltText: json['cover_alt_text'] as String?,
       coverFocalX: (json['cover_focal_x'] as num?)?.toDouble() ?? 0.5,
       coverFocalY: (json['cover_focal_y'] as num?)?.toDouble() ?? 0.5,
+      trailerHlsPath: json['trailer_hls_path'] as String?,
+      trailerSourceType: json['trailer_source_type'] as String? ?? 'upload',
+      trailerExternalVideoId: json['trailer_external_video_id'] as String?,
       trailerStatus: json['trailer_status'] as String? ?? 'empty',
       authoringRevision: json['authoring_revision'] as int? ?? 0,
       modules:
@@ -412,6 +487,9 @@ class Course {
     'summary': summary,
     'description': description,
     'requirements': requirements,
+    'prerequisite_courses': prerequisiteCourses
+        .map((course) => course.toJson())
+        .toList(),
     'course_type': courseType,
     'subtitle': subtitle,
     'language': language,
@@ -437,6 +515,9 @@ class Course {
     'cover_alt_text': coverAltText,
     'cover_focal_x': coverFocalX,
     'cover_focal_y': coverFocalY,
+    'trailer_hls_path': trailerHlsPath,
+    'trailer_source_type': trailerSourceType,
+    'trailer_external_video_id': trailerExternalVideoId,
     'trailer_status': trailerStatus,
     'authoring_revision': authoringRevision,
     'modules': modules.map((e) => e.toJson()).toList(),

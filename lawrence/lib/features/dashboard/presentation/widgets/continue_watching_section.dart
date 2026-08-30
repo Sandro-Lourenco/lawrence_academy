@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../design_system/tokens/lawrence_theme.dart';
+import '../../../../design_system/widgets/couture_primary_button.dart';
+import '../../../../design_system/widgets/couture_progress_bar.dart';
 import '../../../courses/domain/entities/course.dart';
 import '../../domain/entities/learning_resume_target.dart';
 
@@ -25,6 +27,7 @@ class ContinueWatchingSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final normalizedProgress = progress.clamp(0.0, 100.0).toDouble() / 100;
     final hasStarted = progress > 0;
+    final isComplete = normalizedProgress >= .999;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     return Semantics(
@@ -34,14 +37,14 @@ class ContinueWatchingSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Row(
+          Row(
             children: [
-              _StatusDot(),
-              SizedBox(width: LawrenceSpacing.sm),
+              _StatusDot(complete: isComplete),
+              const SizedBox(width: LawrenceSpacing.sm),
               Text(
-                'CURSO EM ANDAMENTO',
+                isComplete ? 'CURSO CONCLUÍDO' : 'CONTINUE DE ONDE PAROU',
                 style: TextStyle(
-                  color: LawrenceColors.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 12,
                   letterSpacing: .9,
                   fontWeight: FontWeight.w700,
@@ -52,16 +55,25 @@ class ContinueWatchingSection extends StatelessWidget {
           const SizedBox(height: LawrenceSpacing.md),
           Container(
             decoration: BoxDecoration(
-              color: LawrenceColors.canvas,
-              border: Border.all(color: LawrenceColors.borderMist),
-              borderRadius: BorderRadius.circular(LawrenceRadii.control),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? LawrenceColors.darkSurface
+                  : LawrenceColors.surfaceBlack,
+              border: Border(
+                top: BorderSide(
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 3,
+                ),
+                bottom: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
             ),
             clipBehavior: Clip.antiAlias,
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final compact = constraints.maxWidth < 720;
                 final details = Padding(
-                  padding: const EdgeInsets.all(LawrenceSpacing.lg),
+                  padding: EdgeInsets.all(compact ? 28 : 44),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -70,10 +82,11 @@ class ContinueWatchingSection extends StatelessWidget {
                         course.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.headlineLarge
+                        style: Theme.of(context).textTheme.displayMedium
                             ?.copyWith(
-                              color: LawrenceColors.textPrimary,
-                              fontWeight: FontWeight.w700,
+                              color: LawrenceColors.canvas,
+                              fontWeight: FontWeight.w400,
+                              height: .98,
                             ),
                       ),
                       const SizedBox(height: LawrenceSpacing.sm),
@@ -82,63 +95,64 @@ class ContinueWatchingSection extends StatelessWidget {
                             ? 'Último conteúdo: ${view.label} · $lessonTitle'
                             : 'Próximo conteúdo: $lessonTitle',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: LawrenceColors.textSecondary,
+                          color: LawrenceColors.canvasParchment,
                         ),
                       ),
                       const SizedBox(height: LawrenceSpacing.lg),
-                      FilledButton.icon(
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0, end: normalizedProgress),
+                        duration: reduceMotion
+                            ? Duration.zero
+                            : const Duration(milliseconds: 420),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, value, _) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${(value * 100).round()}% concluído',
+                              style: Theme.of(context).textTheme.labelLarge
+                                  ?.copyWith(
+                                    color: LawrenceColors.darkTextPrimary,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: .6,
+                                  ),
+                            ),
+                            const SizedBox(height: LawrenceSpacing.xs),
+                            CoutureProgressBar(
+                              value: value,
+                              height: 7,
+                              semanticLabel: 'Progresso em ${course.title}',
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: LawrenceSpacing.lg),
+                      CouturePrimaryButton(
                         key: const Key('continue-from-last-position'),
                         onPressed: () => context.go(destination),
-                        icon: const Icon(Icons.play_circle_outline_rounded),
-                        label: Text(
-                          hasStarted
-                              ? 'Continuar de onde parou'
-                              : 'Começar curso',
-                        ),
+                        icon: Icons.play_circle_outline_rounded,
+                        label: isComplete
+                            ? 'Rever curso'
+                            : hasStarted
+                            ? 'Continuar de onde parou'
+                            : 'Começar curso',
                       ),
                     ],
                   ),
                 );
-                final progressVisual = Container(
-                  width: compact ? double.infinity : 280,
-                  padding: const EdgeInsets.all(LawrenceSpacing.lg),
-                  color: const Color(0xFFEAF0FF),
-                  alignment: Alignment.center,
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0, end: normalizedProgress),
-                    duration: reduceMotion
-                        ? Duration.zero
-                        : const Duration(milliseconds: 420),
-                    curve: Curves.easeOutCubic,
-                    builder: (context, value, _) => SizedBox.square(
-                      dimension: compact ? 132 : 158,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          SizedBox.expand(
-                            child: CircularProgressIndicator(
-                              value: value,
-                              strokeWidth: 7,
-                              color: LawrenceColors.actionPrimary,
-                              backgroundColor: const Color(0xFFB9C5DE),
-                              semanticsLabel: 'Progresso do curso',
-                              semanticsValue: '${progress.round()}%',
-                            ),
-                          ),
-                          Text(
-                            '${(value * 100).round()}%',
-                            style: Theme.of(context).textTheme.headlineLarge
-                                ?.copyWith(fontWeight: FontWeight.w400),
-                          ),
-                        ],
-                      ),
-                    ),
+                final progressVisual = SizedBox(
+                  width: compact ? double.infinity : 360,
+                  height: compact ? 220 : null,
+                  child: Image.asset(
+                    'assets/images/couture_draping_portrait.webp',
+                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
                   ),
                 );
                 return compact
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [details, progressVisual],
+                        children: [progressVisual, details],
                       )
                     : IntrinsicHeight(
                         child: Row(
@@ -159,15 +173,19 @@ class ContinueWatchingSection extends StatelessWidget {
 }
 
 class _StatusDot extends StatelessWidget {
-  const _StatusDot();
+  const _StatusDot({required this.complete});
+
+  final bool complete;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 10,
       height: 10,
-      decoration: const BoxDecoration(
-        color: LawrenceColors.success,
+      decoration: BoxDecoration(
+        color: complete
+            ? Theme.of(context).colorScheme.primary
+            : LawrenceColors.success,
         shape: BoxShape.circle,
       ),
     );

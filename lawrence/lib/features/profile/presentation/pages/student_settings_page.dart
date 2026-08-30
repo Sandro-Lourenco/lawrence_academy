@@ -33,18 +33,6 @@ class StudentSettingsPage extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _SettingsSection(
-                    title: 'Aprendizagem',
-                    children: [
-                      _SettingsLink(
-                        icon: Icons.download_outlined,
-                        title: 'Downloads offline',
-                        subtitle: 'Consulte conteúdos disponíveis no dispositivo',
-                        onTap: () => context.go('/dashboard/downloads'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: LawrenceSpacing.lg),
-                  _SettingsSection(
                     title: 'Conta e pagamentos',
                     children: [
                       _SettingsLink(
@@ -67,7 +55,9 @@ class StudentSettingsPage extends ConsumerWidget {
                     children: [
                       _SettingsLink(
                         icon: Icons.logout_rounded,
-                        title: auth.isLoading ? 'Encerrando sessão…' : 'Sair da conta',
+                        title: auth.isLoading
+                            ? 'Encerrando sessão…'
+                            : 'Sair da conta',
                         subtitle: 'Encerre esta sessão com segurança',
                         danger: true,
                         enabled: !auth.isLoading,

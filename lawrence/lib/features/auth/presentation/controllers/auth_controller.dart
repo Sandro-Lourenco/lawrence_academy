@@ -25,6 +25,7 @@ class AuthNotifierState {
   final bool isLoading;
   final String? errorMessage;
   final bool isMfaEnabled;
+  final bool registrationRequiresEmailConfirmation;
 
   AuthNotifierState({
     this.user,
@@ -32,6 +33,7 @@ class AuthNotifierState {
     this.isLoading = false,
     this.errorMessage,
     this.isMfaEnabled = false,
+    this.registrationRequiresEmailConfirmation = false,
   });
 
   AuthNotifierState copyWith({
@@ -40,6 +42,7 @@ class AuthNotifierState {
     bool? isLoading,
     String? errorMessage,
     bool? isMfaEnabled,
+    bool? registrationRequiresEmailConfirmation,
   }) {
     return AuthNotifierState(
       user: user ?? this.user,
@@ -47,6 +50,9 @@ class AuthNotifierState {
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
       isMfaEnabled: isMfaEnabled ?? this.isMfaEnabled,
+      registrationRequiresEmailConfirmation:
+          registrationRequiresEmailConfirmation ??
+          this.registrationRequiresEmailConfirmation,
     );
   }
 }
@@ -138,6 +144,33 @@ class AuthNotifier extends Notifier<AuthNotifierState> {
     }
   }
 
+  Future<void> signInWithGoogle() async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final launched = await ref
+          .read(signInWithGoogleUseCaseProvider)
+          .execute();
+      if (!launched) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'Não foi possível abrir o acesso com Google.',
+        );
+      }
+    } on supabase.AuthException catch (error) {
+      if (kDebugMode) debugPrint('[AuthNotifier] Google sign in rejected.');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: signInErrorMessage(error),
+      );
+    } catch (_) {
+      if (kDebugMode) debugPrint('[AuthNotifier] Google sign in failed.');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Não foi possível entrar com Google agora.',
+      );
+    }
+  }
+
   Future<void> signUpWithEmail({
     required String email,
     required String password,
@@ -154,7 +187,10 @@ class AuthNotifier extends Notifier<AuthNotifierState> {
       if (kDebugMode) debugPrint('[AuthNotifier] Sign up request completed.');
       final session = response.session;
       state = session == null
-          ? state.copyWith(isLoading: false)
+          ? AuthNotifierState(
+              isLoading: false,
+              registrationRequiresEmailConfirmation: true,
+            )
           : AuthNotifierState(
               user: session.user,
               session: session,
@@ -203,6 +239,30 @@ class AuthNotifier extends Notifier<AuthNotifierState> {
         isLoading: false,
         errorMessage: "Ocorreu um erro interno no processamento dos dados.",
       );
+    }
+  }
+
+  Future<bool> updatePassword({required String password}) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      await ref.read(updatePasswordUseCaseProvider).execute(password: password);
+      state = state.copyWith(isLoading: false);
+      return true;
+    } on FormatException catch (error) {
+      state = state.copyWith(isLoading: false, errorMessage: error.message);
+      return false;
+    } on supabase.AuthException catch (error) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: signInErrorMessage(error),
+      );
+      return false;
+    } catch (_) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Não foi possível atualizar sua senha agora.',
+      );
+      return false;
     }
   }
 }

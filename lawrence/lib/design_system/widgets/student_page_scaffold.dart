@@ -12,6 +12,9 @@ class StudentPageScaffold extends StatelessWidget {
   final double maxContentWidth;
   final bool scrollable;
   final Future<void> Function()? onRefresh;
+  final bool showHeader;
+  final Color? backgroundColor;
+  final bool extendBodyBehindAppBar;
 
   const StudentPageScaffold({
     super.key,
@@ -23,6 +26,9 @@ class StudentPageScaffold extends StatelessWidget {
     this.maxContentWidth = 1280,
     this.scrollable = true,
     this.onRefresh,
+    this.showHeader = true,
+    this.backgroundColor,
+    this.extendBodyBehindAppBar = false,
   });
 
   @override
@@ -38,20 +44,24 @@ class StudentPageScaffold extends StatelessWidget {
         child: Padding(
           padding: EdgeInsets.fromLTRB(
             horizontalPadding,
-            LawrenceSpacing.lg,
+            width >= LawrenceBreakpoints.desktop
+                ? LawrenceSpacing.xxxl
+                : LawrenceSpacing.xl,
             horizontalPadding,
             LawrenceSpacing.xxl,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              StudentPageHeader(
-                title: title,
-                subtitle: subtitle,
-                leading: leading,
-                actions: actions,
-              ),
-              const SizedBox(height: LawrenceSpacing.xl),
+              if (showHeader) ...[
+                StudentPageHeader(
+                  title: title,
+                  subtitle: subtitle,
+                  leading: leading,
+                  actions: actions,
+                ),
+                const SizedBox(height: LawrenceSpacing.xl),
+              ],
               body,
             ],
           ),
@@ -66,17 +76,21 @@ class StudentPageScaffold extends StatelessWidget {
       child: content,
     );
 
+    final pageBody = scrollable
+        ? onRefresh == null
+              ? scrollView
+              : RefreshIndicator(
+                  color: Theme.of(context).colorScheme.primary,
+                  onRefresh: onRefresh!,
+                  child: scrollView,
+                )
+        : content;
+
     return Scaffold(
-      backgroundColor: LawrenceColors.canvasParchment,
-      body: scrollable
-          ? onRefresh == null
-                ? scrollView
-                : RefreshIndicator(
-                    color: LawrenceColors.actionPrimary,
-                    onRefresh: onRefresh!,
-                    child: scrollView,
-                  )
-          : content,
+      backgroundColor:
+          backgroundColor ?? Theme.of(context).scaffoldBackgroundColor,
+      extendBodyBehindAppBar: extendBodyBehindAppBar,
+      body: pageBody,
     );
   }
 }

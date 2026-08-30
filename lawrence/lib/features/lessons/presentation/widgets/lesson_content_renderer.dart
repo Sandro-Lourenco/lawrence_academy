@@ -296,42 +296,175 @@ class _DownloadBlock extends StatelessWidget {
   }
 }
 
-class _ActivityBlock extends StatelessWidget {
+class _ActivityBlock extends StatefulWidget {
   const _ActivityBlock({required this.content, required this.isPreview});
 
   final Map<String, dynamic> content;
   final bool isPreview;
 
   @override
+  State<_ActivityBlock> createState() => _ActivityBlockState();
+}
+
+class _ActivityBlockState extends State<_ActivityBlock> {
+  int? _selectedIndex;
+  bool _validated = false;
+
+  @override
   Widget build(BuildContext context) {
-    final items = (content['items'] as List? ?? const [])
+    final items = (widget.content['items'] as List? ?? const [])
         .map((item) => item.toString())
         .toList();
-    return Card(
+    final correctIndex = (widget.content['correct_index'] as num?)?.toInt();
+    return ColoredBox(
+      color: const Color(0xFF111315),
       child: Padding(
-        padding: const EdgeInsets.all(LawrenceSpacing.lg),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Atividade', style: Theme.of(context).textTheme.labelLarge),
-            const SizedBox(height: LawrenceSpacing.sm),
-            Text(
-              content['question']?.toString() ?? 'Atividade sem enunciado',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            for (final item in items)
-              RadioListTile<String>(
-                value: item,
-                groupValue: null,
-                onChanged: isPreview ? (_) {} : null,
-                title: Text(item),
+            const Text(
+              'ATIVIDADE',
+              style: TextStyle(
+                color: LawrenceColors.darkAction,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.6,
               ),
-            if (isPreview)
+            ),
+            const SizedBox(height: 12),
+            Text(
+              widget.content['question']?.toString() ??
+                  'Atividade sem enunciado',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 24),
+            for (var index = 0; index < items.length; index++) ...[
+              _EmbeddedAnswerTile(
+                letter: String.fromCharCode(65 + index),
+                text: items[index],
+                selected: _selectedIndex == index,
+                correct: _validated && correctIndex == index,
+                incorrect:
+                    _validated &&
+                    _selectedIndex == index &&
+                    correctIndex != index,
+                enabled: !_validated,
+                onTap: () => setState(() => _selectedIndex = index),
+              ),
+              const SizedBox(height: 20),
+            ],
+            if (!_validated)
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton(
+                  onPressed: _selectedIndex == null || correctIndex == null
+                      ? null
+                      : () => setState(() => _validated = true),
+                  child: Text(
+                    widget.isPreview ? 'Validar prévia' : 'Confirmar resposta',
+                  ),
+                ),
+              ),
+            if (_validated) ...[
+              const SizedBox(height: 8),
+              Text(
+                _selectedIndex == correctIndex
+                    ? 'RESPOSTA CORRETA'
+                    : 'RESPOSTA INCORRETA — a alternativa correta é ${String.fromCharCode(65 + (correctIndex ?? 0))}.',
+                style: TextStyle(
+                  color: _selectedIndex == correctIndex
+                      ? LawrenceColors.success
+                      : const Color(0xFFFF5A5F),
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+            if (widget.isPreview) ...[
+              const SizedBox(height: 12),
               const Text(
                 'Modo de prévia: respostas e envios não são registrados.',
-                style: TextStyle(color: LawrenceColors.textSecondary),
+                style: TextStyle(color: Colors.white60),
               ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmbeddedAnswerTile extends StatelessWidget {
+  const _EmbeddedAnswerTile({
+    required this.letter,
+    required this.text,
+    required this.selected,
+    required this.correct,
+    required this.incorrect,
+    required this.enabled,
+    required this.onTap,
+  });
+  final String letter;
+  final String text;
+  final bool selected;
+  final bool correct;
+  final bool incorrect;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final stripe = correct
+        ? LawrenceColors.success
+        : incorrect
+        ? const Color(0xFFE1272D)
+        : LawrenceColors.actionPrimary;
+    return Material(
+      color: const Color(0xFF282A2D),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 176),
+          decoration: BoxDecoration(
+            border: Border(left: BorderSide(color: stripe, width: 10)),
+            color: selected && !correct && !incorrect
+                ? const Color(0xFF30343A)
+                : null,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 120,
+                alignment: Alignment.center,
+                color: const Color(0xFF111315),
+                child: Text(
+                  letter,
+                  style: const TextStyle(
+                    color: Color(0xFFB8BBC2),
+                    fontSize: 76,
+                    fontWeight: FontWeight.w200,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    text,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 23,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

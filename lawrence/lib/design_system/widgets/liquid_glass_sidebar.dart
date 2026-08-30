@@ -1,68 +1,86 @@
 import 'package:flutter/material.dart';
 
-import '../tokens/lawrence_theme.dart';
+import '../icons/student_icons.dart';
 
+/// Kept under the original public name to avoid breaking callers.
+/// Content surfaces are now opaque and calm; translucency is reserved for the
+/// compact mobile navigation where it provides spatial continuity.
 class LiquidGlassSidebar extends StatelessWidget {
-  final String currentPath;
-  final ValueChanged<String> onNavigate;
-
   const LiquidGlassSidebar({
     super.key,
     required this.currentPath,
     required this.onNavigate,
+    this.showBrand = true,
   });
 
-  static const _items = <_SidebarItem>[
-    _SidebarItem('Início', '/dashboard/home', Icons.home_outlined),
-    _SidebarItem('Cursos', '/dashboard/courses', Icons.menu_book_outlined),
-    _SidebarItem('Projetos', '/dashboard/projects', Icons.architecture_outlined),
-    _SidebarItem(
-      'Conquistas',
-      '/dashboard/achievements',
-      Icons.emoji_events_outlined,
-    ),
-    _SidebarItem('Perfil', '/dashboard/profile', Icons.person_outline_rounded),
+  final String currentPath;
+  final ValueChanged<String> onNavigate;
+  final bool showBrand;
+
+  static const _primaryItems = <_SidebarItem>[
+    _SidebarItem('Início', '/dashboard/home', StudentIcons.home),
+    _SidebarItem('Cursos', '/dashboard/courses', StudentIcons.courses),
+  ];
+
+  static const _accountItems = <_SidebarItem>[
+    _SidebarItem('Perfil', '/dashboard/profile', StudentIcons.profile),
+    _SidebarItem('Configurações', '/dashboard/settings', StudentIcons.settings),
   ];
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(LawrenceTheme.radiusLg),
-        side: const BorderSide(color: LawrenceColors.borderMist),
-      ),
+    final scheme = Theme.of(context).colorScheme;
+    return ColoredBox(
+      color: scheme.surface,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const _SidebarBrand(),
-            const SizedBox(height: 32),
-            for (final item in _items)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _NavigationItem(
-                  item: item,
-                  selected: currentPath.startsWith(item.path),
-                  onTap: () => onNavigate(item.path),
+            if (showBrand) ...[
+              const _SidebarBrand(),
+              const SizedBox(height: 38),
+            ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                'ESTUDAR',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.8,
                 ),
               ),
-            const Spacer(),
-            const Divider(),
-            _NavigationItem(
-              item: const _SidebarItem(
-                'Configurações',
-                '/dashboard/settings',
-                Icons.settings_outlined,
-              ),
-              selected: currentPath.startsWith('/dashboard/settings'),
-              onTap: () => onNavigate('/dashboard/settings'),
             ),
+            const SizedBox(height: 10),
+            for (final item in _primaryItems)
+              _NavigationItem(
+                item: item,
+                selected: _isSelected(item.path),
+                onTap: () => onNavigate(item.path),
+              ),
+            const Spacer(),
+            Divider(color: scheme.outlineVariant),
+            const SizedBox(height: 8),
+            for (final item in _accountItems)
+              _NavigationItem(
+                item: item,
+                selected: currentPath.startsWith(item.path),
+                onTap: () => onNavigate(item.path),
+              ),
           ],
         ),
       ),
     );
+  }
+
+  bool _isSelected(String path) {
+    if (path == '/dashboard/courses') {
+      return currentPath.startsWith(path) ||
+          currentPath.startsWith('/dashboard/search') ||
+          currentPath.startsWith('/dashboard/favorites');
+    }
+    return currentPath.startsWith(path);
   }
 }
 
@@ -71,40 +89,39 @@ class _SidebarBrand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurface;
     return Semantics(
       label: 'Lawrence Academy',
       image: true,
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: LawrenceColors.primary,
-              borderRadius: BorderRadius.circular(LawrenceTheme.radiusSm),
-            ),
-            child: const Text(
-              'L',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-              ),
+          Text(
+            'LAWRENCE',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: color,
+              letterSpacing: 1.4,
+              height: 1,
             ),
           ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Text(
-              'LAWRENCE\nACADEMY',
-              style: TextStyle(
-                color: LawrenceColors.textPrimary,
-                fontSize: 13,
-                height: 1.05,
-                letterSpacing: 1.4,
-                fontWeight: FontWeight.w800,
+          const SizedBox(height: 5),
+          Row(
+            children: [
+              Container(width: 34, height: 1, color: color),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 7),
+                child: Text(
+                  'ACADEMY',
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.6,
+                  ),
+                ),
               ),
-            ),
+              Expanded(child: Container(height: 1, color: color)),
+            ],
           ),
         ],
       ),
@@ -113,57 +130,68 @@ class _SidebarBrand extends StatelessWidget {
 }
 
 class _NavigationItem extends StatelessWidget {
-  final _SidebarItem item;
-  final bool selected;
-  final VoidCallback onTap;
-
   const _NavigationItem({
     required this.item,
     required this.selected,
     required this.onTap,
   });
 
+  final _SidebarItem item;
+  final bool selected;
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Semantics(
       selected: selected,
       button: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(LawrenceTheme.radiusSm),
-        child: AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 160),
-          constraints: const BoxConstraints(minHeight: 48),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected
-                ? LawrenceColors.primary.withValues(alpha: .10)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(LawrenceTheme.radiusSm),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                item.icon,
-                color: selected
-                    ? LawrenceColors.primary
-                    : LawrenceColors.textSecondary,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  item.label,
-                  style: TextStyle(
-                    color: selected
-                        ? LawrenceColors.primary
-                        : LawrenceColors.textPrimary,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  ),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: InkWell(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
+            constraints: const BoxConstraints(minHeight: 48),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: selected
+                  ? scheme.primary.withValues(alpha: .11)
+                  : Colors.transparent,
+              border: Border(
+                left: BorderSide(
+                  color: selected ? scheme.primary : Colors.transparent,
+                  width: 2,
                 ),
               ),
-            ],
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  item.icon,
+                  size: 21,
+                  color: selected ? scheme.primary : scheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Text(
+                    item.label,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: selected ? scheme.primary : scheme.onSurface,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                ),
+                if (selected)
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 16,
+                    color: scheme.primary,
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -172,9 +200,8 @@ class _NavigationItem extends StatelessWidget {
 }
 
 class _SidebarItem {
+  const _SidebarItem(this.label, this.path, this.icon);
   final String label;
   final String path;
   final IconData icon;
-
-  const _SidebarItem(this.label, this.path, this.icon);
 }

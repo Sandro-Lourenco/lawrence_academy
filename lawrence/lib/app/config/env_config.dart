@@ -10,12 +10,14 @@ class EnvConfig {
   final String apiBaseUrl;
   final String supabaseUrl;
   final String supabaseAnonKey;
+  final String publicWebUrl;
 
   const EnvConfig({
     required this.environment,
     required this.apiBaseUrl,
     required this.supabaseUrl,
     required this.supabaseAnonKey,
+    this.publicWebUrl = '',
   });
 
   bool get isProduction => environment == AppEnvironment.prod;
@@ -37,12 +39,17 @@ class EnvConfig {
       'SUPABASE_ANON_KEY',
       defaultValue: '',
     );
+    const providedPublicWebUrl = String.fromEnvironment(
+      'PUBLIC_WEB_URL',
+      defaultValue: '',
+    );
 
     return resolveEnvironment(
       environmentValue: environmentValue,
       providedApiBaseUrl: providedApiBaseUrl,
       providedSupabaseUrl: providedSupabaseUrl,
       providedSupabaseAnonKey: providedSupabaseAnonKey,
+      providedPublicWebUrl: providedPublicWebUrl,
       defaultDevApiBaseUrl: _platformDevApiBaseUrl(),
     );
   }
@@ -52,6 +59,7 @@ class EnvConfig {
     required String providedApiBaseUrl,
     required String providedSupabaseUrl,
     required String providedSupabaseAnonKey,
+    String providedPublicWebUrl = '',
     String defaultDevApiBaseUrl = 'http://localhost:8000',
   }) {
     final environment = switch (environmentValue.toLowerCase()) {
@@ -89,6 +97,11 @@ class EnvConfig {
       apiBaseUrl: apiBaseUrl,
       supabaseUrl: supabaseUrl,
       supabaseAnonKey: supabaseAnonKey,
+      publicWebUrl: providedPublicWebUrl.isNotEmpty
+          ? providedPublicWebUrl
+          : environment == AppEnvironment.dev
+          ? 'http://localhost:18080'
+          : Uri.parse(apiBaseUrl).origin,
     );
 
     config.validate();
@@ -129,6 +142,14 @@ class EnvConfig {
         throw StateError(
           'Configuração Supabase obrigatória em staging e produção.',
         );
+      }
+
+      final publicUri = Uri.tryParse(publicWebUrl);
+      if (publicUri == null ||
+          publicUri.scheme != 'https' ||
+          publicUri.host.isEmpty ||
+          _isPrivateOrLocalHost(publicUri.host)) {
+        throw StateError('PUBLIC_WEB_URL deve ser um endpoint HTTPS público.');
       }
 
       final supabaseUri = Uri.tryParse(supabaseUrl);

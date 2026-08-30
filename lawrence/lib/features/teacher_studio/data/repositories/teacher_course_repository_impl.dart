@@ -1,5 +1,6 @@
 import '../../../../features/courses/domain/entities/course.dart';
 import '../../domain/entities/upload_file_payload.dart';
+import '../../domain/entities/teacher_course_student.dart';
 import '../../domain/repositories/teacher_course_repository.dart';
 import '../datasources/teacher_course_remote_data_source.dart';
 
@@ -16,6 +17,11 @@ class TeacherCourseRepositoryImpl implements ITeacherCourseRepository {
   @override
   Future<Course> getTeacherCourse(String courseId) {
     return _remoteDataSource.getTeacherCourse(courseId);
+  }
+
+  @override
+  Future<List<TeacherCourseStudent>> getCourseStudents(String courseId) {
+    return _remoteDataSource.getCourseStudents(courseId);
   }
 
   @override

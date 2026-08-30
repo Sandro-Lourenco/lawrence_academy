@@ -1,5 +1,9 @@
 .dart_tool/
 build/
+!build/
+build/*
+!build/web/
+!build/web/**
 .git/
 .idea/
 android/

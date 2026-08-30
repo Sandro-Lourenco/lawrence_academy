@@ -79,56 +79,55 @@ class _PublicationReviewState extends State<PublicationReview> {
             .map((item) => Map<String, dynamic>.from(item as Map))
             .toList();
         final ready = data['ready'] == true;
+        final blockers = issues
+            .where((issue) => issue['severity'] == 'blocking')
+            .toList();
+        final recommendations = issues
+            .where((issue) => issue['severity'] != 'blocking')
+            .toList();
+        final completedChecks = ready
+            ? 100
+            : (100 - blockers.length * 12).clamp(12, 88);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Revisão e publicação',
+              'FASE 5 DE 5',
               style: TextStyle(
+                color: Color(0xFFA63B5E),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.4,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Revise com confiança. Publique sem surpresa.',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -.8,
               ),
             ),
             const SizedBox(height: 8),
             const Text(
-              'A validação final será repetida pelo servidor.',
-              style: TextStyle(color: Colors.white70),
+              'Confira a oferta, o conteúdo e a experiência do aluno antes do lançamento.',
+              style: TextStyle(color: Color(0xFFB8C1DD), fontSize: 16),
             ),
-            const SizedBox(height: 20),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Wrap(
-                  spacing: 24,
-                  runSpacing: 12,
-                  children: [
-                    _Metric('Curso', widget.course.title),
-                    _Metric(
-                      'Preço',
-                      widget.course.isFree
-                          ? 'Gratuito'
-                          : 'R\$ ${widget.course.monthlyPrice.toStringAsFixed(2)}',
-                    ),
-                    _Metric('Visibilidade', widget.course.visibility),
-                    _Metric('Módulos', '${data['module_count']}'),
-                    _Metric('Aulas', '${data['lesson_count']}'),
-                    _Metric('Uploads pendentes', '${data['pending_uploads']}'),
-                  ],
-                ),
-              ),
+            const SizedBox(height: 24),
+            _ReadinessSummary(
+              percent: completedChecks,
+              ready: ready,
+              title: widget.course.title,
+              price: widget.course.isFree
+                  ? 'Gratuito'
+                  : 'R\$ ${widget.course.monthlyPrice.toStringAsFixed(2).replaceAll('.', ',')} / mês',
+              visibility: widget.course.visibility,
+              modules: '${data['module_count']}',
+              lessons: '${data['lesson_count']}',
+              pendingUploads: '${data['pending_uploads']}',
             ),
-            const SizedBox(height: 16),
-            _VersionHistory(
-              loadVersions: widget.loadVersions,
-              loadVersion: widget.loadVersion,
-              restoreVersion: widget.restoreVersion,
-              onRestored: () {
-                _reload();
-                widget.onBack();
-              },
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Row(
               children: [
                 Expanded(
@@ -154,74 +153,136 @@ class _PublicationReviewState extends State<PublicationReview> {
             ),
             if (issues.isEmpty)
               const Card(
+                color: Color(0xCC102A28),
                 child: ListTile(
                   leading: Icon(
                     Icons.check_circle,
                     color: LawrenceColors.success,
                   ),
-                  title: Text('Nenhuma pendência encontrada.'),
-                ),
-              ),
-            for (final issue in issues)
-              Card(
-                child: ListTile(
-                  leading: Icon(
-                    issue['severity'] == 'blocking'
-                        ? Icons.error_outline
-                        : Icons.info_outline,
-                    color: issue['severity'] == 'blocking'
-                        ? LawrenceColors.danger
-                        : LawrenceColors.warning,
-                  ),
-                  title: Text(issue['label'].toString()),
-                  subtitle: Text(
-                    issue['severity'] == 'blocking'
-                        ? 'Bloqueadora'
-                        : 'Recomendada',
+                  title: Text(
+                    'Nenhuma pendência encontrada.',
+                    style: TextStyle(color: Colors.white),
                   ),
                 ),
               ),
+            if (blockers.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const _ReviewGroupHeader(
+                icon: Icons.error_outline,
+                title: 'Corrija antes de publicar',
+                description: 'Estes itens impedem o lançamento do curso.',
+                color: LawrenceColors.danger,
+              ),
+              const SizedBox(height: 10),
+              for (final issue in blockers)
+                _IssueCard(issue: issue, blocking: true, onEdit: widget.onBack),
+            ],
+            if (recommendations.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                leading: const Icon(
+                  Icons.lightbulb_outline,
+                  color: LawrenceColors.warning,
+                ),
+                title: Text(
+                  '${recommendations.length} recomendação(ões) para melhorar o lançamento',
+                ),
+                subtitle: const Text(
+                  'O curso pode ser publicado sem estes ajustes.',
+                ),
+                children: [
+                  for (final issue in recommendations)
+                    _IssueCard(
+                      issue: issue,
+                      blocking: false,
+                      onEdit: widget.onBack,
+                    ),
+                ],
+              ),
+            ],
             const SizedBox(height: 20),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: widget.onBack,
-                  icon: const Icon(Icons.arrow_back),
-                  label: const Text('Voltar e editar'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => _preview(context, data),
-                  icon: const Icon(Icons.visibility_outlined),
-                  label: const Text('Prévia como aluno'),
-                ),
-                FilledButton.icon(
-                  onPressed: !ready || widget.isPublishing
-                      ? null
-                      : () async {
-                          if (!await _confirm(context)) return;
-                          if (await widget.onPublish() && mounted) {
-                            await _success(context);
-                          }
-                        },
-                  icon: widget.isPublishing
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.publish),
-                  label: Text(
-                    widget.isPublishing ? 'Publicando…' : 'Publicar agora',
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xE62C111B),
+                border: Border.all(color: const Color(0x33A63B5E)),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x14071833),
+                    blurRadius: 24,
+                    offset: Offset(0, 8),
                   ),
-                ),
-              ],
+                ],
+              ),
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                alignment: WrapAlignment.end,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: widget.onBack,
+                    icon: const Icon(Icons.arrow_back),
+                    label: const Text('Voltar e editar'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFC8C2FF),
+                      side: const BorderSide(color: Color(0xFF766AF2)),
+                      minimumSize: const Size(180, 52),
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _preview(context, data),
+                    icon: const Icon(Icons.visibility_outlined),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFC8C2FF),
+                      side: const BorderSide(color: Color(0xFF766AF2)),
+                      minimumSize: const Size(200, 52),
+                    ),
+                    label: const Text('Prévia como aluno'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: !ready || widget.isPublishing
+                        ? null
+                        : () async {
+                            if (!await _confirm(context)) return;
+                            if (await widget.onPublish() && mounted) {
+                              await _success(context);
+                            }
+                          },
+                    icon: widget.isPublishing
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.publish),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF6B1328),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(190, 52),
+                    ),
+                    label: Text(
+                      widget.isPublishing ? 'Publicando…' : 'Publicar agora',
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
             const Text(
               'Agendamento indisponível até existir um executor backend.',
-              style: TextStyle(color: Colors.white60),
+              style: TextStyle(color: LawrenceColors.textSecondary),
+            ),
+            const SizedBox(height: 24),
+            _VersionHistory(
+              loadVersions: widget.loadVersions,
+              loadVersion: widget.loadVersion,
+              restoreVersion: widget.restoreVersion,
+              onRestored: () {
+                _reload();
+                widget.onBack();
+              },
             ),
           ],
         );
@@ -285,11 +346,244 @@ class _PublicationReviewState extends State<PublicationReview> {
           title: widget.course.title,
           summary: widget.course.summary,
           modules: modules,
+          monthlyPrice: widget.course.monthlyPrice,
+          isFree: widget.course.isFree,
+          visibility: widget.course.visibility,
+          certificateEnabled: widget.course.certificateEnabled,
           onClose: () => Navigator.pop(dialogContext),
         ),
       ),
     );
   }
+}
+
+class _ReadinessSummary extends StatelessWidget {
+  const _ReadinessSummary({
+    required this.percent,
+    required this.ready,
+    required this.title,
+    required this.price,
+    required this.visibility,
+    required this.modules,
+    required this.lessons,
+    required this.pendingUploads,
+  });
+
+  final num percent;
+  final bool ready;
+  final String title;
+  final String price;
+  final String visibility;
+  final String modules;
+  final String lessons;
+  final String pendingUploads;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(22),
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xE62C111B), Color(0xD94B0C1B)],
+      ),
+      border: Border.all(color: const Color(0x55A63B5E)),
+      borderRadius: BorderRadius.circular(22),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x0A071833),
+          blurRadius: 26,
+          offset: Offset(0, 10),
+        ),
+      ],
+    ),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final score = SizedBox(
+          width: 118,
+          child: Column(
+            children: [
+              SizedBox(
+                width: 78,
+                height: 78,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CircularProgressIndicator(
+                      value: percent / 100,
+                      strokeWidth: 7,
+                      backgroundColor: const Color(0xFF29314D),
+                      color: ready
+                          ? LawrenceColors.success
+                          : LawrenceColors.primary,
+                    ),
+                    Center(
+                      child: Text(
+                        '$percent%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                ready ? 'Pronto' : 'Em preparação',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        );
+        final details = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 24,
+              runSpacing: 14,
+              children: [
+                _Metric('Preço para o aluno', price),
+                _Metric('Visibilidade', _visibilityLabel(visibility)),
+                _Metric('Estrutura', '$modules módulos • $lessons aulas'),
+                _Metric('Uploads pendentes', pendingUploads),
+              ],
+            ),
+          ],
+        );
+        if (constraints.maxWidth < 620) {
+          return Column(
+            children: [
+              score,
+              const SizedBox(height: 20),
+              Align(alignment: Alignment.centerLeft, child: details),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            score,
+            const SizedBox(width: 24),
+            Expanded(child: details),
+          ],
+        );
+      },
+    ),
+  );
+
+  static String _visibilityLabel(String value) => switch (value) {
+    'unlisted' => 'Somente por link',
+    'private' => 'Privado',
+    _ => 'Catálogo público',
+  };
+}
+
+class _ReviewGroupHeader extends StatelessWidget {
+  const _ReviewGroupHeader({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.color,
+  });
+  final IconData icon;
+  final String title;
+  final String description;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(icon, color: color),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+            ),
+            Text(
+              description,
+              style: const TextStyle(color: LawrenceColors.textSecondary),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+class _IssueCard extends StatelessWidget {
+  const _IssueCard({
+    required this.issue,
+    required this.blocking,
+    required this.onEdit,
+  });
+  final Map<String, dynamic> issue;
+  final bool blocking;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: blocking
+          ? LawrenceColors.danger.withValues(alpha: .05)
+          : LawrenceColors.warning.withValues(alpha: .05),
+      border: Border.all(
+        color: (blocking ? LawrenceColors.danger : LawrenceColors.warning)
+            .withValues(alpha: .22),
+      ),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Row(
+      children: [
+        Icon(
+          blocking ? Icons.error_outline : Icons.info_outline,
+          color: blocking ? LawrenceColors.danger : LawrenceColors.warning,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                issue['label'].toString(),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              Text(
+                blocking ? 'Bloqueia a publicação' : 'Melhoria recomendada',
+                style: const TextStyle(
+                  color: LawrenceColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+        TextButton.icon(
+          onPressed: onEdit,
+          icon: const Icon(Icons.edit_outlined, size: 17),
+          label: const Text('Corrigir'),
+        ),
+      ],
+    ),
+  );
 }
 
 class _VersionHistory extends StatelessWidget {
@@ -572,12 +866,20 @@ class _StudentCoursePreview extends StatefulWidget {
     required this.summary,
     required this.modules,
     required this.onClose,
+    this.monthlyPrice = 0,
+    this.isFree = true,
+    this.visibility = 'public',
+    this.certificateEnabled = false,
   });
 
   final String title;
   final String summary;
   final List<Map<String, dynamic>> modules;
   final VoidCallback onClose;
+  final double monthlyPrice;
+  final bool isFree;
+  final String visibility;
+  final bool certificateEnabled;
 
   @override
   State<_StudentCoursePreview> createState() => _StudentCoursePreviewState();
@@ -585,6 +887,8 @@ class _StudentCoursePreview extends StatefulWidget {
 
 class _StudentCoursePreviewState extends State<_StudentCoursePreview> {
   Map<String, dynamic>? selectedLesson;
+  String mode = 'sales';
+  String viewport = 'desktop';
 
   @override
   void initState() {
@@ -605,42 +909,365 @@ class _StudentCoursePreviewState extends State<_StudentCoursePreview> {
       selectedLessonId: selectedLesson?['id']?.toString(),
       onSelect: (lesson) => setState(() => selectedLesson = lesson),
     );
-    final content = _LessonPreview(
+    final lessonContent = _LessonPreview(
       courseTitle: widget.title,
       courseSummary: widget.summary,
       lesson: selectedLesson,
     );
+    final salesContent = _SalesPreview(
+      title: widget.title,
+      summary: widget.summary,
+      modules: widget.modules,
+      monthlyPrice: widget.monthlyPrice,
+      isFree: widget.isFree,
+      visibility: widget.visibility,
+      certificateEnabled: widget.certificateEnabled,
+    );
+    final content = mode == 'sales' ? salesContent : lessonContent;
+    final width = switch (viewport) {
+      'mobile' => 390.0,
+      'tablet' => 768.0,
+      _ => double.infinity,
+    };
     return Scaffold(
+      backgroundColor: const Color(0xFFEEF2F7),
       appBar: AppBar(
-        title: const Text('Prévia como aluno'),
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Prévia como aluno',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            Text(
+              'Nenhuma compra ou publicação será realizada',
+              style: TextStyle(
+                fontSize: 12,
+                color: LawrenceColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
         leading: IconButton(
           tooltip: 'Fechar prévia',
           onPressed: widget.onClose,
           icon: const Icon(Icons.close),
         ),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: Chip(
-              avatar: Icon(Icons.visibility_outlined, size: 18),
-              label: Text('Modo de prévia'),
+        actions: [
+          if (MediaQuery.sizeOf(context).width >= 760) ...[
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(
+                  value: 'sales',
+                  icon: Icon(Icons.storefront_outlined),
+                  label: Text('Página do curso'),
+                ),
+                ButtonSegment(
+                  value: 'lesson',
+                  icon: Icon(Icons.play_circle_outline),
+                  label: Text('Experiência da aula'),
+                ),
+              ],
+              selected: {mode},
+              onSelectionChanged: (value) => setState(() => mode = value.first),
+            ),
+            const SizedBox(width: 12),
+            SegmentedButton<String>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                  value: 'desktop',
+                  icon: Icon(Icons.desktop_windows_outlined),
+                  tooltip: 'Desktop',
+                ),
+                ButtonSegment(
+                  value: 'tablet',
+                  icon: Icon(Icons.tablet_mac_outlined),
+                  tooltip: 'Tablet',
+                ),
+                ButtonSegment(
+                  value: 'mobile',
+                  icon: Icon(Icons.phone_iphone_outlined),
+                  tooltip: 'Celular',
+                ),
+              ],
+              selected: {viewport},
+              onSelectionChanged: (value) =>
+                  setState(() => viewport = value.first),
+            ),
+          ],
+          const SizedBox(width: 16),
+        ],
+      ),
+      drawer: mode == 'lesson' && MediaQuery.sizeOf(context).width < 900
+          ? Drawer(child: SafeArea(child: navigation))
+          : null,
+      body: Column(
+        children: [
+          if (MediaQuery.sizeOf(context).width < 760)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'sales', label: Text('Página do curso')),
+                  ButtonSegment(value: 'lesson', label: Text('Aula')),
+                ],
+                selected: {mode},
+                onSelectionChanged: (value) =>
+                    setState(() => mode = value.first),
+              ),
+            ),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (mode == 'lesson' &&
+                    MediaQuery.sizeOf(context).width >= 900 &&
+                    viewport == 'desktop')
+                  SizedBox(width: 300, child: navigation),
+                Expanded(
+                  child: Center(
+                    child: AnimatedContainer(
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? Duration.zero
+                          : const Duration(milliseconds: 280),
+                      width: width,
+                      margin: EdgeInsets.all(viewport == 'desktop' ? 0 : 20),
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        color: LawrenceColors.canvas,
+                        borderRadius: BorderRadius.circular(
+                          viewport == 'desktop' ? 0 : 22,
+                        ),
+                        boxShadow: viewport == 'desktop'
+                            ? null
+                            : const [
+                                BoxShadow(
+                                  color: Color(0x26071833),
+                                  blurRadius: 32,
+                                  offset: Offset(0, 14),
+                                ),
+                              ],
+                      ),
+                      child: content,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
-      drawer: MediaQuery.sizeOf(context).width < 900
-          ? Drawer(child: SafeArea(child: navigation))
-          : null,
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (MediaQuery.sizeOf(context).width >= 900)
-            SizedBox(width: 320, child: navigation),
-          Expanded(child: content),
-        ],
-      ),
     );
   }
+}
+
+class _SalesPreview extends StatelessWidget {
+  const _SalesPreview({
+    required this.title,
+    required this.summary,
+    required this.modules,
+    required this.monthlyPrice,
+    required this.isFree,
+    required this.visibility,
+    required this.certificateEnabled,
+  });
+
+  final String title;
+  final String summary;
+  final List<Map<String, dynamic>> modules;
+  final double monthlyPrice;
+  final bool isFree;
+  final String visibility;
+  final bool certificateEnabled;
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    children: [
+      Container(
+        constraints: const BoxConstraints(minHeight: 340),
+        padding: const EdgeInsets.all(36),
+        decoration: const BoxDecoration(color: Color(0xFF071833)),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 720;
+            final copy = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'CURSO LAWRENCE ACADEMY',
+                  style: TextStyle(
+                    color: Color(0xFF8DC8FF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  title.isEmpty ? 'Título do seu curso' : title,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: compact ? 32 : 44,
+                    height: 1.05,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -1.4,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  summary.isEmpty
+                      ? 'O resumo do curso aparecerá aqui para apresentar sua transformação.'
+                      : summary,
+                  style: const TextStyle(
+                    color: Color(0xFFBDC9D9),
+                    fontSize: 16,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _PreviewPill(
+                      icon: Icons.menu_book_outlined,
+                      label: '${modules.length} módulos',
+                    ),
+                    if (certificateEnabled)
+                      const _PreviewPill(
+                        icon: Icons.workspace_premium_outlined,
+                        label: 'Certificado',
+                      ),
+                    _PreviewPill(
+                      icon: Icons.visibility_outlined,
+                      label: _previewVisibility(visibility),
+                    ),
+                  ],
+                ),
+              ],
+            );
+            final offer = Container(
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Acesso completo',
+                    style: TextStyle(color: LawrenceColors.textSecondary),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isFree
+                        ? 'Gratuito'
+                        : 'R\$ ${monthlyPrice.toStringAsFixed(2).replaceAll('.', ',')} / mês',
+                    style: const TextStyle(
+                      color: LawrenceColors.textPrimary,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton(
+                    onPressed: null,
+                    child: Text(isFree ? 'Começar agora' : 'Assinar curso'),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'CTA desabilitado no modo prévia',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: LawrenceColors.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            );
+            if (compact) {
+              return Column(
+                children: [copy, const SizedBox(height: 28), offer],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: copy),
+                const SizedBox(width: 36),
+                SizedBox(width: 280, child: offer),
+              ],
+            );
+          },
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'O que você vai aprender',
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 18),
+            for (final module in modules)
+              Card(
+                elevation: 0,
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.auto_awesome, size: 18),
+                  ),
+                  title: Text(module['title']?.toString() ?? 'Módulo'),
+                  subtitle: Text(
+                    '${(module['lessons'] as List? ?? const []).length} aulas',
+                  ),
+                  trailing: const Icon(Icons.expand_more),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ],
+  );
+
+  static String _previewVisibility(String value) => switch (value) {
+    'unlisted' => 'Somente por link',
+    'private' => 'Privado',
+    _ => 'Catálogo público',
+  };
+}
+
+class _PreviewPill extends StatelessWidget {
+  const _PreviewPill({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: const Color(0x1FFFFFFF),
+      borderRadius: BorderRadius.circular(99),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: Colors.white70, size: 16),
+        const SizedBox(width: 7),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white70, fontSize: 12),
+        ),
+      ],
+    ),
+  );
 }
 
 class _CourseTree extends StatelessWidget {
@@ -769,16 +1396,16 @@ class _Metric extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: LawrenceColors.textSecondary,
-            fontSize: 12,
-          ),
+          style: const TextStyle(color: Color(0xFFB8C1DD), fontSize: 12),
         ),
         Text(
           value,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     ),

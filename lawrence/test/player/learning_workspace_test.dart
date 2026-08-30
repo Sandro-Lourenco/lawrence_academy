@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lawrence/features/lessons/domain/entities/lesson_entity.dart';
 import 'package:lawrence/features/player/presentation/controllers/lesson_navigation_presentation.dart';
 import 'package:lawrence/features/player/presentation/widgets/learning_workspace.dart';
@@ -34,36 +35,44 @@ void main() {
     ],
   );
 
-  testWidgets('separa assistir, atividades e saber mais', (tester) async {
+  testWidgets('avança em sequência por aula, atividade e saber mais', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1440, 1000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: LearningWorkspace(
-          title: lesson.title,
-          lesson: lesson,
-          lessons: [lesson],
-          navigation: const LessonNavigation(previous: null, next: null),
-          progressPercentage: 30,
-          player: const ColoredBox(color: Colors.black),
-          onBack: () {},
-          onOpenLesson: (_) async {},
-          onOpenActivities: () {},
+      ProviderScope(
+        child: MaterialApp(
+          home: LearningWorkspace(
+            courseTitle: 'Modelagem essencial',
+            title: lesson.title,
+            lesson: lesson,
+            lessons: [lesson],
+            navigation: const LessonNavigation(previous: null, next: null),
+            progressPercentage: 30,
+            player: const ColoredBox(color: Colors.black),
+            onBack: () {},
+            onOpenLesson: (_) async {},
+            onOpenActivities: () {},
+          ),
         ),
       ),
     );
 
     expect(find.text('AULA ATUAL'), findsOneWidget);
+    expect(find.text('Modelagem essencial'), findsOneWidget);
+    expect(find.text('Ir para atividade'), findsOneWidget);
 
-    await tester.tap(find.text('Atividades'));
+    await tester.tap(find.text('Ir para atividade'));
     await tester.pumpAndSettle();
     expect(find.text('PRÁTICA GUIADA'), findsOneWidget);
     expect(find.text('Qual é o primeiro passo?'), findsWidgets);
+    expect(find.text('Ir para Saber mais'), findsOneWidget);
 
-    await tester.tap(find.text('Saber mais'));
+    await tester.tap(find.text('Ir para Saber mais'));
     await tester.pumpAndSettle();
     expect(find.text('APROFUNDE O OLHAR'), findsOneWidget);
     expect(find.text('Resumo'), findsWidgets);

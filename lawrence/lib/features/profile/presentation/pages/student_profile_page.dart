@@ -8,6 +8,7 @@ import '../../../../design_system/widgets/status_badge.dart';
 import '../../../../design_system/widgets/student_page_scaffold.dart';
 import '../../domain/entities/user_profile.dart';
 import '../controllers/student_profile_controller.dart';
+import '../widgets/student_avatar.dart';
 
 class StudentProfilePage extends ConsumerWidget {
   const StudentProfilePage({super.key});
@@ -15,192 +16,353 @@ class StudentProfilePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(studentProfileProvider);
-    return profile.when(
-      loading: () => const StudentPageScaffold(
-        title: 'Perfil',
-        subtitle: 'Sua identidade na Lawrence Academy.',
-        body: SizedBox(
-          height: 420,
-          child: AppLoadingState(message: 'Carregando perfil'),
-        ),
-      ),
-      error: (_, _) => StudentPageScaffold(
-        title: 'Perfil',
-        subtitle: 'Sua identidade na Lawrence Academy.',
-        body: SizedBox(
-          height: 420,
+    return StudentPageScaffold(
+      title: 'Perfil',
+      subtitle: 'Sua identidade e preferências na Lawrence Academy.',
+      onRefresh: () async {
+        ref.invalidate(studentProfileProvider);
+        await ref.read(studentProfileProvider.future);
+      },
+      body: profile.when(
+        loading: () => const _ProfileLoading(),
+        error: (_, _) => SizedBox(
+          height: 380,
           child: AppErrorState(
             title: 'Não foi possível carregar seu perfil',
             message: 'Verifique sua conexão e tente novamente.',
             onRetry: () => ref.invalidate(studentProfileProvider),
           ),
         ),
-      ),
-      data: (value) => StudentPageScaffold(
-        title: 'Perfil',
-        subtitle: 'Sua identidade na Lawrence Academy.',
-        actions: [
-          IconButton(
-            tooltip: 'Abrir configurações',
-            onPressed: () => context.push('/dashboard/settings'),
-            icon: const Icon(Icons.settings_outlined),
-          ),
-        ],
-        onRefresh: () async {
-          ref.invalidate(studentProfileProvider);
-          await ref.read(studentProfileProvider.future);
-        },
-        body: _ProfileContent(profile: value),
+        data: (value) => _ProfileOverview(profile: value),
       ),
     );
   }
 }
 
-class _ProfileContent extends StatelessWidget {
+class _ProfileOverview extends StatelessWidget {
+  const _ProfileOverview({required this.profile});
   final UserProfile profile;
 
-  const _ProfileContent({required this.profile});
-
   @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 900;
-        final identity = _IdentityCard(profile: profile);
-        const navigation = _AccountNavigationCard();
-        if (!wide) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              identity,
-              const SizedBox(height: LawrenceSpacing.md),
-              navigation,
-            ],
-          );
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final main = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _IdentityPanel(profile: profile),
+          const SizedBox(height: LawrenceSpacing.lg),
+          _AboutPanel(profile: profile),
+          if (profile.academicFormations.isNotEmpty) ...[
+            const SizedBox(height: LawrenceSpacing.lg),
+            _FormationPanel(formations: profile.academicFormations),
+          ],
+        ],
+      );
+      if (constraints.maxWidth < 920) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(flex: 2, child: identity),
-            const SizedBox(width: LawrenceSpacing.lg),
-            const Expanded(child: navigation),
+            main,
+            const SizedBox(height: LawrenceSpacing.lg),
+            const _AccountPanel(),
           ],
         );
-      },
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(flex: 7, child: main),
+          const SizedBox(width: LawrenceSpacing.xl),
+          const Expanded(flex: 4, child: _AccountPanel()),
+        ],
+      );
+    },
+  );
+}
+
+class _IdentityPanel extends StatelessWidget {
+  const _IdentityPanel({required this.profile});
+  final UserProfile profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final name = _value(profile.fullName, 'Nome não informado');
+    final professionalLine =
+        [profile.occupation, profile.jobTitle, profile.company]
+            .whereType<String>()
+            .map((value) => value.trim())
+            .where((value) => value.isNotEmpty)
+            .join(' · ');
+    return Container(
+      padding: const EdgeInsets.all(LawrenceSpacing.xl),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final identity = Row(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const StudentAvatar(radius: 46),
+                  Positioned(
+                    right: -4,
+                    bottom: -4,
+                    child: IconButton.filled(
+                      tooltip: 'Editar foto e perfil',
+                      onPressed: () => context.push('/dashboard/profile/edit'),
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: LawrenceSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        name,
+                        style: Theme.of(context).textTheme.headlineLarge,
+                      ),
+                    ),
+                    const SizedBox(height: LawrenceSpacing.xs),
+                    Text(
+                      profile.email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (professionalLine.isNotEmpty) ...[
+                      const SizedBox(height: LawrenceSpacing.xs),
+                      Text(
+                        professionalLine,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    const SizedBox(height: LawrenceSpacing.sm),
+                    AppStatusBadge(
+                      label: profileRoleLabel(profile.role),
+                      icon: Icons.verified_user_outlined,
+                      tone: AppStatusTone.info,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+          final edit = FilledButton.icon(
+            onPressed: () => context.push('/dashboard/profile/edit'),
+            icon: const Icon(Icons.edit_outlined),
+            label: const Text('Editar perfil'),
+          );
+          return constraints.maxWidth < 620
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    identity,
+                    const SizedBox(height: LawrenceSpacing.lg),
+                    edit,
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: identity),
+                    const SizedBox(width: LawrenceSpacing.lg),
+                    edit,
+                  ],
+                );
+        },
+      ),
     );
   }
 }
 
-class _IdentityCard extends StatelessWidget {
+class _AboutPanel extends StatelessWidget {
+  const _AboutPanel({required this.profile});
   final UserProfile profile;
-
-  const _IdentityCard({required this.profile});
 
   @override
   Widget build(BuildContext context) {
-    final displayName = profile.fullName?.trim().isNotEmpty ?? false
-        ? profile.fullName!.trim()
-        : 'Nome não informado';
-    return Semantics(
-      container: true,
-      label:
-          '$displayName. ${profile.email}. ${profileRoleLabel(profile.role)}.',
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(LawrenceSpacing.xl),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 44,
-                backgroundColor: LawrenceColors.infoSurface,
-                foregroundColor: LawrenceColors.brandNavy,
-                child: Text(
-                  profileInitials(profile.fullName, profile.email),
-                  style: Theme.of(context).textTheme.headlineLarge,
-                ),
-              ),
-              const SizedBox(height: LawrenceSpacing.lg),
-              Text(displayName, style: Theme.of(context).textTheme.headlineLarge),
-              const SizedBox(height: LawrenceSpacing.xs),
-              Text(profile.email, style: Theme.of(context).textTheme.bodyLarge),
-              const SizedBox(height: LawrenceSpacing.md),
-              AppStatusBadge(
-                label: profileRoleLabel(profile.role),
-                icon: Icons.verified_user_outlined,
-                tone: AppStatusTone.info,
-              ),
-              const SizedBox(height: LawrenceSpacing.xl),
-              const Divider(),
-              const SizedBox(height: LawrenceSpacing.md),
-              Text(
-                'Seus dados são carregados pelo perfil protegido da conta.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
-          ),
+    final biography = profile.biography?.trim();
+    final empty = biography == null || biography.isEmpty;
+    return _SectionPanel(
+      title: 'Sobre você',
+      actionLabel: empty ? 'Adicionar' : 'Atualizar',
+      onAction: () => context.push('/dashboard/profile/edit'),
+      child: Text(
+        empty
+            ? 'Conte um pouco sobre sua trajetória, interesses e objetivos de aprendizado.'
+            : biography,
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          color: empty ? Theme.of(context).colorScheme.onSurfaceVariant : null,
+          height: 1.55,
         ),
       ),
     );
   }
 }
 
-class _AccountNavigationCard extends StatelessWidget {
-  const _AccountNavigationCard();
+class _FormationPanel extends StatelessWidget {
+  const _FormationPanel({required this.formations});
+  final List<AcademicFormation> formations;
+
+  @override
+  Widget build(BuildContext context) => _SectionPanel(
+    title: 'Formação',
+    actionLabel: 'Editar',
+    onAction: () => context.push('/dashboard/profile/edit'),
+    child: Column(
+      children: [
+        for (var index = 0; index < formations.length; index++) ...[
+          if (index > 0) const Divider(height: LawrenceSpacing.xl),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.school_outlined),
+            title: Text(formations[index].course),
+            subtitle: Text(
+              '${formations[index].institution} · ${formations[index].type}',
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+class _AccountPanel extends StatelessWidget {
+  const _AccountPanel();
+
+  @override
+  Widget build(BuildContext context) => _SectionPanel(
+    title: 'Conta',
+    child: Column(
+      children: [
+        _AccountLink(
+          icon: Icons.settings_outlined,
+          title: 'Configurações',
+          subtitle: 'Conta, segurança e preferências',
+          onTap: () => context.push('/dashboard/settings'),
+        ),
+        const Divider(height: 1),
+        _AccountLink(
+          icon: Icons.credit_card_outlined,
+          title: 'Assinaturas',
+          subtitle: 'Acesso aos seus cursos',
+          onTap: () => context.go('/dashboard/subscriptions'),
+        ),
+        const Divider(height: 1),
+        _AccountLink(
+          icon: Icons.receipt_long_outlined,
+          title: 'Faturas',
+          subtitle: 'Histórico financeiro',
+          onTap: () => context.go('/dashboard/invoices'),
+        ),
+        const Divider(height: 1),
+        _AccountLink(
+          icon: Icons.workspace_premium_outlined,
+          title: 'Certificados',
+          subtitle: 'Documentos conquistados',
+          onTap: () => context.go('/dashboard/certificates'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _SectionPanel extends StatelessWidget {
+  const _SectionPanel({
+    required this.title,
+    required this.child,
+    this.actionLabel,
+    this.onAction,
+  });
+  final String title;
+  final Widget child;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      padding: const EdgeInsets.all(LawrenceSpacing.lg),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _ProfileLink(
-            icon: Icons.settings_outlined,
-            title: 'Configurações',
-            subtitle: 'Conta, segurança e preferências disponíveis',
-            onTap: () => context.push('/dashboard/settings'),
+          Row(
+            children: [
+              Expanded(
+                child: Semantics(
+                  header: true,
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+              ),
+              if (actionLabel != null)
+                TextButton(onPressed: onAction, child: Text(actionLabel!)),
+            ],
           ),
-          const Divider(height: 1),
-          _ProfileLink(
-            icon: Icons.credit_card_outlined,
-            title: 'Assinaturas',
-            subtitle: 'Gerencie o acesso aos seus cursos',
-            onTap: () => context.go('/dashboard/subscriptions'),
-          ),
-          const Divider(height: 1),
-          _ProfileLink(
-            icon: Icons.receipt_long_outlined,
-            title: 'Faturas',
-            subtitle: 'Consulte seu histórico financeiro',
-            onTap: () => context.go('/dashboard/invoices'),
-          ),
+          const SizedBox(height: LawrenceSpacing.md),
+          child,
         ],
       ),
     );
   }
 }
 
-class _ProfileLink extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _ProfileLink({
+class _AccountLink extends StatelessWidget {
+  const _AccountLink({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
   });
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      minTileHeight: 72,
-      leading: Icon(icon, color: LawrenceColors.actionPrimary),
-      title: Text(title),
-      subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right_rounded),
-      onTap: onTap,
-    );
-  }
+  Widget build(BuildContext context) => ListTile(
+    contentPadding: const EdgeInsets.symmetric(vertical: LawrenceSpacing.xs),
+    minVerticalPadding: LawrenceSpacing.sm,
+    leading: Icon(icon),
+    title: Text(title),
+    subtitle: Text(subtitle),
+    trailing: const Icon(Icons.arrow_forward_rounded, size: 18),
+    onTap: onTap,
+  );
+}
+
+class _ProfileLoading extends StatelessWidget {
+  const _ProfileLoading();
+
+  @override
+  Widget build(BuildContext context) => const Column(
+    children: [
+      AppSkeletonState(width: double.infinity, height: 190, borderRadius: 0),
+      SizedBox(height: LawrenceSpacing.lg),
+      AppSkeletonState(width: double.infinity, height: 220, borderRadius: 0),
+    ],
+  );
+}
+
+String _value(String? value, String fallback) {
+  final normalized = value?.trim();
+  return normalized == null || normalized.isEmpty ? fallback : normalized;
 }

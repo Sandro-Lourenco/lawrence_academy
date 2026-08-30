@@ -49,9 +49,9 @@ class DashboardState {
 
 DashboardResume? buildDashboardResume(
   List<Course> courses,
-  List<LessonProgressEntity> progress,
-  [Map<String, LearningResumeTarget> savedTargets = const {}]
-) {
+  List<LessonProgressEntity> progress, [
+  Map<String, LearningResumeTarget> savedTargets = const {},
+]) {
   if (courses.isEmpty) return null;
 
   DashboardResume? bestResume;
@@ -65,7 +65,8 @@ DashboardResume? buildDashboardResume(
     final progressByLesson = {
       for (final item in courseProgress) item.lessonId: item,
     };
-    final percentage = lessons.fold<double>(0, (total, lesson) {
+    final percentage =
+        lessons.fold<double>(0, (total, lesson) {
           final item = progressByLesson[lesson.id];
           return total +
               (item?.completed == true
@@ -78,13 +79,16 @@ DashboardResume? buildDashboardResume(
     final savedLesson = saved == null
         ? null
         : _firstWhereOrNull(lessons, (lesson) => lesson.id == saved.lessonId);
-    final viewedProgress = courseProgress
-        .where((item) => item.progressPercentage > 0 && !item.completed)
-        .toList()
-      ..sort(
-        (a, b) => (b.lastSyncedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
-            .compareTo(a.lastSyncedAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
-      );
+    final viewedProgress =
+        courseProgress
+            .where((item) => item.progressPercentage > 0 && !item.completed)
+            .toList()
+          ..sort(
+            (a, b) => (b.lastSyncedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+                .compareTo(
+                  a.lastSyncedAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+                ),
+          );
     final viewedLesson = viewedProgress.isEmpty
         ? null
         : _firstWhereOrNull(
@@ -164,12 +168,11 @@ class DashboardNotifier extends AutoDisposeAsyncNotifier<DashboardState> {
       }
     } catch (_) {
       for (final course in catalog) {
-        progress.addAll(
-          await progressRepository.getCourseProgress(course.id),
-        );
+        progress.addAll(await progressRepository.getCourseProgress(course.id));
       }
     }
 
+    final savedTargets = <String, LearningResumeTarget>{};
     Set<String> accessibleCourseIds;
     try {
       final subscriptions = await ref
@@ -179,22 +182,18 @@ class DashboardNotifier extends AutoDisposeAsyncNotifier<DashboardState> {
           .where((subscription) => subscription.hasAccess)
           .map((subscription) => subscription.courseId)
           .toSet();
+      // Cursos gratuitos iniciados geram progresso, mas não necessariamente
+      // uma assinatura. O progresso também é uma prova de matrícula ativa.
+      accessibleCourseIds.addAll(progress.map((item) => item.courseId));
     } catch (_) {
       isUsingCachedAccess = true;
       accessibleCourseIds = progress.map((item) => item.courseId).toSet();
     }
 
-    final courses = catalog
-        .where((course) => accessibleCourseIds.contains(course.id))
-        .toList(growable: false);
-    final accessibleProgress = progress
-        .where((item) => accessibleCourseIds.contains(item.courseId))
-        .toList(growable: false);
-    final savedTargets = <String, LearningResumeTarget>{};
     if (studentId != null) {
       final resumeRepository = ref.watch(learningResumeRepositoryProvider);
       final targets = await Future.wait(
-        courses.map(
+        catalog.map(
           (course) => resumeRepository.getForCourse(
             studentId: studentId,
             courseId: course.id,
@@ -203,18 +202,21 @@ class DashboardNotifier extends AutoDisposeAsyncNotifier<DashboardState> {
       );
       for (final target in targets.whereType<LearningResumeTarget>()) {
         savedTargets[target.courseId] = target;
+        accessibleCourseIds.add(target.courseId);
       }
     }
 
+    final courses = catalog
+        .where((course) => accessibleCourseIds.contains(course.id))
+        .toList(growable: false);
+    final accessibleProgress = progress
+        .where((item) => accessibleCourseIds.contains(item.courseId))
+        .toList(growable: false);
     return DashboardState(
       studentName: name,
       courses: courses,
       progressList: accessibleProgress,
-      resume: buildDashboardResume(
-        courses,
-        accessibleProgress,
-        savedTargets,
-      ),
+      resume: buildDashboardResume(courses, accessibleProgress, savedTargets),
       isUsingCachedAccess: isUsingCachedAccess,
     );
   }

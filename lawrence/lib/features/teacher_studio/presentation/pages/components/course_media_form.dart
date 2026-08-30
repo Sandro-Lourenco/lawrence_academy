@@ -7,6 +7,8 @@ import '../../../../../design_system/tokens/lawrence_theme.dart';
 import '../../../../courses/domain/entities/course.dart';
 import 'selected_video_preview.dart';
 
+const _maxTrailerUploadBytes = 50 * 1024 * 1024;
+
 class CourseMediaForm extends StatefulWidget {
   const CourseMediaForm({
     super.key,
@@ -15,6 +17,7 @@ class CourseMediaForm extends StatefulWidget {
     required this.onUpload,
     required this.onBack,
     required this.onContinue,
+    this.onExternalTrailerChanged,
   });
   final bool isUploading;
   final Course course;
@@ -27,6 +30,8 @@ class CourseMediaForm extends StatefulWidget {
   onUpload;
   final VoidCallback onBack;
   final VoidCallback onContinue;
+  final Future<bool> Function(String? url, bool remove)?
+  onExternalTrailerChanged;
 
   @override
   State<CourseMediaForm> createState() => _CourseMediaFormState();
@@ -34,17 +39,76 @@ class CourseMediaForm extends StatefulWidget {
 
 class _CourseMediaFormState extends State<CourseMediaForm> {
   final _alt = TextEditingController();
+  late final TextEditingController _trailerLink;
   String? _coverName;
   String? _trailerName;
   Uint8List? _coverPreview;
   SelectedVideoPreview? _trailerPreview;
   bool _isPreparingTrailerPreview = false;
+  bool _savingLink = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _trailerLink = TextEditingController(text: _externalTrailerUrl);
+  }
+
+  String get _externalTrailerUrl {
+    final id = widget.course.trailerExternalVideoId;
+    if (id == null || id.isEmpty) return '';
+    return switch (widget.course.trailerSourceType) {
+      'youtube' => 'https://www.youtube.com/watch?v=$id',
+      'vimeo' => 'https://vimeo.com/$id',
+      _ => '',
+    };
+  }
 
   @override
   void dispose() {
     _alt.dispose();
+    _trailerLink.dispose();
     _trailerPreview?.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveExternalTrailer({bool remove = false}) async {
+    final callback = widget.onExternalTrailerChanged;
+    if (callback == null || _savingLink) return;
+    final url = _trailerLink.text.trim();
+    if (!remove && !_isSupportedVideoUrl(url)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Informe um link válido do YouTube ou Vimeo.'),
+        ),
+      );
+      return;
+    }
+    setState(() => _savingLink = true);
+    final saved = await callback(remove ? null : url, remove);
+    if (!mounted) return;
+    setState(() {
+      _savingLink = false;
+      if (saved && remove) _trailerLink.clear();
+    });
+    if (saved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            remove ? 'Link da prévia removido.' : 'Link da prévia salvo.',
+          ),
+        ),
+      );
+    }
+  }
+
+  bool _isSupportedVideoUrl(String value) {
+    final uri = Uri.tryParse(value);
+    if (uri == null || uri.scheme != 'https') return false;
+    final host = uri.host.toLowerCase().replaceFirst(RegExp(r'^www\.'), '');
+    return host == 'youtube.com' ||
+        host == 'youtu.be' ||
+        host == 'vimeo.com' ||
+        host == 'player.vimeo.com';
   }
 
   Future<void> _pick(String type) async {
@@ -58,6 +122,17 @@ class _CourseMediaFormState extends State<CourseMediaForm> {
     );
     final file = result?.files.single;
     if (file == null || (file.path == null && file.bytes == null)) return;
+    if (!image && file.size > _maxTrailerUploadBytes) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'O trailer excede 50 MB. Comprima o arquivo ou escolha um vídeo menor.',
+          ),
+        ),
+      );
+      return;
+    }
     final ext = file.extension?.toLowerCase();
     final mime = image
         ? (ext == 'png'
@@ -106,7 +181,7 @@ class _CourseMediaFormState extends State<CourseMediaForm> {
       const Text(
         'Apresentação do curso',
         style: TextStyle(
-          color: LawrenceColors.textPrimary,
+          color: Colors.white,
           fontSize: 24,
           fontWeight: FontWeight.w700,
         ),
@@ -114,7 +189,7 @@ class _CourseMediaFormState extends State<CourseMediaForm> {
       const SizedBox(height: 8),
       const Text(
         'Uma imagem-mestre alimenta capa, banner e miniatura por recortes responsivos. O trailer é público; vídeos de aulas continuam privados.',
-        style: TextStyle(color: LawrenceColors.textSecondary),
+        style: TextStyle(color: Color(0xFFB8C1DD)),
       ),
       const SizedBox(height: 24),
       _card(
@@ -125,7 +200,7 @@ class _CourseMediaFormState extends State<CourseMediaForm> {
       ),
       if (_coverPreview != null) ...[
         const SizedBox(height: 12),
-        _coverPreviewCard(),
+        _ExportPreviews(bytes: _coverPreview!),
       ] else if (widget.course.coverImagePath?.isNotEmpty == true) ...[
         const SizedBox(height: 12),
         const _PersistedMediaNotice(
@@ -140,10 +215,23 @@ class _CourseMediaFormState extends State<CourseMediaForm> {
       TextField(
         controller: _alt,
         maxLength: 240,
-        style: const TextStyle(color: LawrenceColors.textPrimary),
-        decoration: const InputDecoration(
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
           labelText: 'Texto alternativo da imagem',
           hintText: 'Manequim com molde de saia marcado em tecido cru',
+          filled: true,
+          fillColor: const Color(0xB20A1022),
+          labelStyle: const TextStyle(color: Color(0xFFB8C1DD)),
+          hintStyle: const TextStyle(color: Color(0xFF7885A5)),
+          counterStyle: const TextStyle(color: Color(0xFF8F9AB7)),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0x406B4A55)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFA63B5E), width: 2),
+          ),
         ),
       ),
       const SizedBox(height: 20),
@@ -155,10 +243,63 @@ class _CourseMediaFormState extends State<CourseMediaForm> {
       ),
       const SizedBox(height: 12),
       _trailerPreviewCard(),
+      const SizedBox(height: 20),
+      TextField(
+        controller: _trailerLink,
+        enabled: !widget.isUploading && !_savingLink,
+        keyboardType: TextInputType.url,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          labelText: 'Link do vídeo de apresentação',
+          hintText:
+              'https://www.youtube.com/watch?v=... ou https://vimeo.com/...',
+          helperText:
+              'Use um vídeo público ou não listado do YouTube ou Vimeo.',
+          prefixIcon: const Icon(Icons.link_rounded),
+          filled: true,
+          fillColor: const Color(0xB2180D11),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFA63B5E), width: 2),
+          ),
+        ),
+      ),
+      const SizedBox(height: 10),
+      Wrap(
+        spacing: 10,
+        runSpacing: 8,
+        children: [
+          FilledButton.icon(
+            key: const Key('save-external-trailer'),
+            onPressed:
+                widget.onExternalTrailerChanged == null ||
+                    widget.isUploading ||
+                    _savingLink
+                ? null
+                : _saveExternalTrailer,
+            icon: _savingLink
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.check_rounded),
+            label: const Text('Salvar link'),
+          ),
+          if (_externalTrailerUrl.isNotEmpty)
+            TextButton.icon(
+              onPressed: _savingLink
+                  ? null
+                  : () => _saveExternalTrailer(remove: true),
+              icon: const Icon(Icons.link_off_rounded),
+              label: const Text('Remover link'),
+            ),
+        ],
+      ),
       const SizedBox(height: 12),
       const Text(
-        'O arquivo bruto não fica público. A prévia será liberada apenas após validação e conversão.',
-        style: TextStyle(color: LawrenceColors.textSecondary),
+        'Escolha uma fonte: o upload substitui o link externo, e o link substitui o upload anterior.',
+        style: TextStyle(color: Color(0xFFB8C1DD)),
       ),
       const SizedBox(height: 28),
       Row(
@@ -170,6 +311,10 @@ class _CourseMediaFormState extends State<CourseMediaForm> {
           const Spacer(),
           FilledButton(
             onPressed: widget.isUploading ? null : widget.onContinue,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF6B1328),
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Continuar'),
           ),
         ],
@@ -181,15 +326,17 @@ class _CourseMediaFormState extends State<CourseMediaForm> {
       Container(
         padding: const EdgeInsets.all(LawrenceSpacing.lg),
         decoration: BoxDecoration(
-          color: LawrenceColors.canvas,
-          border: Border.all(color: LawrenceColors.borderMist),
+          gradient: const LinearGradient(
+            colors: [Color(0xCC2C111B), Color(0xCC181315)],
+          ),
+          border: Border.all(color: const Color(0x33A63B5E)),
           borderRadius: BorderRadius.circular(LawrenceRadii.card),
         ),
         child: Row(
           children: [
             const Icon(
               Icons.cloud_upload_outlined,
-              color: LawrenceColors.textSecondary,
+              color: Color(0xFFA63B5E),
               size: 32,
             ),
             const SizedBox(width: 16),
@@ -200,15 +347,13 @@ class _CourseMediaFormState extends State<CourseMediaForm> {
                   Text(
                     title,
                     style: const TextStyle(
-                      color: LawrenceColors.textPrimary,
+                      color: Colors.white,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   Text(
                     name ?? help,
-                    style: const TextStyle(
-                      color: LawrenceColors.textSecondary,
-                    ),
+                    style: const TextStyle(color: Color(0xFFB8C1DD)),
                   ),
                 ],
               ),
@@ -220,25 +365,6 @@ class _CourseMediaFormState extends State<CourseMediaForm> {
           ],
         ),
       );
-
-  Widget _coverPreviewCard() => Semantics(
-    label: 'Prévia da capa selecionada',
-    image: true,
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(LawrenceRadii.card),
-      child: AspectRatio(
-        aspectRatio: 16 / 9,
-        child: Image.memory(
-          _coverPreview!,
-          fit: BoxFit.cover,
-          gaplessPlayback: true,
-          errorBuilder: (_, _, _) => const _PreviewUnavailable(
-            label: 'Não foi possível abrir a prévia desta imagem.',
-          ),
-        ),
-      ),
-    ),
-  );
 
   Widget _trailerPreviewCard() {
     if (_isPreparingTrailerPreview) {
@@ -266,6 +392,16 @@ class _CourseMediaFormState extends State<CourseMediaForm> {
       );
     }
     final status = widget.course.trailerStatus;
+    if (_externalTrailerUrl.isNotEmpty) {
+      return _PersistedMediaNotice(
+        icon: Icons.ondemand_video_rounded,
+        title:
+            'Prévia por ${widget.course.trailerSourceType == 'youtube' ? 'YouTube' : 'Vimeo'}',
+        message:
+            'O link está validado e aparecerá na apresentação pública do curso.',
+        color: LawrenceColors.success,
+      );
+    }
     return switch (status) {
       'ready' => const _PersistedMediaNotice(
         icon: Icons.play_circle_outline,
@@ -298,11 +434,186 @@ class _CourseMediaFormState extends State<CourseMediaForm> {
       _ => const _PersistedMediaNotice(
         icon: Icons.ondemand_video_outlined,
         title: 'Prévia do trailer',
-        message: 'Selecione um trailer para validar o arquivo antes de publicar.',
+        message:
+            'Selecione um trailer para validar o arquivo antes de publicar.',
         color: LawrenceColors.textSecondary,
       ),
     };
   }
+}
+
+class _ExportPreviews extends StatelessWidget {
+  const _ExportPreviews({required this.bytes});
+
+  final Uint8List bytes;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(LawrenceSpacing.lg),
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xDD2C111B), Color(0xCC4B0C1B)],
+      ),
+      border: Border.all(color: const Color(0x55A63B5E)),
+      borderRadius: BorderRadius.circular(22),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x33000000),
+          blurRadius: 28,
+          offset: Offset(0, 14),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.auto_awesome, color: Color(0xFFA63B5E), size: 20),
+            SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                'PRÉVIAS DAS EXPORTAÇÕES',
+                style: TextStyle(
+                  color: Color(0xFFC8C2FF),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+            _ReadyBadge(),
+          ],
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Confira como a imagem-mestre será recortada em cada ponto da plataforma.',
+          style: TextStyle(color: Color(0xFFB8C1DD)),
+        ),
+        const SizedBox(height: LawrenceSpacing.lg),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final previews = [
+              _ExportPreviewTile(
+                bytes: bytes,
+                label: 'Capa do curso',
+                dimensions: '1600 × 900 · 16:9',
+                aspectRatio: 16 / 9,
+              ),
+              _ExportPreviewTile(
+                bytes: bytes,
+                label: 'Banner',
+                dimensions: '1800 × 600 · 3:1',
+                aspectRatio: 3,
+              ),
+              _ExportPreviewTile(
+                bytes: bytes,
+                label: 'Miniatura',
+                dimensions: '800 × 800 · 1:1',
+                aspectRatio: 1,
+              ),
+            ];
+            if (constraints.maxWidth < 720) {
+              return Column(
+                children: [
+                  for (var i = 0; i < previews.length; i++) ...[
+                    previews[i],
+                    if (i < previews.length - 1)
+                      const SizedBox(height: LawrenceSpacing.md),
+                  ],
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var i = 0; i < previews.length; i++) ...[
+                  Expanded(child: previews[i]),
+                  if (i < previews.length - 1)
+                    const SizedBox(width: LawrenceSpacing.md),
+                ],
+              ],
+            );
+          },
+        ),
+      ],
+    ),
+  );
+}
+
+class _ReadyBadge extends StatelessWidget {
+  const _ReadyBadge();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+    decoration: BoxDecoration(
+      color: const Color(0xFF31D18B).withValues(alpha: .12),
+      borderRadius: BorderRadius.circular(99),
+      border: Border.all(color: const Color(0x6631D18B)),
+    ),
+    child: const Text(
+      '3 FORMATOS',
+      style: TextStyle(
+        color: Color(0xFF7BE4B5),
+        fontSize: 10,
+        fontWeight: FontWeight.w800,
+      ),
+    ),
+  );
+}
+
+class _ExportPreviewTile extends StatelessWidget {
+  const _ExportPreviewTile({
+    required this.bytes,
+    required this.label,
+    required this.dimensions,
+    required this.aspectRatio,
+  });
+
+  final Uint8List bytes;
+  final String label;
+  final String dimensions;
+  final double aspectRatio;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    image: true,
+    label: 'Prévia de $label, formato $dimensions',
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: AspectRatio(
+            aspectRatio: aspectRatio,
+            child: Image.memory(
+              bytes,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              errorBuilder: (_, _, _) =>
+                  const _PreviewUnavailable(label: 'Prévia indisponível'),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          dimensions,
+          style: const TextStyle(color: Color(0xFF8F9AB7), fontSize: 11),
+        ),
+      ],
+    ),
+  );
 }
 
 class _SelectedTrailerPreview extends StatefulWidget {
@@ -412,12 +723,7 @@ class _PersistedMediaNotice extends StatelessWidget {
                   style: TextStyle(color: color, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  message,
-                  style: const TextStyle(
-                    color: LawrenceColors.textSecondary,
-                  ),
-                ),
+                Text(message, style: const TextStyle(color: Color(0xFFB8C1DD))),
               ],
             ),
           ),
@@ -436,10 +742,7 @@ class _PreviewUnavailable extends StatelessWidget {
   Widget build(BuildContext context) => ColoredBox(
     color: Colors.black12,
     child: Center(
-      child: Text(
-        label,
-        style: const TextStyle(color: LawrenceColors.textSecondary),
-      ),
+      child: Text(label, style: const TextStyle(color: Color(0xFFB8C1DD))),
     ),
   );
 }

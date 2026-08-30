@@ -12,7 +12,7 @@ class ReferralPage extends StatelessWidget {
     const String referralCode = "LAWRENCE-AB45K9";
 
     return Scaffold(
-      backgroundColor: LawrenceColors.canvasParchment,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           "INDIQUE E GANHE",
@@ -211,7 +211,7 @@ class ReferralPage extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: const BoxDecoration(
-              color: LawrenceColors.accentGold,
+              color: LawrenceColors.darkAction,
               shape: BoxShape.circle,
             ),
             child: Center(

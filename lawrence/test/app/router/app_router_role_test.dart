@@ -52,7 +52,9 @@ void main() {
 
     test('rejeita redirecionamentos externos e loops de autenticação', () {
       expect(
-        safePostAuthRedirect(Uri.parse('/login?redirect=https%3A%2F%2Fevil.test')),
+        safePostAuthRedirect(
+          Uri.parse('/login?redirect=https%3A%2F%2Fevil.test'),
+        ),
         isNull,
       );
       expect(
@@ -62,6 +64,36 @@ void main() {
       expect(
         safePostAuthRedirect(Uri.parse('/login?redirect=%2Fregister')),
         isNull,
+      );
+    });
+  });
+
+  group('postAuthDestinationForRole', () {
+    test('professor sempre entra no Teacher Studio', () {
+      expect(
+        postAuthDestinationForRole(
+          'teacher',
+          Uri.parse('/login?redirect=%2Fcourses%2Fmodelagem'),
+        ),
+        '/teacher',
+      );
+      expect(
+        postAuthDestinationForRole('super_admin', Uri.parse('/login')),
+        '/teacher',
+      );
+    });
+
+    test('aluno preserva o destino seguro que iniciou o login', () {
+      expect(
+        postAuthDestinationForRole(
+          'student',
+          Uri.parse('/login?redirect=%2Fcourses%2Fmodelagem'),
+        ),
+        '/courses/modelagem',
+      );
+      expect(
+        postAuthDestinationForRole('student', Uri.parse('/login')),
+        '/dashboard/home',
       );
     });
   });
@@ -76,5 +108,25 @@ void main() {
       loginUri.queryParameters['redirect'],
       '/checkout/course-1?coupon=welcome',
     );
+  });
+
+  group('isLoginCallbackUri', () {
+    test('recognizes the HTTPS callback route', () {
+      expect(isLoginCallbackUri(Uri.parse('/login-callback')), isTrue);
+    });
+
+    test('recognizes the Android custom-scheme callback', () {
+      expect(
+        isLoginCallbackUri(Uri.parse('lawrence://login-callback')),
+        isTrue,
+      );
+    });
+
+    test('does not confuse payment deep links with authentication', () {
+      expect(
+        isLoginCallbackUri(Uri.parse('lawrence://payment/pending')),
+        isFalse,
+      );
+    });
   });
 }

@@ -4,7 +4,9 @@ import '../../domain/entities/certificate.dart';
 
 final certificatesListProvider = FutureProvider<List<Certificate>>((ref) async {
   final repository = ref.watch(certificateRepositoryProvider);
-  return repository.getCertificates();
+  // Recupera também conclusões sincronizadas antes da correção do fluxo.
+  // A operação no servidor é idempotente por estudante + curso.
+  return repository.reconcileCertificates();
 });
 
 final generateCertificateProvider = FutureProvider.family<Certificate, String>((

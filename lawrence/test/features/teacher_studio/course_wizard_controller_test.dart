@@ -328,6 +328,40 @@ void main() {
     );
   });
 
+  test('autosave merges different pending fields before persisting', () async {
+    final subscription = container.listen(
+      courseWizardControllerProvider,
+      (_, _) {},
+      fireImmediately: true,
+    );
+    addTearDown(subscription.close);
+    final controller = container.read(courseWizardControllerProvider.notifier);
+    when(
+      () => mockRepo.getTeacherCourse('course_123'),
+    ).thenAnswer((_) async => _course());
+    when(
+      () => mockRepo.updateCourse('course_123', any()),
+    ).thenAnswer((_) async => _course());
+    controller.init('course_123');
+    await Future<void>.delayed(Duration.zero);
+
+    controller.scheduleAutosave({
+      'title': 'Curso atualizado',
+    }, debounce: const Duration(milliseconds: 20));
+    controller.scheduleAutosave({
+      'course_type': 'quick',
+    }, debounce: const Duration(milliseconds: 20));
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+
+    verify(
+      () => mockRepo.updateCourse('course_123', {
+        'title': 'Curso atualizado',
+        'course_type': 'quick',
+        'expected_authoring_revision': 0,
+      }),
+    ).called(1);
+  });
+
   test('autosaves are serialized and keep newer revision unsaved', () async {
     final subscription = container.listen(
       courseWizardControllerProvider,
@@ -687,10 +721,7 @@ void main() {
         courseHasActiveVideoProcessing(
           _courseWith(
             modules: [
-              _moduleWithLesson(
-                title: 'Processamento',
-                videoJobStatus: status,
-              ),
+              _moduleWithLesson(title: 'Processamento', videoJobStatus: status),
             ],
           ),
         ),
@@ -711,6 +742,62 @@ void main() {
         ),
       ),
       isFalse,
+    );
+  });
+
+  test('activity save forwards and preserves correct alternative', () async {
+    when(
+      () => mockRepo.getTeacherCourse('course_123'),
+    ).thenAnswer((_) async => _course());
+    final controller = container.read(courseWizardControllerProvider.notifier);
+    controller.init('course_123');
+    await Future<void>.delayed(Duration.zero);
+
+    final payload = <String, dynamic>{
+      'block_type': 'activity',
+      'content': <String, dynamic>{
+        'question': 'Qual opção está correta?',
+        'activity_type': 'single_choice',
+        'items': <String>['A', 'B', 'C'],
+        'correct_index': 1,
+      },
+    };
+    when(
+      () => mockRepo.updateLessonBlock(
+        'course_123',
+        'lesson_1',
+        'block_1',
+        any(),
+      ),
+    ).thenAnswer(
+      (_) async => const LessonBlock(
+        id: 'block_1',
+        lessonId: 'lesson_1',
+        courseId: 'course_123',
+        blockType: 'activity',
+        content: {'correct_index': 1},
+      ),
+    );
+
+    expect(
+      await controller.saveLessonBlock(
+        'lesson_1',
+        payload,
+        blockId: 'block_1',
+      ),
+      isTrue,
+    );
+    final captured = verify(
+      () => mockRepo.updateLessonBlock(
+        'course_123',
+        'lesson_1',
+        'block_1',
+        captureAny(),
+      ),
+    ).captured.single as Map<String, dynamic>;
+    expect(
+      (captured['content'] as Map<String, dynamic>)['correct_index'],
+      1,
     );
   });
 }
@@ -754,22 +841,20 @@ Module _moduleWithLesson({
   lessons: [_lesson(title: title, videoJobStatus: videoJobStatus)],
 );
 
-Lesson _lesson({
-  required String title,
-  String videoJobStatus = 'processing',
-}) => Lesson(
-  id: 'lesson_1',
-  moduleId: 'module_1',
-  courseId: 'course_123',
-  title: title,
-  status: 'processing',
-  durationSeconds: 0,
-  videoJobStatus: videoJobStatus,
-  aiSummary: const AISummary(
-    title: '',
-    executiveSummary: '',
-    keyTakeaways: [],
-    stepByStepExecution: [],
-    technicalGlossary: [],
-  ),
-);
+Lesson _lesson({required String title, String videoJobStatus = 'processing'}) =>
+    Lesson(
+      id: 'lesson_1',
+      moduleId: 'module_1',
+      courseId: 'course_123',
+      title: title,
+      status: 'processing',
+      durationSeconds: 0,
+      videoJobStatus: videoJobStatus,
+      aiSummary: const AISummary(
+        title: '',
+        executiveSummary: '',
+        keyTakeaways: [],
+        stepByStepExecution: [],
+        technicalGlossary: [],
+      ),
+    );

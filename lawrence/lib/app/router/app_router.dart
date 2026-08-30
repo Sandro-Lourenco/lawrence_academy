@@ -8,10 +8,15 @@ import '../../design_system/layouts/student_layout.dart';
 
 import '../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/auth/presentation/pages/reset_password_page.dart';
 
 import '../../features/certificates/presentation/pages/certificates_page.dart';
+import '../../features/certificates/presentation/pages/certificate_detail_page.dart';
+import '../../features/certificates/presentation/pages/public_certificate_verification_page.dart';
+import '../../features/certificates/domain/entities/certificate.dart';
 
 import '../../features/courses/presentation/pages/catalog_page.dart';
+import '../../features/courses/presentation/pages/public_catalog_page.dart';
 import '../../features/landing/presentation/pages/landing_page.dart';
 import '../../features/courses/presentation/pages/public_course_detail_page.dart';
 
@@ -23,31 +28,32 @@ import '../../features/invoices/presentation/pages/invoices_page.dart';
 import '../../features/lessons/presentation/pages/lessons_list_page.dart';
 
 import '../../features/lives/presentation/pages/lives_page.dart';
+import '../../features/lives/presentation/pages/teacher_live_events_page.dart';
 
 import '../../features/player/presentation/pages/secure_player_page.dart';
 
 import '../../features/profile/presentation/pages/student_profile_page.dart';
 import '../../features/profile/presentation/pages/student_settings_page.dart';
+import '../../features/profile/presentation/pages/student_edit_profile_page.dart';
 
 import '../../features/subscriptions/presentation/pages/payment_pending_page.dart';
 import '../../features/subscriptions/presentation/pages/subscriptions_page.dart';
 import '../../features/subscriptions/presentation/pages/course_checkout_page.dart';
 
-import '../../features/sync/presentation/pages/offline_downloads_page.dart';
-
 import '../../features/achievements/presentation/pages/achievements_page.dart';
 import '../../features/referral/presentation/pages/referral_page.dart';
 
 import '../../features/activities/presentation/pages/activities_page.dart';
-import '../../features/activities/presentation/pages/projects_page.dart';
 import '../../features/activities/presentation/pages/project_detail_page.dart';
 import '../../features/activities/presentation/pages/activity_detail_page.dart';
-import '../../features/calendar/presentation/pages/calendar_page.dart';
 
 import '../../features/search/presentation/pages/search_page.dart';
 import '../../features/favorites/presentation/pages/favorites_page.dart';
+import '../../features/feedbacks/presentation/pages/course_review_page.dart';
+import '../../features/feedbacks/presentation/pages/feedbacks_page.dart';
 import '../../features/teacher_studio/presentation/pages/course_wizard_page.dart';
 import '../../features/teacher_studio/presentation/pages/teacher_dashboard_page.dart';
+import '../../features/teacher_studio/presentation/pages/teacher_course_students_page.dart';
 
 import 'auth_navigation.dart';
 export 'auth_navigation.dart';
@@ -82,6 +88,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (currentPath == '/cancel') return '/dashboard/home';
       }
 
+      if (isLoginCallbackUri(state.uri)) {
+        return isLoggedIn
+            ? postAuthDestinationForRole(userRole, state.uri)
+            : '/login';
+      }
+
       if (kDebugMode) {
         debugPrint(
           '[GoRouter Guard] '
@@ -102,7 +114,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         }
 
-        return safePostAuthRedirect(state.uri) ?? authenticatedHome;
+        return postAuthDestinationForRole(userRole, state.uri);
       }
 
       // Toda rota iniciada por /dashboard exige autenticação.
@@ -194,7 +206,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/courses',
             builder: (context, state) {
-              return const CatalogPage(embeddedInScrollView: true);
+              return const PublicCatalogPage();
             },
           ),
           GoRoute(
@@ -211,6 +223,12 @@ final routerProvider = Provider<GoRouter>((ref) {
               final slug = state.pathParameters['slug'] ?? '';
               return '/courses/$slug';
             },
+          ),
+          GoRoute(
+            path: '/verify-certificate',
+            builder: (context, state) => PublicCertificateVerificationPage(
+              initialCode: state.uri.queryParameters['code'] ?? '',
+            ),
           ),
         ],
       ),
@@ -235,6 +253,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           return const LoginPage(startInPasswordRecoveryMode: true);
         },
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) => const ResetPasswordPage(),
       ),
 
       // ============================================================
@@ -272,14 +294,28 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/teacher/courses/new',
-        builder: (context, state) => const CourseWizardPage(),
+        builder: (context, state) => CourseWizardPage(key: state.pageKey),
       ),
       GoRoute(
         path: '/teacher/courses/:courseId/edit',
         builder: (context, state) {
           final courseId = state.pathParameters['courseId'];
-          return CourseWizardPage(courseId: courseId);
+          return CourseWizardPage(key: state.pageKey, courseId: courseId);
         },
+      ),
+      GoRoute(
+        path: '/teacher/courses/:courseId/students',
+        builder: (context, state) => TeacherCourseStudentsPage(
+          courseId: state.pathParameters['courseId'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: '/teacher/live-events',
+        builder: (context, state) => const TeacherLiveEventsPage(),
+      ),
+      GoRoute(
+        path: '/teacher/profile',
+        builder: (context, state) => const StudentEditProfilePage(),
       ),
 
       // ============================================================
@@ -369,6 +405,12 @@ final routerProvider = Provider<GoRouter>((ref) {
               return const StudentProfilePage();
             },
           ),
+          GoRoute(
+            path: '/dashboard/profile/edit',
+            builder: (context, state) {
+              return const StudentEditProfilePage();
+            },
+          ),
 
           // Configurações
           GoRoute(
@@ -378,20 +420,31 @@ final routerProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // Central de downloads offline
-          GoRoute(
-            path: '/dashboard/downloads',
-            builder: (context, state) {
-              return const OfflineDownloadsPage();
-            },
-          ),
-
           // Certificados
           GoRoute(
             path: '/dashboard/certificates',
             builder: (context, state) {
               return const CertificatesPage();
             },
+          ),
+          GoRoute(
+            path: '/dashboard/certificates/:certificateId',
+            builder: (context, state) {
+              final certificate = state.extra;
+              return certificate is Certificate
+                  ? CertificateDetailPage(certificate: certificate)
+                  : const CertificatesPage();
+            },
+          ),
+          GoRoute(
+            path: '/dashboard/feedbacks',
+            builder: (context, state) => const FeedbacksPage(),
+          ),
+          GoRoute(
+            path: '/dashboard/courses/:courseId/review',
+            builder: (context, state) => CourseReviewPage(
+              courseId: state.pathParameters['courseId'] ?? '',
+            ),
           ),
 
           // Conquistas
@@ -426,24 +479,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
 
           GoRoute(
-            path: '/dashboard/projects',
-            builder: (context, state) {
-              return const ProjectsPage();
-            },
-          ),
-          GoRoute(
             path: '/dashboard/projects/:projectId',
             builder: (context, state) {
               final projectId = state.pathParameters['projectId'] ?? '';
               return ProjectDetailPage(projectId: projectId);
-            },
-          ),
-
-          // Calendário
-          GoRoute(
-            path: '/dashboard/calendar',
-            builder: (context, state) {
-              return const CalendarPage();
             },
           ),
 

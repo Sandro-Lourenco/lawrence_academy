@@ -12,14 +12,14 @@ class ReferralCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFD4AF37), Color(0xFFAA7C11)],
+          colors: [Color(0xFFA63B5E), Color(0xFF6B1328)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(LawrenceTheme.AppRadiusMedium),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFD4AF37).withValues(alpha: 0.3),
+            color: const Color(0xFFA63B5E).withValues(alpha: 0.3),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),

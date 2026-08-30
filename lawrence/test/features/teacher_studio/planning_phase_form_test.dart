@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lawrence/design_system/tokens/lawrence_theme.dart';
+import 'package:lawrence/features/courses/domain/entities/course.dart';
 import 'package:lawrence/features/teacher_studio/presentation/pages/components/planning_phase_form.dart';
 
 void main() {
@@ -49,7 +50,12 @@ void main() {
     expectedOutcomesController.dispose();
   });
 
-  Widget buildSubject({VoidCallback? onSave}) => MaterialApp(
+  Widget buildSubject({
+    VoidCallback? onSave,
+    List<Course> prerequisiteCourses = const [],
+    Set<String> selectedPrerequisiteIds = const {},
+    void Function(String, bool)? onPrerequisiteToggled,
+  }) => MaterialApp(
     theme: LawrenceTheme.lightTheme,
     home: Scaffold(
       body: SingleChildScrollView(
@@ -71,21 +77,22 @@ void main() {
           level: 'iniciante',
           courseType: 'complete',
           language: 'pt-BR',
+          prerequisiteCourseOptions: prerequisiteCourses,
+          selectedPrerequisiteCourseIds: selectedPrerequisiteIds,
           isSaving: false,
           onChanged: () {},
           onCategoryChanged: (_) {},
           onLevelChanged: (_) {},
           onCourseTypeChanged: (_) {},
           onLanguageChanged: (_) {},
+          onPrerequisiteCourseToggled: onPrerequisiteToggled ?? (_, _) {},
           onSave: onSave ?? () {},
         ),
       ),
     ),
   );
 
-  testWidgets('shows confirmed planning fields and contract notice', (
-    tester,
-  ) async {
+  testWidgets('shows only the essential course fields', (tester) async {
     tester.view.physicalSize = const Size(1200, 1800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -93,16 +100,56 @@ void main() {
 
     await tester.pumpWidget(buildSubject());
 
-    expect(find.text('Planejamento do curso'), findsOneWidget);
-    expect(find.text('Curso completo'), findsOneWidget);
-    expect(find.text('Curso rápido'), findsOneWidget);
-    expect(find.text('Workshop ou oficina'), findsOneWidget);
-    expect(find.text('Nome do curso'), findsOneWidget);
-    expect(find.text('Descrição curta'), findsOneWidget);
-    expect(find.text('Descrição completa'), findsOneWidget);
-    expect(find.text('Pré-requisitos do curso'), findsOneWidget);
-    expect(find.text('O que o aluno aprenderá'), findsOneWidget);
-    expect(find.text('Público-alvo'), findsOneWidget);
+    expect(find.text('Informações do curso'), findsOneWidget);
+    expect(find.text('Completo'), findsOneWidget);
+    expect(find.text('Rápido'), findsOneWidget);
+    expect(find.text('Workshop'), findsOneWidget);
+    expect(find.text('Título'), findsOneWidget);
+    expect(find.text('Descrição'), findsOneWidget);
+    expect(find.text('Categoria'), findsOneWidget);
+    expect(find.text('Conhecimentos prévios'), findsOneWidget);
+    expect(
+      find.text('Cursos que precisam ser concluídos antes'),
+      findsOneWidget,
+    );
+    expect(find.text('Materiais necessários'), findsOneWidget);
+    expect(find.text('Descrição curta'), findsNothing);
+    expect(find.text('Público-alvo'), findsNothing);
+  });
+
+  testWidgets('selects a published prerequisite as a course object', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    String? selectedId;
+
+    await tester.pumpWidget(
+      buildSubject(
+        prerequisiteCourses: const [
+          Course(
+            id: 'course-basic',
+            instructorId: 'teacher-1',
+            title: 'Fundamentos da Costura',
+            slug: 'fundamentos-da-costura',
+            category: 'costura',
+            level: 'iniciante',
+            summary: 'Curso introdutório',
+            status: 'published',
+            modules: [],
+          ),
+        ],
+        onPrerequisiteToggled: (id, selected) {
+          if (selected) selectedId = id;
+        },
+      ),
+    );
+
+    expect(find.text('Fundamentos da Costura'), findsOneWidget);
+    await tester.tap(find.byType(Checkbox));
+    expect(selectedId, 'course-basic');
   });
 
   testWidgets('reports actionable validation errors', (tester) async {
@@ -115,10 +162,30 @@ void main() {
     formKey.currentState!.validate();
     await tester.pump();
 
-    expect(find.text('Informe o nome do curso.'), findsOneWidget);
-    expect(find.text('Informe o endereço do curso.'), findsOneWidget);
-    expect(find.text('Escreva ao menos 10 caracteres.'), findsOneWidget);
-    expect(find.text('Adicione pelo menos um item.'), findsNWidgets(2));
+    expect(find.text('Informe ao menos 3 caracteres.'), findsOneWidget);
+    expect(find.text('Informe ao menos 10 caracteres.'), findsOneWidget);
+    expect(find.text('Informe o endereço do curso.'), findsNothing);
+  });
+
+  testWidgets('rejects planning items shorter than the API contract', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    requirementsController.text = '-';
+    requiredMaterialsController.text = 'A';
+
+    await tester.pumpWidget(buildSubject());
+    formKey.currentState!.validate();
+    await tester.pump();
+
+    expect(
+      find.text('Cada item deve ter entre 2 e 240 caracteres.'),
+      findsNWidgets(2),
+    );
   });
 
   testWidgets('uses a full-width primary action on compact layouts', (
@@ -133,9 +200,6 @@ void main() {
     final button = tester.widget<FilledButton>(find.byType(FilledButton));
 
     expect(button.style?.minimumSize?.resolve({})?.height, 52);
-    expect(
-      button.style?.minimumSize?.resolve({})?.width,
-      double.infinity,
-    );
+    expect(button.style?.minimumSize?.resolve({})?.width, double.infinity);
   });
 }

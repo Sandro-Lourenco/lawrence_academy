@@ -5,6 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lawrence/design_system/tokens/lawrence_theme.dart';
 
 void main() {
+  test('área da aluna usa marfim, vinho e carvão neutro', () {
+    expect(LawrenceColors.canvas, const Color(0xFFF7F0E8));
+    expect(LawrenceColors.brandNavy, const Color(0xFF6B1328));
+    expect(LawrenceColors.darkCanvas, const Color(0xFF0C0C0E));
+    expect(LawrenceColors.darkSurface, const Color(0xFF151518));
+    expect(LawrenceColors.darkElevated, const Color(0xFF1D1D21));
+  });
+
   group('LawrenceBreakpoints', () {
     test('classifica os limites sem sobreposição', () {
       expect(LawrenceBreakpoints.isMobile(699), isTrue);
@@ -18,6 +26,23 @@ void main() {
     test('texto branco em ação primária atende WCAG AA', () {
       expect(
         _contrastRatio(LawrenceColors.actionPrimary, Colors.white),
+        greaterThanOrEqualTo(4.5),
+      );
+    });
+
+    test('texto do modo escuro atende WCAG AA em fundo carvão', () {
+      expect(
+        _contrastRatio(
+          LawrenceColors.darkTextPrimary,
+          LawrenceColors.darkCanvas,
+        ),
+        greaterThanOrEqualTo(4.5),
+      );
+      expect(
+        _contrastRatio(
+          LawrenceColors.darkTextSecondary,
+          LawrenceColors.darkCanvas,
+        ),
         greaterThanOrEqualTo(4.5),
       );
     });

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lawrence/design_system/widgets/semantic_progress_indicator.dart';
+import 'package:lawrence/design_system/widgets/couture_progress_bar.dart';
 import 'package:lawrence/design_system/widgets/status_badge.dart';
 import 'package:lawrence/design_system/widgets/student_page_header.dart';
 import 'package:lawrence/design_system/widgets/student_page_scaffold.dart';
@@ -8,7 +9,9 @@ import 'package:lawrence/design_system/widgets/student_page_scaffold.dart';
 void main() {
   Widget app(Widget child) => MaterialApp(home: child);
 
-  testWidgets('scaffold apresenta título, descrição e conteúdo', (tester) async {
+  testWidgets('scaffold apresenta título, descrição e conteúdo', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       app(
         const StudentPageScaffold(
@@ -20,6 +23,7 @@ void main() {
     );
 
     expect(find.text('Projetos'), findsOneWidget);
+    expect(find.text('ÁREA DE ESTUDOS'), findsOneWidget);
     expect(find.text('Pratique suas habilidades.'), findsOneWidget);
     expect(find.text('Conteúdo da página'), findsOneWidget);
   });
@@ -33,7 +37,9 @@ void main() {
         Scaffold(
           body: StudentPageHeader(
             title: 'Cursos',
-            actions: [FilledButton(onPressed: () {}, child: const Text('Ação'))],
+            actions: [
+              FilledButton(onPressed: () {}, child: const Text('Ação')),
+            ],
           ),
         ),
       ),
@@ -74,8 +80,8 @@ void main() {
 
     expect(find.text('100%'), findsOneWidget);
     expect(find.bySemanticsLabel('Progresso do curso'), findsOneWidget);
-    final progress = tester.widget<LinearProgressIndicator>(
-      find.byType(LinearProgressIndicator),
+    final progress = tester.widget<CoutureProgressBar>(
+      find.byType(CoutureProgressBar),
     );
     expect(progress.value, 1);
   });

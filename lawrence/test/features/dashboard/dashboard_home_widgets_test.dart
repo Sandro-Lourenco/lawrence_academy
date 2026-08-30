@@ -24,7 +24,10 @@ void main() {
     final router = GoRouter(
       initialLocation: '/',
       routes: [
-        GoRoute(path: '/', builder: (_, _) => Scaffold(body: child)),
+        GoRoute(
+          path: '/',
+          builder: (_, _) => Scaffold(body: child),
+        ),
         GoRoute(
           path: '/dashboard/courses',
           builder: (_, _) => const Scaffold(body: Text('Catálogo')),
@@ -60,8 +63,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('CURSO EM ANDAMENTO'), findsOneWidget);
-    expect(find.text('40%'), findsOneWidget);
+    expect(find.text('CONTINUE DE ONDE PAROU'), findsOneWidget);
+    expect(find.text('40% concluído'), findsOneWidget);
     expect(find.text('Continuar de onde parou'), findsOneWidget);
     expect(find.byType(IntrinsicHeight), findsNothing);
   });

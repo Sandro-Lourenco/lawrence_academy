@@ -23,6 +23,9 @@ class PlayerStateData {
   final String? errorMessage;
   final int retryCount;
   final Duration lastPosition;
+  final Duration watchedDuration;
+  final Uri? externalUrl;
+  final String? externalProvider;
 
   PlayerStateData({
     required this.status,
@@ -30,6 +33,9 @@ class PlayerStateData {
     this.errorMessage,
     this.retryCount = 0,
     this.lastPosition = Duration.zero,
+    this.watchedDuration = Duration.zero,
+    this.externalUrl,
+    this.externalProvider,
   });
 
   PlayerStateData copyWith({
@@ -38,6 +44,9 @@ class PlayerStateData {
     String? errorMessage,
     int? retryCount,
     Duration? lastPosition,
+    Duration? watchedDuration,
+    Uri? externalUrl,
+    String? externalProvider,
   }) {
     return PlayerStateData(
       status: status ?? this.status,
@@ -45,6 +54,9 @@ class PlayerStateData {
       errorMessage: errorMessage ?? this.errorMessage,
       retryCount: retryCount ?? this.retryCount,
       lastPosition: lastPosition ?? this.lastPosition,
+      watchedDuration: watchedDuration ?? this.watchedDuration,
+      externalUrl: externalUrl ?? this.externalUrl,
+      externalProvider: externalProvider ?? this.externalProvider,
     );
   }
 }
@@ -54,6 +66,9 @@ class PlayerController extends StateNotifier<PlayerStateData> {
   final String courseId;
   final String lessonId;
   bool _recoveringPlayback = false;
+  Duration _confirmedWatched = Duration.zero;
+  Duration? _lastObservedPosition;
+  DateTime? _lastObservedAt;
 
   PlayerController(this._ref, {required this.courseId, required this.lessonId})
     : super(PlayerStateData(status: PlayerStatus.initializing)) {
@@ -61,18 +76,39 @@ class PlayerController extends StateNotifier<PlayerStateData> {
   }
 
   Future<void> _initialize() async {
-    final previousPosition = state.lastPosition;
+    final repository = _ref.read(lessonProgressRepositoryProvider);
+    final savedProgress = await repository.getProgress(courseId, lessonId);
+    final savedWatched = Duration(seconds: savedProgress?.watchedSeconds ?? 0);
+    if (savedWatched > _confirmedWatched) {
+      _confirmedWatched = savedWatched;
+    }
+    final previousPosition = state.lastPosition > Duration.zero
+        ? state.lastPosition
+        : savedWatched;
     await _disposeActiveController();
     state = PlayerStateData(
       status: PlayerStatus.loading,
       retryCount: state.retryCount,
       lastPosition: previousPosition,
+      watchedDuration: _confirmedWatched,
     );
     try {
       final repo = _ref.read(lessonRepositoryProvider);
-      final streamUrl = await repo.getLessonStreamUrl(courseId, lessonId);
+      final source = await repo.getLessonPlaybackSource(courseId, lessonId);
 
-      final controller = VideoPlayerController.networkUrl(Uri.parse(streamUrl));
+      if (source.isExternal) {
+        state = state.copyWith(
+          status: PlayerStatus.ready,
+          externalUrl: Uri.parse(source.url),
+          externalProvider: source.provider,
+          watchedDuration: _confirmedWatched,
+        );
+        return;
+      }
+
+      final controller = VideoPlayerController.networkUrl(
+        Uri.parse(source.url),
+      );
       await controller.initialize();
       if (!mounted) {
         await controller.dispose();
@@ -85,12 +121,16 @@ class PlayerController extends StateNotifier<PlayerStateData> {
       state = state.copyWith(
         status: PlayerStatus.ready,
         controller: controller,
+        watchedDuration: _confirmedWatched,
       );
 
       // Se havia uma posição salva (ex: pós-renovação de url expirada), busca-a
-      if (state.lastPosition > Duration.zero) {
-        await controller.seekTo(state.lastPosition);
-        await controller.play();
+      if (state.lastPosition > Duration.zero &&
+          savedProgress?.completed != true) {
+        final resumePosition = state.lastPosition < controller.value.duration
+            ? state.lastPosition
+            : Duration.zero;
+        await controller.seekTo(resumePosition);
       }
     } catch (e) {
       if (!mounted) return;
@@ -110,12 +150,33 @@ class PlayerController extends StateNotifier<PlayerStateData> {
     final value = controller.value;
     final position = value.position;
     final duration = value.duration;
+    final now = DateTime.now();
+
+    if (value.isPlaying &&
+        _lastObservedPosition != null &&
+        _lastObservedAt != null) {
+      final mediaDelta = position - _lastObservedPosition!;
+      final wallDelta = now.difference(_lastObservedAt!);
+      final maximumCreditableMilliseconds =
+          (wallDelta.inMilliseconds * value.playbackSpeed).round() + 1500;
+      if (mediaDelta > Duration.zero &&
+          mediaDelta.inMilliseconds <= maximumCreditableMilliseconds) {
+        final candidate = _confirmedWatched + mediaDelta;
+        _confirmedWatched = candidate > duration ? duration : candidate;
+      }
+    }
+    _lastObservedPosition = position;
+    _lastObservedAt = now;
 
     // Atualizar posição atual periodically
     if (value.isPlaying &&
         position > Duration.zero &&
         (position - state.lastPosition).abs() >= const Duration(seconds: 5)) {
       state = state.copyWith(lastPosition: position);
+    }
+    if ((_confirmedWatched - state.watchedDuration).abs() >=
+        const Duration(seconds: 1)) {
+      state = state.copyWith(watchedDuration: _confirmedWatched);
     }
 
     final PlayerStatus nextStatus;
@@ -195,14 +256,20 @@ class PlayerController extends StateNotifier<PlayerStateData> {
   }
 
   void play() {
+    _lastObservedPosition = state.controller?.value.position;
+    _lastObservedAt = DateTime.now();
     state.controller?.play();
   }
 
   void pause() {
+    _lastObservedPosition = null;
+    _lastObservedAt = null;
     state.controller?.pause();
   }
 
   void seekTo(Duration position) {
+    _lastObservedPosition = null;
+    _lastObservedAt = null;
     state.controller?.seekTo(position);
   }
 
@@ -211,6 +278,7 @@ class PlayerController extends StateNotifier<PlayerStateData> {
       status: PlayerStatus.initializing,
       retryCount: 0,
       lastPosition: state.lastPosition,
+      watchedDuration: _confirmedWatched,
     );
     await _initialize();
   }

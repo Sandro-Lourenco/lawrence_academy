@@ -60,6 +60,21 @@ void main() {
       expect(lesson.toJson()['video_job_status'], 'failed');
     });
 
+    test('maps the external video provider without exposing its id', () {
+      final lesson = Lesson.fromJson({
+        'id': 'lesson-id',
+        'module_id': 'module-id',
+        'course_id': 'course-id',
+        'title': 'Aula pelo YouTube',
+        'status': 'draft',
+        'duration_seconds': 600,
+        'video_source_type': 'youtube',
+      });
+
+      expect(lesson.videoSourceType, 'youtube');
+      expect(lesson.toJson()['video_source_type'], 'youtube');
+    });
+
     test('preserves planning description and requirements', () {
       final course = Course.fromJson({
         'id': 'course-id',
@@ -101,6 +116,32 @@ void main() {
       expect(course.reviewsEnabled, false);
       expect(course.visibility, 'unlisted');
       expect(course.isFeatured, false);
+    });
+
+    test('maps prerequisite courses as typed course objects', () {
+      final course = Course.fromJson({
+        'id': 'advanced-course',
+        'instructor_id': 'teacher-id',
+        'title': 'Modelagem avançada',
+        'slug': 'modelagem-avancada',
+        'prerequisite_courses': [
+          {
+            'id': 'basic-course',
+            'title': 'Fundamentos da modelagem',
+            'slug': 'fundamentos-da-modelagem',
+            'summary': 'Aprenda as bases.',
+            'category': 'modelagem',
+            'status': 'published',
+          },
+        ],
+      });
+
+      expect(course.prerequisiteCourses, hasLength(1));
+      expect(course.prerequisiteCourses.single.id, 'basic-course');
+      expect(
+        course.toJson()['prerequisite_courses'],
+        isA<List<Map<String, dynamic>>>(),
+      );
     });
   });
 }

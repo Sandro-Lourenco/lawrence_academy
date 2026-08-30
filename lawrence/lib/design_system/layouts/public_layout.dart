@@ -3,360 +3,205 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/controllers/auth_controller.dart';
-import '../tokens/lawrence_theme.dart';
-
-const _ink = LawrenceColors.textPrimary;
-const _ivory = LawrenceColors.canvas;
-const _gold = LawrenceColors.actionPrimary;
-const _headerSurface = Color(0xFFEEF2FF);
+import '../motion/public_motion.dart';
+import '../public/public_editorial_colors.dart';
+import '../public/public_glass_button.dart';
+import '../public/public_refractive_glass.dart';
+import '../public/public_editorial_typography.dart';
 
 String publicAccountDestination(String? role) =>
     role == 'teacher' || role == 'super_admin' ? '/teacher' : '/dashboard/home';
 
 class PublicLayout extends ConsumerStatefulWidget {
-  final Widget child;
-
   const PublicLayout({super.key, required this.child});
+
+  final Widget child;
 
   @override
   ConsumerState<PublicLayout> createState() => _PublicLayoutState();
 }
 
 class _PublicLayoutState extends ConsumerState<PublicLayout> {
-  final _searchController = TextEditingController();
+  bool _scrolled = false;
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  bool _handleScroll(ScrollNotification notification) {
+    if (notification.depth != 0) return false;
+    final next = notification.metrics.pixels > 18;
+    if (next != _scrolled) setState(() => _scrolled = next);
+    return false;
   }
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authNotifierProvider).user;
     final role = user?.appMetadata['role'] as String?;
+    final authenticated = user != null;
+    final accountDestination = publicAccountDestination(role);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final mobile = constraints.maxWidth < LawrenceBreakpoints.tablet;
-        final desktop =
-            constraints.maxWidth >= LawrenceBreakpoints.desktop;
-        return Scaffold(
-          backgroundColor: _ivory,
-          drawer: mobile
-              ? _PublicDrawer(
-                  authenticated: user != null,
-                  accountDestination: publicAccountDestination(role),
-                )
-              : null,
-          body: Column(
-            children: [
-              _PublicHeader(
-                searchController: _searchController,
-                desktop: desktop,
-                mobile: mobile,
-                authenticated: user != null,
-                accountDestination: publicAccountDestination(role),
-                onSearch: _submitSearch,
+    return Scaffold(
+      backgroundColor: PublicEditorialColors.noir,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _handleScroll,
+              child: widget.child,
+            ),
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _PublicHeader(
+              authenticated: authenticated,
+              accountDestination: accountDestination,
+              scrolled: _scrolled,
+              onMenuPressed: () => _openNavigation(
+                context,
+                authenticated: authenticated,
+                accountDestination: accountDestination,
               ),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [widget.child, const _PublicFooter()],
-                  ),
-                ),
-              ),
-            ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openNavigation(
+    BuildContext context, {
+    required bool authenticated,
+    required String accountDestination,
+  }) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    return showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Fechar navegação principal',
+      barrierColor: PublicEditorialColors.noir.withValues(alpha: 0.64),
+      transitionDuration: reduceMotion ? Duration.zero : PublicMotion.standard,
+      pageBuilder: (dialogContext, _, _) => _NavigationDialog(
+        authenticated: authenticated,
+        accountDestination: accountDestination,
+      ),
+      transitionBuilder: (context, animation, _, child) {
+        if (reduceMotion) return child;
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: PublicMotion.entranceCurve,
+          reverseCurve: PublicMotion.exitCurve,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.985, end: 1).animate(curved),
+            alignment: Alignment.topRight,
+            child: child,
           ),
         );
       },
     );
   }
-
-  void _submitSearch(String query) {
-    final trimmed = query.trim();
-    if (trimmed.isEmpty) return;
-    context.go('/courses?q=${Uri.encodeQueryComponent(trimmed)}');
-  }
 }
 
 class _PublicHeader extends StatelessWidget {
-  final TextEditingController searchController;
-  final bool desktop;
-  final bool mobile;
-  final bool authenticated;
-  final String accountDestination;
-  final ValueChanged<String> onSearch;
-
   const _PublicHeader({
-    required this.searchController,
-    required this.desktop,
-    required this.mobile,
     required this.authenticated,
     required this.accountDestination,
-    required this.onSearch,
+    required this.onMenuPressed,
+    required this.scrolled,
   });
+
+  final bool authenticated;
+  final String accountDestination;
+  final VoidCallback onMenuPressed;
+  final bool scrolled;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: _headerSurface,
-      child: SafeArea(
-        bottom: false,
-        child: Container(
-          height: mobile ? 72 : 82,
-          padding: EdgeInsets.symmetric(horizontal: mobile ? 18 : 32),
-          decoration: const BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: LawrenceColors.borderMist),
-            ),
-          ),
-          child: Row(
-            children: [
-              if (mobile)
-                Builder(
-                  builder: (context) => IconButton(
-                    tooltip: 'Abrir menu',
-                    onPressed: () => Scaffold.of(context).openDrawer(),
-                    icon: const Icon(Icons.menu, color: _ink),
+    final width = MediaQuery.sizeOf(context).width;
+    final compact = width < 900;
+    return SafeArea(
+      bottom: false,
+      child: PublicRefractiveGlass(
+        elevated: scrolled,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 72),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: compact ? 20 : 48),
+            child: Row(
+              children: [
+                _BrandButton(onPressed: () => context.go('/')),
+                const Spacer(),
+                if (!compact) ...[
+                  _HeaderLink(
+                    label: 'CURSOS',
+                    onPressed: () => context.go('/courses'),
                   ),
-                ),
-              Semantics(
-                button: true,
-                label: 'Lawrence Academy, ir para o início',
-                child: InkWell(
-                  onTap: () => context.go('/'),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: _BrandLockup(compact: mobile),
-                  ),
-                ),
-              ),
-              if (desktop) ...[
-                const SizedBox(width: 48),
-                Expanded(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 470),
-                      child: SearchBar(
-                        controller: searchController,
-                        hintText: 'O que você quer aprender?',
-                        onSubmitted: onSearch,
-                        backgroundColor: WidgetStateProperty.all(
-                          LawrenceColors.canvas,
-                        ),
-                        hintStyle: WidgetStateProperty.all(
-                          const TextStyle(
-                            color: LawrenceColors.textSecondary,
-                            fontSize: 14,
-                          ),
-                        ),
-                        textStyle: WidgetStateProperty.all(
-                          const TextStyle(color: _ink, fontSize: 14),
-                        ),
-                        side: WidgetStateProperty.all(
-                          const BorderSide(
-                            color: LawrenceColors.borderMist,
-                          ),
-                        ),
-                        trailing: [
-                          IconButton(
-                            tooltip: 'Pesquisar',
-                            onPressed: () => onSearch(searchController.text),
-                            icon: const Icon(
-                              Icons.search,
-                              color: _ink,
-                              size: 20,
-                            ),
-                          ),
-                        ],
-                      ),
+                  const SizedBox(width: 6),
+                  _HeaderLink(
+                    label: authenticated ? 'MINHA CONTA' : 'ENTRAR',
+                    onPressed: () => context.go(
+                      authenticated ? accountDestination : '/login',
                     ),
                   ),
-                ),
-                const SizedBox(width: 36),
-              ] else
-                const Spacer(),
-              if (!mobile) ...[
-                _NavLink(label: 'Início', route: '/'),
-                _NavLink(label: 'Explorar catálogo', route: '/courses'),
-                const SizedBox(width: 12),
-              ],
-              _SessionActions(
-                authenticated: authenticated,
-                accountDestination: accountDestination,
-                compact: mobile,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BrandLockup extends StatelessWidget {
-  final bool compact;
-
-  const _BrandLockup({required this.compact});
-
-  @override
-  Widget build(BuildContext context) {
-    final lineWidth = compact ? 30.0 : 54.0;
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          compact ? 'L' : 'LAWRENCE',
-          style: TextStyle(
-            color: _ink,
-            fontFamily: 'Georgia',
-            fontSize: compact ? 24 : 21,
-            letterSpacing: compact ? 0 : 2.1,
-          ),
-        ),
-        if (!compact)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(width: lineWidth, height: 1, color: _ink),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 7),
-                child: Text(
-                  'ACADEMY',
-                  style: TextStyle(
-                    color: _gold,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
+                  const SizedBox(width: 12),
+                  PublicGlassButton(
+                    label: 'Explorar cursos',
+                    onPressed: () => context.go('/courses'),
                   ),
+                  const SizedBox(width: 10),
+                ],
+                IconButton(
+                  onPressed: onMenuPressed,
+                  tooltip: 'Abrir menu',
+                  constraints: const BoxConstraints(
+                    minWidth: 48,
+                    minHeight: 48,
+                  ),
+                  color: PublicEditorialColors.ink,
+                  icon: const Icon(Icons.menu_rounded),
                 ),
-              ),
-              Container(width: lineWidth, height: 1, color: _ink),
-            ],
+              ],
+            ),
           ),
-      ],
-    );
-  }
-}
-
-class _NavLink extends StatelessWidget {
-  final String label;
-  final String route;
-
-  const _NavLink({required this.label, required this.route});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      style: TextButton.styleFrom(
-        foregroundColor: _ink,
-        minimumSize: const Size(48, 48),
+        ),
       ),
-      onPressed: () => context.go(route),
-      child: Text(label),
     );
   }
 }
 
-class _SessionActions extends StatelessWidget {
-  final bool authenticated;
-  final String accountDestination;
-  final bool compact;
+class _BrandButton extends StatelessWidget {
+  const _BrandButton({required this.onPressed});
 
-  const _SessionActions({
-    required this.authenticated,
-    required this.accountDestination,
-    required this.compact,
-  });
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    if (authenticated) {
-      return FilledButton.icon(
-        style: FilledButton.styleFrom(
-          backgroundColor: LawrenceColors.actionPrimary,
-          foregroundColor: LawrenceColors.canvas,
-          minimumSize: const Size(48, 48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(LawrenceRadii.control),
-          ),
-        ),
-        onPressed: () => context.go(accountDestination),
-        icon: const Icon(Icons.account_circle_outlined, size: 18),
-        label: Text(compact ? 'Conta' : 'Minha conta'),
-      );
-    }
-    return Row(
-      children: [
-        if (!compact)
-          TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: _ink,
-              minimumSize: const Size(48, 48),
-            ),
-            onPressed: () => context.go('/login'),
-            child: const Text('Entrar'),
-          ),
-        const SizedBox(width: 8),
-        FilledButton(
-          style: FilledButton.styleFrom(
-          backgroundColor: LawrenceColors.actionPrimary,
-          foregroundColor: LawrenceColors.canvas,
-            minimumSize: const Size(48, 48),
-            padding: EdgeInsets.symmetric(horizontal: compact ? 16 : 22),
-            shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(LawrenceRadii.control),
-            ),
-          ),
-          onPressed: () => context.go('/register'),
-          child: Text(compact ? 'Começar' : 'Matricular'),
-        ),
-      ],
-    );
-  }
-}
-
-class _PublicDrawer extends StatelessWidget {
-  final bool authenticated;
-  final String accountDestination;
-
-  const _PublicDrawer({
-    required this.authenticated,
-    required this.accountDestination,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Drawer(
-      backgroundColor: _ink,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+    return Semantics(
+      button: true,
+      label: 'Ir para o início da Lawrence Academy',
+      child: InkWell(
+        onTap: onPressed,
+        focusColor: PublicEditorialColors.antiqueRose,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'LAWRENCE',
-                style: TextStyle(
-                  color: _ivory,
-                  fontFamily: 'Georgia',
-                  fontSize: 28,
-                  letterSpacing: 2,
+                style: PublicEditorialTypography.sectionDisplay(
+                  color: PublicEditorialColors.ink,
+                  size: 25,
                 ),
               ),
-              const SizedBox(height: 32),
-              _DrawerLink(label: 'Início', route: '/'),
-              _DrawerLink(label: 'Explorar cursos', route: '/courses'),
-              _DrawerLink(
-                label: authenticated ? 'Minha conta' : 'Entrar',
-                route: authenticated ? accountDestination : '/login',
-              ),
-              const Spacer(),
-              const Text(
-                'Costura • Modelagem • Moda & estilo',
-                style: TextStyle(color: Colors.white54, fontSize: 12),
+              Text(
+                'ACADEMY',
+                style: PublicEditorialTypography.eyebrow(
+                  color: PublicEditorialColors.wine,
+                ).copyWith(fontSize: 9, letterSpacing: 3.2),
               ),
             ],
           ),
@@ -366,105 +211,168 @@ class _PublicDrawer extends StatelessWidget {
   }
 }
 
-class _DrawerLink extends StatelessWidget {
+class _HeaderLink extends StatefulWidget {
+  const _HeaderLink({
+    required this.label,
+    required this.onPressed,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  State<_HeaderLink> createState() => _HeaderLinkState();
+}
+
+class _HeaderLinkState extends State<_HeaderLink> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: reduceMotion ? Duration.zero : PublicMotion.fast,
+        curve: PublicMotion.entranceCurve,
+        decoration: BoxDecoration(
+          color: _hovered
+              ? PublicEditorialColors.wine.withValues(alpha: 0.07)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(2),
+        ),
+        child: TextButton(
+          onPressed: widget.onPressed,
+          style: TextButton.styleFrom(
+            minimumSize: const Size(74, 48),
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            foregroundColor: PublicEditorialColors.ink,
+            overlayColor: PublicEditorialColors.wine.withValues(alpha: 0.08),
+            textStyle: PublicEditorialTypography.buttonLabel(
+              color: PublicEditorialColors.ink,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(widget.label),
+              const SizedBox(height: 3),
+              AnimatedContainer(
+                duration: reduceMotion ? Duration.zero : PublicMotion.fast,
+                curve: PublicMotion.entranceCurve,
+                width: _hovered ? 22 : 4,
+                height: 1,
+                color: PublicEditorialColors.wine.withValues(
+                  alpha: _hovered ? 0.88 : 0.34,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavigationDialog extends StatelessWidget {
+  const _NavigationDialog({
+    required this.authenticated,
+    required this.accountDestination,
+  });
+
+  final bool authenticated;
+  final String accountDestination;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog.fullscreen(
+      backgroundColor: PublicEditorialColors.noir,
+      child: SafeArea(
+        child: FocusTraversalGroup(
+          policy: OrderedTraversalPolicy(),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 18, 24, 34),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'NAVEGAÇÃO',
+                      style: PublicEditorialTypography.eyebrow(
+                        color: PublicEditorialColors.champagne,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      autofocus: true,
+                      onPressed: () => Navigator.of(context).pop(),
+                      tooltip: 'Fechar navegação principal',
+                      constraints: const BoxConstraints(
+                        minWidth: 48,
+                        minHeight: 48,
+                      ),
+                      color: PublicEditorialColors.ivory,
+                      icon: const Icon(Icons.close, size: 30),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                _DialogLink(label: 'Início', route: '/'),
+                _DialogLink(label: 'Cursos', route: '/courses'),
+                _DialogLink(
+                  label: authenticated ? 'Minha conta' : 'Entrar',
+                  route: authenticated ? accountDestination : '/login',
+                ),
+                const Spacer(),
+                Text(
+                  'Técnica que se transforma em assinatura.',
+                  style: PublicEditorialTypography.body(
+                    color: PublicEditorialColors.champagne,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DialogLink extends StatelessWidget {
+  const _DialogLink({required this.label, required this.route});
+
   final String label;
   final String route;
 
-  const _DrawerLink({required this.label, required this.route});
-
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      minTileHeight: 56,
-      title: Text(
-        label,
-        style: const TextStyle(
-          color: _ivory,
-          fontFamily: 'Georgia',
-          fontSize: 24,
-        ),
-      ),
-      trailing: const Icon(Icons.arrow_forward, color: _gold),
-      onTap: () => context.go(route),
-    );
-  }
-}
-
-class _PublicFooter extends StatelessWidget {
-  const _PublicFooter();
-
-  @override
-  Widget build(BuildContext context) {
-    final mobile =
-        MediaQuery.sizeOf(context).width < LawrenceBreakpoints.tablet;
-    return ColoredBox(
-      color: _ink,
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: mobile ? 24 : 64,
-          vertical: 48,
-        ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1320),
-            child: mobile
-                ? const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _FooterBrand(),
-                      SizedBox(height: 32),
-                      _FooterLegal(),
-                    ],
-                  )
-                : const Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    spacing: LawrenceSpacing.xl,
-                    runSpacing: LawrenceSpacing.lg,
-                    children: [_FooterBrand(), _FooterLegal()],
-                  ),
+    final size = (MediaQuery.sizeOf(context).width * 0.14).clamp(52.0, 84.0);
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).pop();
+          context.go(route);
+        },
+        focusColor: PublicEditorialColors.antiqueRose.withValues(alpha: 0.5),
+        hoverColor: PublicEditorialColors.antiqueRose.withValues(alpha: 0.24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 64),
+          child: Text(
+            label,
+            style: PublicEditorialTypography.sectionDisplay(
+              color: PublicEditorialColors.ivory,
+              size: size,
+            ),
           ),
         ),
       ),
-    );
-  }
-}
-
-class _FooterBrand extends StatelessWidget {
-  const _FooterBrand();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'LAWRENCE ACADEMY',
-          style: TextStyle(
-            color: _ivory,
-            fontFamily: 'Georgia',
-            fontSize: 20,
-            letterSpacing: 1.4,
-          ),
-        ),
-        SizedBox(height: 8),
-        Text(
-          'Formação em costura, modelagem, moda e estilo.',
-          style: TextStyle(color: Colors.white54, fontSize: 13),
-        ),
-      ],
-    );
-  }
-}
-
-class _FooterLegal extends StatelessWidget {
-  const _FooterLegal();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Text(
-      '© 2026 Lawrence Academy  •  Privacidade  •  Termos',
-      style: TextStyle(color: Colors.white54, fontSize: 12),
     );
   }
 }

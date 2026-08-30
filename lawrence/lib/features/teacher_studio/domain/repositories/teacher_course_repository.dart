@@ -1,9 +1,11 @@
 import '../../../../features/courses/domain/entities/course.dart';
 import '../entities/upload_file_payload.dart';
+import '../entities/teacher_course_student.dart';
 
 abstract class ITeacherCourseRepository {
   Future<List<Course>> getTeacherCourses();
   Future<Course> getTeacherCourse(String courseId);
+  Future<List<TeacherCourseStudent>> getCourseStudents(String courseId);
   Future<Course> createCourse(
     Map<String, dynamic> data, {
     required String idempotencyKey,

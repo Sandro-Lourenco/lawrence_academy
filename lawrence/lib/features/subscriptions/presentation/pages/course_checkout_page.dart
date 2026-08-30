@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/error/app_error.dart';
+import '../../../../app/config/env_config.dart';
 import '../../../../design_system/tokens/lawrence_theme.dart';
 import '../../../../design_system/widgets/state_widgets.dart';
 import '../../../courses/domain/entities/course.dart';
@@ -18,28 +19,48 @@ class CourseCheckoutPage extends ConsumerStatefulWidget {
   final String courseId;
 
   @override
-  ConsumerState<CourseCheckoutPage> createState() =>
-      _CourseCheckoutPageState();
+  ConsumerState<CourseCheckoutPage> createState() => _CourseCheckoutPageState();
 }
 
-class _CourseCheckoutPageState extends ConsumerState<CourseCheckoutPage> {
+class _CourseCheckoutPageState extends ConsumerState<CourseCheckoutPage>
+    with WidgetsBindingObserver {
   bool _isOpeningPayment = false;
+  String? _awaitingPaymentCourseId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _reconcilePaymentAfterBrowser();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final courseAsync = ref.watch(courseDetailByIdProvider(widget.courseId));
 
     return Scaffold(
-      backgroundColor: LawrenceColors.canvasParchment,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: LawrenceColors.canvasParchment,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
           tooltip: 'Voltar',
           onPressed: context.pop,
           icon: const Icon(Icons.arrow_back),
         ),
-        title: const Text('Revisar assinatura'),
+        title: const Text('Sua assinatura'),
       ),
       body: courseAsync.when(
         loading: () => const AppLoadingState(
@@ -50,9 +71,8 @@ class _CourseCheckoutPageState extends ConsumerState<CourseCheckoutPage> {
           return AppErrorState(
             title: appError.title,
             message: appError.message,
-            onRetry: () => ref.invalidate(
-              courseDetailByIdProvider(widget.courseId),
-            ),
+            onRetry: () =>
+                ref.invalidate(courseDetailByIdProvider(widget.courseId)),
           );
         },
         data: (course) => course == null
@@ -71,7 +91,12 @@ class _CourseCheckoutPageState extends ConsumerState<CourseCheckoutPage> {
 
   Future<void> _continueToPayment(Course course) async {
     if (course.isFree) {
-      context.go('/dashboard/courses/${course.id}');
+      final lessons = [for (final module in course.modules) ...module.lessons];
+      context.go(
+        lessons.isEmpty
+            ? '/dashboard/courses/${course.id}'
+            : '/dashboard/courses/${course.id}/lessons/${lessons.first.id}',
+      );
       return;
     }
 
@@ -93,30 +118,73 @@ class _CourseCheckoutPageState extends ConsumerState<CourseCheckoutPage> {
         );
       }
 
+      final publicOrigin = ref
+          .read(envConfigProvider)
+          .publicWebUrl
+          .replaceFirst(RegExp(r'/$'), '');
+
       final checkoutUrl = await ref
           .read(subscriptionsControllerProvider.notifier)
           .createCheckout(
             courseId: course.id,
-            successUrl:
-                'lawrence://payment/pending?session_id={CHECKOUT_SESSION_ID}',
-            cancelUrl: 'lawrence://payment/cancel',
+            // Stripe Checkout returns to an HTTPS page. On Android this can
+            // later be upgraded to a verified App Link without making the
+            // payment depend on a custom URI scheme.
+            successUrl: '$publicOrigin/payment/pending/{CHECKOUT_SESSION_ID}',
+            cancelUrl: '$publicOrigin/cancel',
             idempotencyKey: const Uuid().v4(),
           );
+      _awaitingPaymentCourseId = course.id;
       final opened = await launchUrl(
         Uri.parse(checkoutUrl),
         mode: LaunchMode.externalApplication,
       );
       if (!opened) {
+        _awaitingPaymentCourseId = null;
         throw StateError('Não foi possível abrir a página segura do Stripe.');
       }
     } catch (error) {
       if (!mounted) return;
       final appError = AppError.fromException(error);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(appError.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(appError.message)));
     } finally {
       if (mounted) setState(() => _isOpeningPayment = false);
+    }
+  }
+
+  Future<void> _reconcilePaymentAfterBrowser() async {
+    final courseId = _awaitingPaymentCourseId;
+    if (courseId == null || !mounted) return;
+
+    try {
+      final eligibilityProvider = checkoutEligibilityProvider(courseId);
+      await ref.read(eligibilityProvider.notifier).checkEligibility();
+      if (!mounted) return;
+      final eligibility = ref.read(eligibilityProvider).value;
+      if (eligibility?.hasAccess == true) {
+        _awaitingPaymentCourseId = null;
+        ref.invalidate(subscriptionsControllerProvider);
+        context.go('/dashboard/courses/$courseId');
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'O pagamento ainda está sendo confirmado. Tente novamente em instantes.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Ainda não foi possível confirmar o pagamento. Seu acesso será liberado pelo webhook.',
+          ),
+        ),
+      );
     }
   }
 }
@@ -156,7 +224,7 @@ class _CheckoutContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                course.isFree ? 'Comece a aprender agora' : 'Um passo para começar',
+                course.isFree ? 'Comece agora' : 'Revise sua assinatura',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.w800,
                   color: LawrenceColors.textPrimary,
@@ -165,8 +233,8 @@ class _CheckoutContent extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 course.isFree
-                    ? 'Este curso não exige cartão nem assinatura.'
-                    : 'Confira os detalhes. Seus dados de cartão serão informados somente no ambiente seguro do Stripe.',
+                    ? 'Este curso não exige cartão nem cobrança.'
+                    : 'Uma assinatura mensal, somente para este curso. Confira os detalhes antes de continuar.',
                 style: const TextStyle(
                   color: LawrenceColors.textSecondary,
                   fontSize: 16,
@@ -218,7 +286,7 @@ class _OrderSummary extends StatelessWidget {
             Semantics(
               header: true,
               child: const Text(
-                'Resumo do curso',
+                'O QUE VOCÊ ESTÁ ASSINANDO',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -246,16 +314,28 @@ class _OrderSummary extends StatelessWidget {
             const SizedBox(height: 24),
             const Divider(color: LawrenceColors.borderMist),
             const SizedBox(height: 16),
-            _InfoRow(icon: Icons.play_lesson_outlined, text: '${course.lessonCount} aulas'),
+            _InfoRow(
+              icon: Icons.play_lesson_outlined,
+              text: '${course.lessonCount} aulas',
+            ),
             const SizedBox(height: 12),
-            _InfoRow(icon: Icons.workspace_premium_outlined, text: 'Certificado de conclusão'),
+            _InfoRow(
+              icon: Icons.workspace_premium_outlined,
+              text: 'Certificado de conclusão',
+            ),
             const SizedBox(height: 12),
-            const _InfoRow(icon: Icons.phone_android_outlined, text: 'Acesso no celular e na web'),
+            const _InfoRow(
+              icon: Icons.phone_android_outlined,
+              text: 'Acesso no celular e na web',
+            ),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Total', style: TextStyle(fontWeight: FontWeight.w700)),
+                const Text(
+                  'Cobrança mensal',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
                 Text(
                   price,
                   style: const TextStyle(
@@ -305,8 +385,8 @@ class _PaymentAssurance extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Text(
-              course.isFree ? 'Acesso gratuito' : 'Pagamento protegido',
-              textAlign: TextAlign.center,
+              course.isFree ? 'Acesso gratuito' : 'Pronto para começar?',
+              textAlign: TextAlign.left,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 20,
@@ -318,9 +398,22 @@ class _PaymentAssurance extends StatelessWidget {
               course.isFree
                   ? 'Entre no curso e assista às aulas publicadas sem cobrança.'
                   : 'A assinatura é mensal por curso. Você poderá gerenciá-la separadamente em Minhas assinaturas.',
-              textAlign: TextAlign.center,
+              textAlign: TextAlign.left,
               style: const TextStyle(color: Colors.white70, height: 1.45),
             ),
+            if (!course.isFree) ...[
+              const SizedBox(height: 20),
+              const _AssurancePoint(
+                icon: Icons.autorenew_rounded,
+                text: 'Renovação mensal deste curso',
+              ),
+              const SizedBox(height: 12),
+              const _AssurancePoint(
+                icon: Icons.event_available_outlined,
+                text:
+                    'Cancele quando quiser; o acesso continua até o fim do período pago',
+              ),
+            ],
             const SizedBox(height: 24),
             Semantics(
               button: true,
@@ -345,9 +438,13 @@ class _PaymentAssurance extends StatelessWidget {
                           color: Colors.white,
                         ),
                       )
-                    : Icon(course.isFree ? Icons.play_arrow : Icons.arrow_forward),
+                    : Icon(
+                        course.isFree ? Icons.play_arrow : Icons.arrow_forward,
+                      ),
                 label: Text(
-                  course.isFree ? 'Acessar curso' : 'Ir para pagamento seguro',
+                  course.isFree
+                      ? 'Começar curso'
+                      : 'Continuar para o pagamento',
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
@@ -355,14 +452,42 @@ class _PaymentAssurance extends StatelessWidget {
             if (!course.isFree) ...[
               const SizedBox(height: 14),
               const Text(
-                'Você será direcionado ao Stripe. A Lawrence não armazena os dados completos do seu cartão.',
+                'Pagamento processado com segurança pelo Stripe.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white60, fontSize: 12, height: 1.35),
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                  height: 1.35,
+                ),
               ),
             ],
           ],
         ),
       ),
+    );
+  }
+}
+
+class _AssurancePoint extends StatelessWidget {
+  const _AssurancePoint({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(width: LawrenceSpacing.sm),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(color: Colors.white, height: 1.4),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -379,7 +504,12 @@ class _InfoRow extends StatelessWidget {
       children: [
         Icon(icon, size: 20, color: LawrenceColors.primary),
         const SizedBox(width: 10),
-        Expanded(child: Text(text, style: const TextStyle(color: LawrenceColors.textSecondary))),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(color: LawrenceColors.textSecondary),
+          ),
+        ),
       ],
     );
   }
