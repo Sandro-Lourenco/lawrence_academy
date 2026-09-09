@@ -38,6 +38,20 @@ logger = logging.getLogger(__name__)
 stripe = get_stripe_client()
 
 
+def _normalize_stripe_event(event: object) -> dict:
+    """Convert Stripe SDK Event objects to the mapping used by the processor."""
+    if isinstance(event, dict):
+        return event
+
+    to_dict_recursive = getattr(event, "to_dict_recursive", None)
+    if callable(to_dict_recursive):
+        normalized = to_dict_recursive()
+        if isinstance(normalized, dict):
+            return normalized
+
+    raise ValueError("Stripe webhook event has an unsupported representation")
+
+
 # ─── Schemas ────────────────────────────────────────────────────────────────
 
 
@@ -149,9 +163,12 @@ async def create_checkout_session(
 
     if settings.app_env == "test" or settings.payment_provider == "fake":
         now = datetime.now(timezone.utc)
-        fake_subscription_id = "fake_" + hashlib.sha256(
-            f"{current_user.id}:{payload.course_id}:{idempotency_key}".encode()
-        ).hexdigest()
+        fake_subscription_id = (
+            "fake_"
+            + hashlib.sha256(
+                f"{current_user.id}:{payload.course_id}:{idempotency_key}".encode()
+            ).hexdigest()
+        )
         await repository.save(
             Subscription(
                 student_id=current_user.id,
@@ -276,8 +293,10 @@ async def handle_stripe_webhook(
     body = await request.body()
 
     try:
-        event = stripe.Webhook.construct_event(
-            body, stripe_signature, settings.stripe_webhook_secret
+        event = _normalize_stripe_event(
+            stripe.Webhook.construct_event(
+                body, stripe_signature, settings.stripe_webhook_secret
+            )
         )
     except Exception:
         logger.warning("Stripe webhook signature verification failed")

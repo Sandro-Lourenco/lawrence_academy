@@ -16,6 +16,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "s
 
 from fastapi import FastAPI
 from src.modules.payments.interface.api.routes import (
+    _normalize_stripe_event,
     router as payments_v1_router,
     legacy_router,
 )
@@ -32,6 +33,22 @@ app.include_router(legacy_router)
 install_error_handlers(app)
 
 client = TestClient(app)
+
+
+def test_normalize_stripe_sdk_event_object() -> None:
+    class StripeEventObject:
+        def to_dict_recursive(self) -> dict:
+            return {
+                "id": "evt_sdk_object",
+                "type": "customer.subscription.updated",
+                "data": {"object": {}},
+            }
+
+    assert _normalize_stripe_event(StripeEventObject()) == {
+        "id": "evt_sdk_object",
+        "type": "customer.subscription.updated",
+        "data": {"object": {}},
+    }
 
 
 @pytest.mark.parametrize(
