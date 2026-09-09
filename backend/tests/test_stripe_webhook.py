@@ -20,6 +20,10 @@ from src.modules.payments.interface.api.routes import (
     legacy_router,
 )
 from src.modules.payments.application.process_webhook import StripeWebhookProcessor
+from src.modules.payments.application.process_webhook import (
+    _stripe_invoice_subscription_id,
+    _stripe_subscription_period,
+)
 from src.core.errors.handlers import install_error_handlers
 
 app = FastAPI()
@@ -28,6 +32,40 @@ app.include_router(legacy_router)
 install_error_handlers(app)
 
 client = TestClient(app)
+
+
+@pytest.mark.parametrize(
+    "invoice, expected",
+    [
+        ({"subscription": "sub_legacy"}, "sub_legacy"),
+        (
+            {
+                "parent": {
+                    "type": "subscription_details",
+                    "subscription_details": {"subscription": "sub_dahlia"},
+                }
+            },
+            "sub_dahlia",
+        ),
+        ({"parent": {"type": "quote_details"}}, None),
+    ],
+)
+def test_invoice_subscription_relation_supports_legacy_and_basil_payloads(
+    invoice, expected
+):
+    assert _stripe_invoice_subscription_id(invoice) == expected
+
+
+def test_subscription_period_supports_basil_item_level_fields():
+    subscription = {
+        "items": {
+            "data": [
+                {"current_period_start": 1717171717, "current_period_end": 1717271717}
+            ]
+        }
+    }
+
+    assert _stripe_subscription_period(subscription) == (1717171717, 1717271717)
 
 
 @pytest.mark.asyncio
@@ -82,9 +120,7 @@ def test_stripe_webhook_idempotency_duplicate(mock_supabase, mock_construct):
     }
 
     mock_insert = MagicMock()
-    mock_insert.execute.side_effect = Exception(
-        "duplicate key value violates unique constraint"
-    )
+    mock_insert.execute.side_effect = Exception("duplicate key value violates unique constraint")
     mock_supabase.table().insert.return_value = mock_insert
 
     mock_select = MagicMock()
@@ -105,9 +141,7 @@ def test_stripe_webhook_idempotency_duplicate(mock_supabase, mock_construct):
 @patch("src.modules.payments.interface.api.routes.stripe.Webhook.construct_event")
 @patch("src.shared.database.db")
 @patch("src.modules.payments.interface.api.routes.StripeWebhookProcessor.process_event")
-def test_stripe_webhook_idempotency_retry_success(
-    mock_process, mock_supabase, mock_construct
-):
+def test_stripe_webhook_idempotency_retry_success(mock_process, mock_supabase, mock_construct):
     """Testa retry seguro de um evento que estava como 'failed'."""
     mock_construct.return_value = {
         "id": "evt_failed_retry",
@@ -176,8 +210,7 @@ def test_stripe_webhook_processing_failure(mock_process, mock_supabase, mock_con
 
     assert response.status_code == 502
     assert (
-        response.json()["error"]["message"]
-        == "Não foi possível processar o evento de pagamento."
+        response.json()["error"]["message"] == "Não foi possível processar o evento de pagamento."
     )
 
 
@@ -202,9 +235,7 @@ async def test_subscription_updated_synchronizes_access_status(mock_supabase):
     )
 
     query.update.assert_called_once()
-    query.update.return_value.eq.assert_called_once_with(
-        "provider_subscription_id", "sub_updated"
-    )
+    query.update.return_value.eq.assert_called_once_with("provider_subscription_id", "sub_updated")
 
 
 @patch("src.modules.payments.interface.api.routes.stripe.Webhook.construct_event")
@@ -255,9 +286,7 @@ def test_stripe_webhook_payment_succeeded_referral(
         elif table_name == "profiles":
             mock_query.select().eq().limit().execute.return_value = mock_profile_res
         elif table_name == "subscriptions":
-            mock_query.select().eq().eq().order().limit().execute.return_value = (
-                mock_ind_sub_res
-            )
+            mock_query.select().eq().eq().order().limit().execute.return_value = mock_ind_sub_res
             mock_query.upsert().execute.return_value = mock_ind_sub_res
         elif table_name == "notifications":
             mock_query.insert().execute.return_value = MagicMock()

@@ -4,6 +4,52 @@ from datetime import datetime, timezone
 from src.shared import database
 
 
+def _resource_value(resource: typing.Any, name: str) -> typing.Any:
+    if isinstance(resource, dict):
+        return resource.get(name)
+    return getattr(resource, name, None)
+
+
+def _stripe_invoice_subscription_id(invoice: typing.Any) -> str | None:
+    """Read the subscription relation from legacy and Basil+ invoice payloads."""
+    legacy = _resource_value(invoice, "subscription")
+    if isinstance(legacy, str):
+        return legacy
+    if legacy is not None:
+        expanded_id = _resource_value(legacy, "id")
+        if isinstance(expanded_id, str):
+            return expanded_id
+
+    parent = _resource_value(invoice, "parent")
+    if _resource_value(parent, "type") != "subscription_details":
+        return None
+    details = _resource_value(parent, "subscription_details")
+    subscription = _resource_value(details, "subscription")
+    if isinstance(subscription, str):
+        return subscription
+    expanded_id = _resource_value(subscription, "id")
+    return expanded_id if isinstance(expanded_id, str) else None
+
+
+def _stripe_subscription_period(subscription: typing.Any) -> tuple[int, int]:
+    """Read billing period from legacy subscriptions or their first Basil+ item."""
+    start = _resource_value(subscription, "current_period_start")
+    end = _resource_value(subscription, "current_period_end")
+    if isinstance(start, (int, float)) and isinstance(end, (int, float)):
+        return int(start), int(end)
+
+    items = _resource_value(subscription, "items")
+    items_data = _resource_value(items, "data")
+    if not items_data:
+        raise ValueError("Stripe subscription is missing billing period data")
+    first_item = items_data[0]
+    start = _resource_value(first_item, "current_period_start")
+    end = _resource_value(first_item, "current_period_end")
+    if not isinstance(start, (int, float)) or not isinstance(end, (int, float)):
+        raise ValueError("Stripe subscription item is missing billing period data")
+    return int(start), int(end)
+
+
 def _stripe_subscription_price(subscription: typing.Any) -> tuple[float, str]:
     """Extract the recurring price from current and legacy Stripe payloads."""
     items = getattr(subscription, "items", None)
@@ -73,14 +119,10 @@ class StripeWebhookProcessor:
                     .execute()
                 )
                 if existing.data:
-                    existing_event = typing.cast(
-                        dict[str, typing.Any], existing.data[0]
-                    )
+                    existing_event = typing.cast(dict[str, typing.Any], existing.data[0])
                     current_status = existing_event.get("status")
                     if existing_event.get("payload_hash") not in {None, payload_hash}:
-                        raise ValueError(
-                            "Stripe event id was received with a different payload"
-                        )
+                        raise ValueError("Stripe event id was received with a different payload")
                     if current_status == "failed" or current_status == "received":
                         update_res = (
                             database.db.table("payment_events")
@@ -137,7 +179,7 @@ class StripeWebhookProcessor:
     async def _process_payment_succeeded(event: dict) -> None:
         """Trata o pagamento realizado com sucesso (renovação de assinatura e referral)."""
         invoice = typing.cast(dict[str, typing.Any], event.get("data", {}).get("object", {}))
-        stripe_sub_id = invoice.get("subscription")
+        stripe_sub_id = _stripe_invoice_subscription_id(invoice)
         stripe_cust_id = invoice.get("customer")
         customer_email = invoice.get("customer_email")
 
@@ -171,8 +213,7 @@ class StripeWebhookProcessor:
         if not course_id:
             raise ValueError("Stripe subscription is missing required course_id metadata")
 
-        current_period_start = stripe_sub.current_period_start
-        current_period_end = stripe_sub.current_period_end
+        current_period_start, current_period_end = _stripe_subscription_period(stripe_sub)
 
         dt_start = datetime.fromtimestamp(current_period_start, tz=timezone.utc).isoformat()
         dt_end = datetime.fromtimestamp(current_period_end, tz=timezone.utc).isoformat()
@@ -268,7 +309,7 @@ class StripeWebhookProcessor:
     async def _process_payment_failed(event: dict) -> None:
         """Trata a falha de pagamento (muda status para past_due e notifica o aluno)."""
         invoice = typing.cast(dict[str, typing.Any], event.get("data", {}).get("object", {}))
-        stripe_sub_id = invoice.get("subscription")
+        stripe_sub_id = _stripe_invoice_subscription_id(invoice)
 
         if not stripe_sub_id:
             return
@@ -334,9 +375,7 @@ class StripeWebhookProcessor:
     @staticmethod
     async def _process_subscription_updated(event: dict) -> None:
         """Synchronize Stripe subscription lifecycle changes into access state."""
-        subscription = typing.cast(
-            dict[str, typing.Any], event.get("data", {}).get("object", {})
-        )
+        subscription = typing.cast(dict[str, typing.Any], event.get("data", {}).get("object", {}))
         stripe_sub_id = subscription.get("id")
         if not stripe_sub_id:
             raise ValueError("Stripe subscription update is missing its id")
@@ -360,33 +399,31 @@ class StripeWebhookProcessor:
             "status": local_status,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
-        for source, target in (
-            ("current_period_start", "current_period_start"),
-            ("current_period_end", "current_period_end"),
-        ):
-            timestamp = subscription.get(source)
-            if isinstance(timestamp, (int, float)):
-                update_data[target] = datetime.fromtimestamp(
-                    timestamp, tz=timezone.utc
-                ).isoformat()
+        try:
+            period_start, period_end = _stripe_subscription_period(subscription)
+        except ValueError:
+            period_start = period_end = None
+        if period_start is not None and period_end is not None:
+            update_data["current_period_start"] = datetime.fromtimestamp(
+                period_start, tz=timezone.utc
+            ).isoformat()
+            update_data["current_period_end"] = datetime.fromtimestamp(
+                period_end, tz=timezone.utc
+            ).isoformat()
 
-        database.db.table("subscriptions").update(
-            typing.cast(typing.Any, update_data)
-        ).eq("provider_subscription_id", stripe_sub_id).execute()
+        database.db.table("subscriptions").update(typing.cast(typing.Any, update_data)).eq(
+            "provider_subscription_id", stripe_sub_id
+        ).execute()
 
     @staticmethod
     async def _process_charge_state(event: dict, *, status: str) -> None:
         """Suspend access after a refund or dispute using the invoice relationship."""
-        charge = typing.cast(
-            dict[str, typing.Any], event.get("data", {}).get("object", {})
-        )
+        charge = typing.cast(dict[str, typing.Any], event.get("data", {}).get("object", {}))
         invoice_value = charge.get("invoice")
         subscription_id: str | None = None
         if isinstance(invoice_value, dict):
             raw_subscription = invoice_value.get("subscription")
-            subscription_id = (
-                raw_subscription if isinstance(raw_subscription, str) else None
-            )
+            subscription_id = raw_subscription if isinstance(raw_subscription, str) else None
         elif isinstance(invoice_value, str):
             invoice = typing.cast(typing.Any, stripe.Invoice.retrieve(invoice_value))
             raw_subscription = getattr(invoice, "subscription", None)

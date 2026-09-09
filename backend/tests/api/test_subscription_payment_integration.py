@@ -42,23 +42,31 @@ def make_subscription(**changes: object) -> Subscription:
 
 class FakeSubscriptionRepository:
     def __init__(self, subscription: Subscription | None) -> None:
-        self.subscription = subscription
+        self.subscriptions = [subscription] if subscription is not None else []
+
+    @property
+    def subscription(self) -> Subscription | None:
+        return self.subscriptions[-1] if self.subscriptions else None
+
+    @subscription.setter
+    def subscription(self, value: Subscription | None) -> None:
+        self.subscriptions = [value] if value is not None else []
 
     async def get_by_student_and_course(
         self, student_id: str, course_id: str
     ) -> list[Subscription]:
-        if (
-            self.subscription
-            and self.subscription.student_id == student_id
-            and self.subscription.course_id == course_id
-        ):
-            return [self.subscription]
-        return []
+        return [
+            subscription
+            for subscription in self.subscriptions
+            if subscription.student_id == student_id and subscription.course_id == course_id
+        ]
 
     async def get_by_student(self, student_id: str) -> list[Subscription]:
-        if self.subscription and self.subscription.student_id == student_id:
-            return [self.subscription]
-        return []
+        return [
+            subscription
+            for subscription in self.subscriptions
+            if subscription.student_id == student_id
+        ]
 
     async def get_by_id(self, subscription_id: str) -> Subscription | None:
         if self.subscription and self.subscription.id == subscription_id:
@@ -79,7 +87,12 @@ class FakeSubscriptionRepository:
         return self.subscription
 
     async def save(self, subscription: Subscription) -> Subscription:
-        self.subscription = subscription
+        self.subscriptions = [
+            existing
+            for existing in self.subscriptions
+            if existing.provider_subscription_id != subscription.provider_subscription_id
+        ]
+        self.subscriptions.append(subscription)
         return subscription
 
 
@@ -278,6 +291,38 @@ def test_fake_checkout_replaces_session_placeholder_without_malformed_query() ->
     assert repository.subscription.status == "active"
     assert repository.subscription.provider == "fake"
     assert repository.subscription.monthly_price == Decimal("59.90")
+
+
+def test_same_student_can_purchase_two_different_courses() -> None:
+    repository = FakeSubscriptionRepository(
+        make_subscription(course_id="course-previous", provider_subscription_id="sub-previous")
+    )
+    configure_dependencies(
+        repository=repository,
+        course_repository=FakeCourseRepository(Decimal("59.90")),
+    )
+    try:
+        with (
+            patch("src.modules.payments.interface.api.routes.settings.app_env", "test"),
+            patch("src.modules.payments.interface.api.routes.settings.payment_provider", "fake"),
+        ):
+            response = client.post(
+                "/api/v1/payments/checkout",
+                headers={"Idempotency-Key": "second-course-checkout"},
+                json={
+                    "course_id": "course-1",
+                    "success_url": "lawrence://payment/pending?session_id={CHECKOUT_SESSION_ID}",
+                    "cancel_url": "lawrence://payment/cancel",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert {(item.student_id, item.course_id) for item in repository.subscriptions} == {
+        ("student-1", "course-previous"),
+        ("student-1", "course-1"),
+    }
 
 
 def test_checkout_requires_idempotency_key() -> None:
