@@ -44,6 +44,8 @@ def _normalize_stripe_event(event: object) -> dict:
         return event
 
     to_dict_recursive = getattr(event, "to_dict_recursive", None)
+    if not callable(to_dict_recursive):
+        to_dict_recursive = getattr(event, "_to_dict_recursive", None)
     if callable(to_dict_recursive):
         normalized = to_dict_recursive()
         if isinstance(normalized, dict):

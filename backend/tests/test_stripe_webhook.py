@@ -9,6 +9,7 @@ os.environ["SUPABASE_SERVICE_KEY"] = "mock-service-key"
 
 from unittest.mock import MagicMock, patch
 import pytest
+import stripe as stripe_sdk
 from fastapi.testclient import TestClient
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -36,15 +37,16 @@ client = TestClient(app)
 
 
 def test_normalize_stripe_sdk_event_object() -> None:
-    class StripeEventObject:
-        def to_dict_recursive(self) -> dict:
-            return {
-                "id": "evt_sdk_object",
-                "type": "customer.subscription.updated",
-                "data": {"object": {}},
-            }
+    event = stripe_sdk.Event.construct_from(
+        {
+            "id": "evt_sdk_object",
+            "type": "customer.subscription.updated",
+            "data": {"object": {}},
+        },
+        "test",
+    )
 
-    assert _normalize_stripe_event(StripeEventObject()) == {
+    assert _normalize_stripe_event(event) == {
         "id": "evt_sdk_object",
         "type": "customer.subscription.updated",
         "data": {"object": {}},
