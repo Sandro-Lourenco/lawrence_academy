@@ -9,6 +9,15 @@
 
 Assim, o veredito global continua **BLOCKED para produção**, mas os bloqueios 1 e 4 da seção 8 foram resolvidos especificamente para staging. O próximo gate de implementação continua dependendo do baseline aprovado e das decisões de negócio de Gate 0C; nenhuma chave LIVE deve ser inserida antes disso.
 
+Bloqueios operacionais confirmados em 2026-09-16:
+
+1. Render Production vazio; criar os serviços `starter` é uma nova ativação potencialmente faturável.
+2. Supabase presumido de produção pausado; o painel avisa que `Resume` retoma cobrança de compute.
+3. Stripe LIVE não ativado; o onboarding exige decisão irreversível de tipo de empresa, KYC fiscal e conta bancária do titular.
+4. Não existe endpoint/webhook LIVE para validar enquanto 1–3 não forem resolvidos.
+
+Esses passos exigem decisão e participação do proprietário. Não são substituíveis por configuração técnica em TEST e não devem ser automatizados com dados presumidos.
+
 ## 1. Veredito
 
 **BLOCKED.** O modelo conceitual revisado está coerente, mas o sistema não está pronto para M1 porque o runtime real ainda não foi vinculado ao Supabase/Stripe observados e o baseline do projeto consultado revelou drift P1 anterior ao payment recovery.

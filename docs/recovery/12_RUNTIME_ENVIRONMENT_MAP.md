@@ -18,6 +18,10 @@ O vínculo de **staging** deixou de ser apenas estático e foi verificado de pon
 
 O ambiente **Production** do projeto Render foi inspecionado e está vazio (`All (0)`, `Services (0)`). Portanto, staging TEST está operacional, mas não existe hoje um backend Render de produção para receber chaves LIVE ou webhooks LIVE. Criar os serviços declarados como `starter` em `render.yaml` pode gerar custo e exige decisão operacional explícita.
 
+O projeto Supabase anteriormente presumido como produção (`xblesfvcrnbsfhlmoffz`) foi reinspecionado e está **paused**. O próprio painel informa que a retomada volta a cobrar por tamanho de compute e horas ativas. Ele não deve ser retomado nem adotado como produção sem aprovação explícita e sem repetir o baseline.
+
+A conta Stripe LIVE acessível (`acct_1TY5QB0xwPwdDQDu`) ainda não foi ativada: o Dashboard abre o onboarding inicial e exige localização/tipo de empresa, confirmação de decisão irreversível e, nas etapas seguintes, CPF/CNPJ e conta bancária correspondentes. Nenhum dado de KYC foi preenchido e nenhum endpoint LIVE foi criado.
+
 O Gate 0A passa para **VERIFIED FOR STAGING / BLOCKED FOR PRODUCTION**. Isso autoriza testes e correções em TEST, mas não autoriza reutilizar o Supabase de staging, a conta Stripe TEST ou o endpoint TEST em produção.
 
 Data da verificação: 2026-09-05  
