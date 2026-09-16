@@ -50,6 +50,19 @@ def _stripe_subscription_period(subscription: typing.Any) -> tuple[int, int]:
     return int(start), int(end)
 
 
+def _stripe_subscription_metadata(
+    subscription: typing.Any,
+) -> tuple[str | None, str | None]:
+    """Read trusted checkout metadata from dicts and Stripe SDK objects."""
+    metadata = _resource_value(subscription, "metadata") or {}
+    user_id = _resource_value(metadata, "user_id")
+    course_id = _resource_value(metadata, "course_id")
+    return (
+        str(user_id) if user_id else None,
+        str(course_id) if course_id else None,
+    )
+
+
 def _stripe_subscription_price(subscription: typing.Any) -> tuple[float, str]:
     """Extract the recurring price from current and legacy Stripe payloads."""
     items = getattr(subscription, "items", None)
@@ -188,8 +201,7 @@ class StripeWebhookProcessor:
 
         # Obter detalhes da assinatura diretamente da API do Stripe
         stripe_sub = typing.cast(typing.Any, stripe.Subscription.retrieve(stripe_sub_id))
-        user_id = stripe_sub.metadata.get("user_id")
-        course_id = stripe_sub.metadata.get("course_id")
+        user_id, course_id = _stripe_subscription_metadata(stripe_sub)
 
         # Fallback: buscar perfil pelo e-mail caso não tenha user_id no metadata
         if not user_id and customer_email:

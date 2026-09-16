@@ -24,6 +24,7 @@ from src.modules.payments.interface.api.routes import (
 from src.modules.payments.application.process_webhook import StripeWebhookProcessor
 from src.modules.payments.application.process_webhook import (
     _stripe_invoice_subscription_id,
+    _stripe_subscription_metadata,
     _stripe_subscription_period,
 )
 from src.core.errors.handlers import install_error_handlers
@@ -85,6 +86,24 @@ def test_subscription_period_supports_basil_item_level_fields():
     }
 
     assert _stripe_subscription_period(subscription) == (1717171717, 1717271717)
+
+
+def test_subscription_metadata_supports_stripe_sdk_objects() -> None:
+    subscription = stripe_sdk.Subscription.construct_from(
+        {
+            "id": "sub_sdk_object",
+            "metadata": {
+                "user_id": "student_uuid",
+                "course_id": "course_uuid",
+            },
+        },
+        "test",
+    )
+
+    assert _stripe_subscription_metadata(subscription) == (
+        "student_uuid",
+        "course_uuid",
+    )
 
 
 @pytest.mark.asyncio
